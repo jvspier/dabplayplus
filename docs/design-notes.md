@@ -30,19 +30,16 @@ design session.
 - **Lists and tiles show station names only** (no multiplex/channel line, no genre).
 - **Keep Recent**, with a **Clear** button (with undo).
 - **Settings:** Display Day/Auto/Night, Layout (bar/panel), Driver side (left/right), Resume last station,
-  Edit favourites, Download station logos (when online), Follow station when the signal drops. Later: FM
-  fallback, traffic announcements.
+  Edit favourites, Download station logos (when online), Follow station when the signal drops. Later: traffic announcements.
 - **Resolution:** design baseline 1280×720 (the owner's Dudu3), but it must scale properly to other head units
   (2000×1200 etc.): the app is intended for the **Play Store** eventually.
 
 - **Favourites: no hard limit of 8** (owner, 2026-09-25). The first 8 fit one screen (4×2, no scrolling for
   normal use); more favourites scroll vertically with row snapping. Soft cap 24. Skip back/forward cycles
   through all favourites.
-- **FM: only through the dongle** (owner, 2026-09-25), not the head unit's own tuner (no standard Android API;
-  vendor-specific). The UI makes clear it's FM via the DAB dongle, and the option appears only when the connected
-  dongle supports FM. **Tested 2026-09-25: the DTR-100 can't do FM usefully**: the chip's FM mode runs, but the RF front end
-  passes almost no 88–108 MHz and no FM audio reaches USB. So no dongle we support has FM today; the capability flag stays false
-  and the FM option stays hidden until a dongle that can do it is supported.
+- **FM is dropped from the plan** (owner, 2026-09-25): no FM in the app. Tested on the DTR-100: its RF front end passes
+  almost no 88–108 MHz and no FM audio reaches USB; the head unit's own tuner has no standard Android API. The test
+  results stay in `findings.md` (2026-09-25) for reference.
 - **Dongle support: pluggable tuner drivers** behind one interface; the DAB stack (FIC, audio, PAD, UI) is
   shared. Launch with the 16c0:05dc family fully supported (port the firmware ≤1 and ≥5 code paths from the
   decompile too); other families (AP8224/FC8080 mass-storage, Siano, maybe RTL-SDR later) are "experimental"

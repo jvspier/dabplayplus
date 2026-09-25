@@ -44,7 +44,7 @@ and the design decisions in `docs/design-notes.md`.
 |---|---|---|
 | `:dab-core` | FIC/FIG parsing (0/0,1,2,6,9,13,21,24; 1/x), service model, DAB+ superframe (firecode, RS(120,110), AU split), ASC building, PAD (X-PAD, DLS, DL+, MOT slideshow), DLS → "Artist – Title" normaliser with per-broadcaster rules | **none** (plain Kotlin/JVM, so fast unit tests) |
 | `:tuner-api` | `DabTuner` interface, capabilities, driver registry (match by VID/PID + probe) | USB types only |
-| `:driver-dtr100` | Port of `tools/dtr100.py`: MCU commands, register access, init, full tune, FIC read, sub-channel start/stop, MSC read; firmware paths ≤1, 2–4, ≥5; later FM | USB host API |
+| `:driver-dtr100` | Port of `tools/dtr100.py`: MCU commands, register access, init, full tune, FIC read, sub-channel start/stop, MSC read; firmware paths ≤1, 2–4, ≥5 | USB host API |
 | `:driver-replay` | Plays back `captures/raw` recordings as if a dongle were attached, for development in the emulator and UI work without hardware | none |
 | `:audio` | AAC via MediaCodec (decoder chosen by name: `c2.android.aac.decoder` / `OMX.google.aac.decoder`, then fallback), MP2 via an own Kotlin Layer II decoder, AudioTrack output, audio focus and ducking | media |
 | `:data` | Room DB, DataStore settings, image cache | Room, DataStore |
@@ -54,7 +54,7 @@ and the design decisions in `docs/design-notes.md`.
 ## Tuner driver interface (sketch)
 ```kotlin
 interface DabTuner {
-    val capabilities: Capabilities            // bands (III, L, FM), max parallel sub-channels, fwLevel
+    val capabilities: Capabilities            // bands (III, L), max parallel sub-channels, fwLevel
     suspend fun open(); suspend fun close()
     suspend fun tune(freqKhz: Int): TuneResult  // Locked(signal) | NoSignal(reason)
     val fic: Flow<ByteArray>                  // 384-byte FIC blocks (or whole FIBs)
@@ -82,8 +82,7 @@ Everything above the interface (FIC parsing, audio, PAD, UI) is shared. A dongle
    verify against the FIC in the background, target < 1.5 s.
 4. MSC → superframe decoder → AUs → MediaCodec → AudioTrack. PAD from the AUs → DLS / slides → UI.
 5. **Service following**: a signal watchdog. On loss (> N s), try the same SId on other known ensembles
-   (DB + FIG 0/24 + 0/21), then the **FM fallback** via the linked RDS PI + frequencies (FIG 0/6 + 0/21) if
-   the dongle supports FM.
+   (DB + FIG 0/24 + 0/21). No FM fallback: FM is out of scope (see design-notes).
 
 ## Background, boot and USB (head-unit specifics)
 - `RadioService` is a Media3 `MediaSessionService`, foreground type `mediaPlayback`. The MediaSession gives
@@ -120,5 +119,4 @@ Everything above the interface (FIC parsing, audio, PAD, UI) is shared. A dongle
 - **Vendor AAC decoders** on some head units: choose the platform FDK decoder by name. Verify on the Dudu3.
 - **ACC sleep/wake** and USB re-enumeration behaviour on the Dudu3 (and the ~2 s first-enumeration delay).
 - Dongle firmware levels other than 4 are untested (the code paths come from the decompile).
-- The FM audio path of this chip is still unknown (a reverse-engineering step with the dongle).
 - Build tooling: Gradle + AGP need a JDK AGP supports (installing JDK 21 alongside 25 may be needed).

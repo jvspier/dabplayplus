@@ -103,7 +103,7 @@ Fallbacks:
 - Nice to have: service following (switch frequency when the signal drops) and a
   slideshow/logo view.
 - Full list of UI/design decisions from the design session: `docs/design-notes.md` (layout 1a/1b selectable,
-  driver-side mirroring, 4:3 artwork, "Artist – Title", FM via the dongle only, pluggable dongle drivers).
+  driver-side mirroring, 4:3 artwork, "Artist – Title", pluggable dongle drivers; FM is out of scope).
 - **Offline first:** the head unit may have no internet. Everything comes from the DAB
   broadcast itself: the station list from a band scan (FIC: FIG 0/1, 0/2, 1/x), stored
   locally; presets store SId + channel + sub-channel; service following uses FIG 0/6
