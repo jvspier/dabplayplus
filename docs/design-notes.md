@@ -40,8 +40,9 @@ design session.
   through all favourites.
 - **FM: only through the dongle** (owner, 2026-09-25), not the head unit's own tuner (no standard Android API;
   vendor-specific). The UI makes clear it's FM via the DAB dongle, and the option appears only when the connected
-  dongle supports FM. The FM audio path of this chip still has to be reverse-engineered (vendor `FUN_00074920`,
-  band 4; H3.23.8 has FM/RDS strings).
+  dongle supports FM. **Tested 2026-09-25: the DTR-100 can't do FM usefully**: the chip's FM mode runs, but the RF front end
+  passes almost no 88–108 MHz and no FM audio reaches USB. So no dongle we support has FM today; the capability flag stays false
+  and the FM option stays hidden until a dongle that can do it is supported.
 - **Dongle support: pluggable tuner drivers** behind one interface; the DAB stack (FIC, audio, PAD, UI) is
   shared. Launch with the 16c0:05dc family fully supported (port the firmware ≤1 and ≥5 code paths from the
   decompile too); other families (AP8224/FC8080 mass-storage, Siano, maybe RTL-SDR later) are "experimental"

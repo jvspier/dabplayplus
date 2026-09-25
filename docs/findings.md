@@ -20,7 +20,7 @@ this file as work progresses.
   2. Smaller PoC gaps: MP2 (DAB classic) services (none received here), ~~service switching without re-init
      + proper stop~~ (verified 2026-09-25: 0.90 s switch), firmware ≤1/≥5 paths
      (implemented from the decompile, untestable here), signal level for the UI (u1 / page 9 regs 0x83..0x86 / 0x42 status bytes 4..5),
-     DLS artist/title split rules per broadcaster, FM (vendor `FUN_00074920`) for DAB→FM fallback.
+     DLS artist/title split rules per broadcaster. ~~FM~~: tried 2026-09-25, this dongle can't receive FM usefully (RF front end).
   3. Then the **Android design session with the owner** before writing any app code.
 - Not a git repo yet (`git init` offered, not done).
 
@@ -398,6 +398,25 @@ Files in `vendor/` (gitignored), unzipped to `decompiled/<ver>/apk/`:
   - [inference] Floor for a DAB+ switch ≈ 0.6–0.9 s: the chip's time de-interleaver (≈ 384 ms, 16 CIFs) + waiting for
     the next superframe start (≤ 120 ms) + collecting one superframe (120 ms) + the first decoder frame. So the
     architecture target is **< 1 s within an ensemble** (≈ 1.5 s across ensembles), not < 0.5 s.
+
+- **2026-09-25, FM via the dongle** (`tools/fm_test.py`, logs `captures/2026-09-25-fm-*.log`):
+  - [verified in code] The vendor library contains a **complete FM API that neither app version (3.26, H3.23.8) ever calls**
+    (dead code, likely from the chip vendor's reference driver): `FUN_00074aa0` init (FM clock plan, ≈ 70 register writes, FM
+    RF table of 78 pairs), `FUN_00074920` tune (76–108 MHz, 50 kHz steps, FM PLL table of 642 words, ratio ≈ 686 = 2× band III),
+    `FUN_00074100`/`745e0`/`74700` seek (frequency-offset S-curve via page 6 regs 0xFC–0xFE + RSSI), `FUN_00074470` RSSI (page F regs
+    0/2/4), `FUN_00074510` status (page 6 0xEF stereo, 0xDB, 0xEE quality), `FUN_00077f10` audio start (same audio buffer as DAB).
+    The "FM %d freq / RDS PI" strings in H3.23.8 belong to the FIG 0/21 parser, not to FM reception.
+  - [verified] Ported literally and run: init OK, the FM PLL locks on every frequency, the seek detector finds weak S-curves at **104.4, 96.0 and
+    88.0 MHz** (104.4/88.0 = NPO Radio 1/2 FM frequencies from FIG 0/21), but all are below the vendor threshold (±800).
+  - [verified] In FM mode the RF gain registers sit at maximum on every frequency (page F [0x78, 0x18, 0x7F]; with DAB on 11C: [0x12, 0x58, 0x16]),
+    so hardly any FM energy reaches the chip. **No FM audio**: the chip's audio buffer stays empty (page 9 reg 0x33 = 0) and the MCU returns 0 bytes.
+  - [hypothesis] The dongle's RF input is band-filtered for DAB band III (the passives at the top edge of the module), and the antenna
+    is a band III window antenna, so this unit is **not usable for FM**. It's unknown whether the MCU firmware would even forward FM audio.
+    FM would need a dongle whose front end passes 88–108 MHz; the app only offers FM when the connected dongle supports it (capability flag).
+  - [verified] Afterwards DAB still works; power off (`10 00 00 00` → `90`) + on + init is a clean reset. DAB quality was worse than usual
+    (q ≈ 110–140 vs 4–17, a few FIB CRC errors) at unchanged signal levels (u1 15–23 k) on all ensembles, before and after the power
+    cycle. That points to local interference/antenna. MCU status bytes 4..5 = `d0 07` (2000) also appear in normal DAB logs (idle value),
+    so it isn't FM leftover state.
 
 ## Open questions
 1. ~~What is the VID:PID of this unit?~~ Answered: 16c0:05dc, vendor-specific bulk.

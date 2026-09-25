@@ -60,5 +60,7 @@ t = {
     # band 2 (L-band): index (f_khz - 1452960) / 1712
     "lband_pll": u32(0x000E7F00, 32),
     "lband_plan": u32(0x000E7D80, 32),
+    # FUN_00079080 band 4 (FM): PLL word per 50 kHz step, index (f_khz - 75950) / 50  (76.0..108.0 MHz)
+    "fm_pll": u32(0x000E8040, 642),
 }
 json.dump(t, sys.stdout, indent=1)

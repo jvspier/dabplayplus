@@ -15,3 +15,4 @@ One line per capture: filename, date, action performed, notes.
 | `raw/2026-09-25-5B-{radionl,tukker_fm,the_groove,sunrise_fm}.msc` | 2026-09-25 | `dtr100.py play --raw --seconds 20` | HE-AAC v2 (PS) samples, 48 kbit/s |
 | `android/*` | 2026-09-25 | `tools/export_aus.py` + MediaCodecTest on emulators API 26/29 | AU files, faad2 reference WAVs, MediaCodec PCM (`*.api26.pcm`, `*.api29.pcm`) |
 | `2026-09-25-switch-538-qmusic.log`, `switch-a.wav`, `switch-b.wav` | 2026-09-25 | `tools/switch_test.py --channel 11C --a 538 --b Qmusic` | Proper stop + switch without re-init: 0.90 s |
+| `2026-09-25-fm-{first,diag,seek,104.4}.log`, `2026-09-25-fm.bin` | 2026-09-25 | `tools/fm_test.py` + diagnostics | FM via the vendor's dead-code FM API: PLL locks, weak S-curves at 88.0/96.0/104.4, gain at max, no audio |
