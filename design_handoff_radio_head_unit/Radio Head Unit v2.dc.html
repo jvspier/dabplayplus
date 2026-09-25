@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/nocturne-c7038f67-6f07-421a-9186-69839d8e581d/styles.css">
+<script src="_ds/nocturne-c7038f67-6f07-421a-9186-69839d8e581d/_ds_bundle.js"></script>
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+<script src="./image-slot.js"></script>
+<style>[data-theme=dark]{--hu-rail:#12131f;--hu-g1:#3d2244;--hu-g2:#232846;--hu-panel:linear-gradient(165deg,#43264a 0%,#2c2239 50%,#1c1e2c 100%);--hu-np:#43264a;--hu-live-tile:linear-gradient(150deg,#4a2a3c,#2b2135);--hu-live-sub:#FF9A73;--hu-az:#FFB547;--hu-sticky:rgba(22,24,38,.82)}
+[data-theme=light]{--color-bg:#F3F2F7;--color-surface:#FFFFFF;--color-text:#1B1C28;--color-divider:rgba(27,28,40,.1);--color-neutral-100:#292b31;--color-neutral-200:#3f424d;--color-neutral-300:#4a4e5c;--color-neutral-400:#5d6170;--color-neutral-500:#6f7385;--color-neutral-600:#9397ab;--color-neutral-700:#b2b6ca;--color-neutral-800:#dfe2ee;--color-neutral-900:#eceef5;--shadow-sm:0 1px 2px rgba(40,30,70,.06),0 6px 18px rgba(40,30,70,.06);--shadow-md:0 2px 6px rgba(40,30,70,.08),0 18px 48px rgba(40,30,70,.12);--hu-rail:#FFFFFF;--hu-g1:#FFDCCB;--hu-g2:#E4E6FF;--hu-panel:linear-gradient(165deg,#FFE3D5 0%,#F7E8F3 55%,#FFFFFF 100%);--hu-np:#FFDCCB;--hu-live-tile:linear-gradient(150deg,#FFE7DC,#FFF6F1);--hu-live-sub:#C8431A;--hu-az:#B86E00;--hu-sticky:rgba(243,242,247,.86)}
+body{margin:0;background:#0f1019}a{color:var(--color-accent)}a:hover{color:var(--color-accent-300)}</style>
+</helmet>
+<section style="padding:64px;display:flex;flex-direction:column;gap:32px;font-family:var(--font-body);color:var(--color-text)">
+<div style="display:flex;flex-direction:column;gap:6px;max-width:900px">
+<div style="font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-neutral-500)">Turn 2 · color pass · 1280×720 head unit</div>
+<div style="font-size:32px;font-weight:500">Radio streaming, two layouts</div>
+<div style="font-size:17px;color:var(--color-neutral-400)"><a href="#1a">1a</a> puts big station tiles first with a mini player bar. <a href="#1b">1b</a> keeps a player panel docked beside every screen.</div>
+</div>
+<div style="display:flex;gap:64px;flex-wrap:wrap;align-items:flex-start">
+
+<div id="1a" style="display:flex;flex-direction:column;gap:20px">
+<div style="display:flex;align-items:center;gap:12px"><span style="font-size:15px;font-weight:600;padding:4px 10px;border-radius:6px;background:var(--color-accent-900);color:var(--color-accent-300);box-shadow:inset 0 0 0 1px var(--color-accent-700)">1a</span><span style="font-size:20px;font-weight:500">Tiles first + mini player bar</span></div>
+<div style="display:flex;flex-direction:column;gap:40px;color:var(--color-text)" data-theme="{{ theme }}">
+
+<!-- 1a HOME -->
+<div data-screen-label="1a Home" style="width:1280px;height:720px;display:flex;background:radial-gradient(ellipse at 90% 115%,var(--hu-g1) 0%,transparent 55%),radial-gradient(ellipse at 20% -10%,var(--hu-g2) 0%,var(--color-bg) 60%);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-md)">
+<div style="width:120px;flex:none;position:relative;display:flex;flex-direction:column;align-items:center;padding:22px 0;gap:14px">
+<div style="font-size:24px;font-weight:500;margin-bottom:10px">14:32</div>
+<sc-for list="{{ nav.home }}" as="n" hint-placeholder-count="4"><div style="width:92px;height:92px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:42px;background:{{ n.bg }};color:{{ n.fg }};box-shadow:{{ n.ring }}"><i class="{{ n.icon }}"></i></div></sc-for>
+<div style="position:absolute;right:0;top:0;bottom:0;width:1px;background:linear-gradient(transparent,var(--color-divider) 48px,var(--color-divider) calc(100% - 48px),transparent)"></div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;padding:26px 32px 18px;gap:18px;min-width:0">
+<div style="font-size:34px;font-weight:500;letter-spacing:-.015em">Favorites</div>
+<div style="flex:1;display:grid;grid-template-columns:{{ cols }};grid-auto-rows:1fr;gap:16px">
+<sc-for list="{{ homeStations }}" as="s" hint-placeholder-count="6">
+<div style="position:relative;border-radius:14px;background:{{ s.tileBg }};box-shadow:{{ s.tileRing }};padding:18px;display:flex;flex-direction:column;justify-content:space-between;gap:12px;min-height:0">
+<div style="width:{{ logoSize }};height:{{ logoSize }}"><image-slot id="1a-home-{{ s.id }}" shape="rounded" radius="10" placeholder="Logo"></image-slot></div>
+<div style="display:flex;flex-direction:column;gap:2px">
+<div style="font-size:26px;font-weight:500;line-height:1.15">{{ s.name }}</div>
+<div style="font-size:18px;color:{{ s.subFg }}">{{ s.sub }}</div>
+</div>
+<div style="position:absolute;top:16px;right:16px;display:flex;align-items:center;gap:10px;font-size:30px"><sc-if value="{{ s.playing }}" hint-placeholder-val="{{ false }}"><i class="ph-bold ph-waveform" style="color:#FF6A3D"></i></sc-if><i class="ph-fill ph-heart" style="color:#FF4D8A"></i></div>
+</div>
+</sc-for>
+</div>
+<div style="height:104px;flex:none;border-radius:14px;background:var(--color-surface);box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:18px;padding:12px">
+<div style="width:80px;height:80px;flex:none"><image-slot id="1a-mini-home" shape="rounded" radius="8" placeholder="Logo"></image-slot></div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><div style="font-size:24px;font-weight:500">Coastline FM</div><div style="font-size:18px;color:var(--color-neutral-400);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Harbour Lights · The Tides</div></div>
+<div style="width:80px;height:80px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:38px;color:var(--color-neutral-200)"><i class="ph-fill ph-skip-back"></i></div>
+<div style="width:80px;height:80px;border-radius:40px;display:flex;align-items:center;justify-content:center;font-size:38px;color:#FFF5F0;background:linear-gradient(145deg,#FF8A4C,#FF5A36);box-shadow:0 10px 32px -8px rgba(255,90,54,.75)"><i class="ph-fill ph-pause"></i></div>
+<div style="width:80px;height:80px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:38px;color:var(--color-neutral-200)"><i class="ph-fill ph-skip-forward"></i></div>
+</div>
+</div>
+</div>
+
+<!-- 1a STATIONS -->
+<div data-screen-label="1a Stations" style="width:1280px;height:720px;display:flex;background:radial-gradient(ellipse at 90% 115%,var(--hu-g1) 0%,transparent 55%),radial-gradient(ellipse at 20% -10%,var(--hu-g2) 0%,var(--color-bg) 60%);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-md)">
+<div style="width:120px;flex:none;position:relative;display:flex;flex-direction:column;align-items:center;padding:22px 0;gap:14px">
+<div style="font-size:24px;font-weight:500;margin-bottom:10px">14:32</div>
+<sc-for list="{{ nav.stations }}" as="n" hint-placeholder-count="4"><div style="width:92px;height:92px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:42px;background:{{ n.bg }};color:{{ n.fg }};box-shadow:{{ n.ring }}"><i class="{{ n.icon }}"></i></div></sc-for>
+<div style="position:absolute;right:0;top:0;bottom:0;width:1px;background:linear-gradient(transparent,var(--color-divider) 48px,var(--color-divider) calc(100% - 48px),transparent)"></div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;padding:26px 32px 18px;gap:18px;min-width:0">
+<div style="display:flex;align-items:center;gap:16px">
+<div style="font-size:34px;font-weight:500;letter-spacing:-.015em">All stations</div>
+<div style="font-size:20px;color:var(--color-neutral-500);margin-top:6px">{{ stationCount }}</div>
+<div style="flex:1"></div>
+<div onClick="{{ onScan }}" style="height:64px;padding:0 26px 0 20px;border-radius:14px;display:flex;align-items:center;gap:10px;font-size:20px;font-weight:600;background:#4C8DFF;color:#0B1733;box-shadow:0 10px 28px -10px rgba(76,141,255,.8);cursor:pointer;user-select:none"><i class="{{ scanIcon }}" style="font-size:28px"></i>{{ scanLabel }}</div>
+</div>
+<div data-stations="a" style="flex:1;min-height:0;display:flex;gap:14px;position:relative">
+<div data-scroller="a" onScroll="{{ onScroll }}" style="flex:1;min-width:0;overflow-y:auto;position:relative;scrollbar-width:none;overscroll-behavior:contain;mask-image:linear-gradient(to bottom,#000 calc(100% - 64px),transparent);padding-bottom:56px">
+<sc-for list="{{ stationGroups }}" as="g" hint-placeholder-count="3">
+<div data-letter-group="{{ g.letter }}" style="position:relative">
+<div style="position:sticky;top:0;z-index:2;height:40px;display:flex;align-items:center;padding:0 12px;font-size:18px;font-weight:600;letter-spacing:.04em;color:var(--hu-az);background:var(--hu-sticky);backdrop-filter:blur(12px);border-radius:10px">{{ g.letter }}</div>
+<sc-for list="{{ g.items }}" as="s" hint-placeholder-count="3">
+<div style="position:relative;height:84px;overflow:hidden;border-radius:14px">
+<div style="position:absolute;left:0;top:0;bottom:0;width:{{ s.revealW }};overflow:hidden;background:#FF4D8A;color:#FFF5F7;display:flex;align-items:center;transition:width .3s cubic-bezier(.2,.8,.2,1)"><div style="display:flex;align-items:center;gap:10px;padding-left:24px;font-size:20px;font-weight:600;white-space:nowrap"><i class="{{ s.swipeIcon }}" style="font-size:32px"></i>{{ s.swipeLabel }}</div></div>
+<div data-id="{{ s.id }}" onPointerDown="{{ swipeDown }}" onPointerMove="{{ swipeMove }}" onPointerUp="{{ swipeUp }}" onPointerCancel="{{ swipeUp }}" style="position:absolute;inset:0;display:flex;align-items:center;gap:18px;padding:0 4px 0 8px;touch-action:pan-y;user-select:none;cursor:grab;transform:{{ s.tx }};transition:transform .3s cubic-bezier(.2,.8,.2,1)">
+<div style="width:60px;height:60px;flex:none">
+<sc-if value="{{ s.hasLogo }}" hint-placeholder-val="{{ true }}"><image-slot id="st-a-{{ s.id }}" shape="rounded" radius="10" placeholder="Logo"></image-slot></sc-if>
+<sc-if value="{{ s.noLogo }}" hint-placeholder-val="{{ false }}"><div style="width:60px;height:60px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;background:{{ s.monoBg }};color:{{ s.monoFg }}">{{ s.initials }}</div></sc-if>
+</div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><div style="font-size:24px;font-weight:500;color:{{ s.nameFg }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.name }}</div><div style="font-size:17px;color:var(--color-neutral-400)">{{ s.genre }}</div></div>
+<sc-if value="{{ s.playing }}" hint-placeholder-val="{{ false }}"><i class="ph-bold ph-waveform" style="font-size:30px;color:#FF6A3D"></i></sc-if>
+<div data-id="{{ s.id }}" onClick="{{ onFavClick }}" style="width:64px;height:64px;flex:none;border-radius:32px;display:flex;align-items:center;justify-content:center;font-size:32px;color:{{ s.heartFg }};cursor:pointer"><i class="{{ s.heartIcon }}"></i></div>
+<div style="position:absolute;left:86px;right:0;bottom:0;height:1px;background:linear-gradient(90deg,var(--color-divider) calc(100% - 48px),transparent)"></div>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-for>
+</div>
+<div data-rail="a" onPointerDown="{{ railDown }}" onPointerMove="{{ railMove }}" onPointerUp="{{ railUp }}" onPointerCancel="{{ railUp }}" style="width:52px;flex:none;min-height:0;overflow:hidden;border-radius:26px;background:var(--color-surface);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;padding:8px 0;touch-action:none;user-select:none;cursor:pointer">
+<sc-for list="{{ railA }}" as="r" hint-placeholder-count="27"><div style="flex:1 1 0;min-height:0;display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1;font-weight:{{ r.weight }};color:{{ r.fg }}">{{ r.l }}</div></sc-for>
+</div>
+<sc-if value="{{ bubbleAShow }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;right:80px;top:50%;transform:translateY(-50%);width:120px;height:120px;border-radius:28px;background:#FFB547;color:#2a1a00;display:flex;align-items:center;justify-content:center;font-size:64px;font-weight:600;box-shadow:0 16px 40px -10px rgba(255,181,71,.6);pointer-events:none">{{ bubbleA }}</div></sc-if>
+</div>
+<div style="height:104px;flex:none;border-radius:14px;background:var(--color-surface);box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:18px;padding:12px">
+<div style="width:80px;height:80px;flex:none"><image-slot id="1a-mini-stations" shape="rounded" radius="8" placeholder="Logo"></image-slot></div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><div style="font-size:24px;font-weight:500">Coastline FM</div><div style="font-size:18px;color:var(--color-neutral-400);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Harbour Lights · The Tides</div></div>
+<div style="width:80px;height:80px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:38px;color:var(--color-neutral-200)"><i class="ph-fill ph-skip-back"></i></div>
+<div style="width:80px;height:80px;border-radius:40px;display:flex;align-items:center;justify-content:center;font-size:38px;color:#FFF5F0;background:linear-gradient(145deg,#FF8A4C,#FF5A36);box-shadow:0 10px 32px -8px rgba(255,90,54,.75)"><i class="ph-fill ph-pause"></i></div>
+<div style="width:80px;height:80px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:38px;color:var(--color-neutral-200)"><i class="ph-fill ph-skip-forward"></i></div>
+</div>
+</div>
+</div>
+
+<!-- 1a NOW PLAYING -->
+<div data-screen-label="1a Now playing" style="width:1280px;height:720px;display:flex;background:radial-gradient(ellipse at 90% 115%,var(--hu-g1) 0%,transparent 55%),radial-gradient(ellipse at 20% -10%,var(--hu-g2) 0%,var(--color-bg) 60%);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-md)">
+<div style="width:120px;flex:none;position:relative;display:flex;flex-direction:column;align-items:center;padding:22px 0;gap:14px">
+<div style="font-size:24px;font-weight:500;margin-bottom:10px">14:32</div>
+<sc-for list="{{ nav.now }}" as="n" hint-placeholder-count="4"><div style="width:92px;height:92px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:42px;background:{{ n.bg }};color:{{ n.fg }};box-shadow:{{ n.ring }}"><i class="{{ n.icon }}"></i></div></sc-for>
+<div style="position:absolute;right:0;top:0;bottom:0;width:1px;background:linear-gradient(transparent,var(--color-divider) 48px,var(--color-divider) calc(100% - 48px),transparent)"></div>
+</div>
+<div style="flex:1;display:flex;align-items:center;gap:56px;padding:0 56px">
+<div style="width:420px;height:420px;flex:none;border-radius:18px;box-shadow:0 0 0 1px var(--color-neutral-800),0 24px 80px -16px rgba(255,106,61,.35)">
+<sc-if value="{{ showCover }}" hint-placeholder-val="{{ true }}"><image-slot id="1a-now-cover" shape="rounded" radius="18" placeholder="Cover art (from stream metadata)"></image-slot></sc-if>
+<sc-if value="{{ showLogo }}" hint-placeholder-val="{{ false }}"><image-slot id="1a-now-logo" shape="rounded" radius="18" placeholder="Station logo (no cover art)"></image-slot></sc-if>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0">
+<div style="display:flex;align-items:center;gap:12px">
+<div style="width:48px;height:48px;flex:none"><image-slot id="1a-now-chip" shape="rounded" radius="8" placeholder="Logo"></image-slot></div>
+<div style="display:flex;flex-direction:column"><div style="font-size:20px;font-weight:500">Coastline FM</div><div style="display:flex;align-items:center;gap:6px;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-neutral-300)"><span style="padding:3px 8px;border-radius:5px;background:#FF3B4E;color:#FFF5F5;font-weight:600;letter-spacing:.08em;font-size:13px">LIVE</span>Pop &amp; Hits</div></div>
+</div>
+<div style="font-size:52px;font-weight:500;letter-spacing:-.02em;line-height:1.05;margin-top:24px;text-wrap:pretty">Harbour Lights</div>
+<div style="font-size:28px;color:var(--color-neutral-300)">The Tides</div>
+<div style="display:flex;align-items:center;gap:20px;margin-top:36px">
+<div style="width:104px;height:104px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:48px;color:var(--color-neutral-200);background:var(--color-surface)"><i class="ph-fill ph-skip-back"></i></div>
+<div style="width:136px;height:136px;border-radius:68px;display:flex;align-items:center;justify-content:center;font-size:60px;color:#FFF5F0;background:linear-gradient(145deg,#FF8A4C,#FF5A36);box-shadow:0 10px 32px -8px rgba(255,90,54,.75)"><i class="ph-fill ph-pause"></i></div>
+<div style="width:104px;height:104px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:48px;color:var(--color-neutral-200);background:var(--color-surface)"><i class="ph-fill ph-skip-forward"></i></div>
+<div style="width:104px;height:104px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:44px;color:#FF4D8A;background:rgba(255,77,138,.14);margin-left:12px"><i class="ph-fill ph-heart"></i></div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 1a RECENT -->
+<div data-screen-label="1a Recent" style="width:1280px;height:720px;display:flex;background:radial-gradient(ellipse at 90% 115%,var(--hu-g1) 0%,transparent 55%),radial-gradient(ellipse at 20% -10%,var(--hu-g2) 0%,var(--color-bg) 60%);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-md)">
+<div style="width:120px;flex:none;position:relative;display:flex;flex-direction:column;align-items:center;padding:22px 0;gap:14px">
+<div style="font-size:24px;font-weight:500;margin-bottom:10px">14:32</div>
+<sc-for list="{{ nav.recent }}" as="n" hint-placeholder-count="4"><div style="width:92px;height:92px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:42px;background:{{ n.bg }};color:{{ n.fg }};box-shadow:{{ n.ring }}"><i class="{{ n.icon }}"></i></div></sc-for>
+<div style="position:absolute;right:0;top:0;bottom:0;width:1px;background:linear-gradient(transparent,var(--color-divider) 48px,var(--color-divider) calc(100% - 48px),transparent)"></div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;padding:26px 32px 18px;gap:18px;min-width:0">
+<div style="font-size:34px;font-weight:500;letter-spacing:-.015em">Recently played</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px">
+<sc-for list="{{ recent }}" as="s" hint-placeholder-count="4">
+<div style="height:96px;border-radius:14px;background:var(--color-surface);display:flex;align-items:center;gap:20px;padding:0 12px">
+<div style="width:72px;height:72px;flex:none"><image-slot id="1a-recent-{{ s.id }}" shape="rounded" radius="8" placeholder="Logo"></image-slot></div>
+<div style="flex:1;display:flex;flex-direction:column;gap:2px"><div style="font-size:26px;font-weight:500">{{ s.name }}</div><div style="font-size:18px;color:var(--color-neutral-400)">{{ s.when }}</div></div>
+<div style="width:72px;height:72px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:34px;color:{{ s.heartFg }}"><i class="{{ s.heartIcon }}"></i></div><div style="width:72px;height:72px;border-radius:36px;display:flex;align-items:center;justify-content:center;font-size:32px;color:#FF6A3D;background:rgba(255,106,61,.16)"><i class="ph-fill ph-play"></i></div>
+</div>
+</sc-for>
+</div>
+<div style="height:104px;flex:none;border-radius:14px;background:var(--color-surface);box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:18px;padding:12px">
+<div style="width:80px;height:80px;flex:none"><image-slot id="1a-mini-recent" shape="rounded" radius="8" placeholder="Logo"></image-slot></div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><div style="font-size:24px;font-weight:500">Coastline FM</div><div style="font-size:18px;color:var(--color-neutral-400);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Harbour Lights · The Tides</div></div>
+<div style="width:80px;height:80px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:38px;color:var(--color-neutral-200)"><i class="ph-fill ph-skip-back"></i></div>
+<div style="width:80px;height:80px;border-radius:40px;display:flex;align-items:center;justify-content:center;font-size:38px;color:#FFF5F0;background:linear-gradient(145deg,#FF8A4C,#FF5A36);box-shadow:0 10px 32px -8px rgba(255,90,54,.75)"><i class="ph-fill ph-pause"></i></div>
+<div style="width:80px;height:80px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:38px;color:var(--color-neutral-200)"><i class="ph-fill ph-skip-forward"></i></div>
+</div>
+</div>
+</div>
+
+<!-- 1a SETTINGS -->
+<div data-screen-label="1a Settings" style="width:1280px;height:720px;display:flex;background:radial-gradient(ellipse at 90% 115%,var(--hu-g1) 0%,transparent 55%),radial-gradient(ellipse at 20% -10%,var(--hu-g2) 0%,var(--color-bg) 60%);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-md)">
+<div style="width:120px;flex:none;position:relative;display:flex;flex-direction:column;align-items:center;padding:22px 0;gap:14px">
+<div style="font-size:24px;font-weight:500;margin-bottom:10px">14:32</div>
+<sc-for list="{{ nav.settings }}" as="n" hint-placeholder-count="4"><div style="width:92px;height:92px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:42px;background:{{ n.bg }};color:{{ n.fg }};box-shadow:{{ n.ring }}"><i class="{{ n.icon }}"></i></div></sc-for>
+<div style="position:absolute;right:0;top:0;bottom:0;width:1px;background:linear-gradient(transparent,var(--color-divider) 48px,var(--color-divider) calc(100% - 48px),transparent)"></div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;padding:26px 32px 18px;gap:18px;min-width:0">
+<div style="font-size:34px;font-weight:500;letter-spacing:-.015em">Settings</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px">
+<div style="height:96px;border-radius:14px;background:var(--color-surface);display:flex;align-items:center;gap:20px;padding:0 12px 0 16px">
+<div style="width:64px;height:64px;flex:none;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:32px;color:#FFB547;background:#FFB54724"><i class="ph-fill ph-circle-half"></i></div><div style="flex:1;font-size:24px;font-weight:500">Display</div>
+<div style="display:flex;gap:6px;padding:6px;border-radius:12px;background:var(--color-bg)">
+<div style="width:120px;height:64px;border-radius:9px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:20px;color:var(--color-neutral-400)"><i class="ph ph-sun" style="font-size:26px"></i>Day</div>
+<div style="width:120px;height:64px;border-radius:9px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:20px;color:#2a1a00;background:#FFB547;font-weight:600"><i class="ph-bold ph-circle-half" style="font-size:26px"></i>Auto</div>
+<div style="width:120px;height:64px;border-radius:9px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:20px;color:var(--color-neutral-400)"><i class="ph ph-moon" style="font-size:26px"></i>Night</div>
+</div>
+</div>
+<div style="height:96px;border-radius:14px;background:var(--color-surface);display:flex;align-items:center;gap:20px;padding:0 12px 0 16px">
+<div style="width:64px;height:64px;flex:none;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:32px;color:#34D27B;background:#34D27B24"><i class="ph-fill ph-cell-signal-full"></i></div><div style="flex:1;display:flex;flex-direction:column;gap:2px"><div style="font-size:24px;font-weight:500">Stream quality</div><div style="font-size:17px;color:var(--color-neutral-400)">Lower saves mobile data</div></div>
+<div style="display:flex;gap:6px;padding:6px;border-radius:12px;background:var(--color-bg)">
+<div style="width:120px;height:64px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--color-neutral-400)">Low</div>
+<div style="width:120px;height:64px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--color-neutral-400)">Normal</div>
+<div style="width:120px;height:64px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:20px;color:#062312;background:#34D27B;font-weight:600">High</div>
+</div>
+</div>
+<div style="height:96px;border-radius:14px;background:var(--color-surface);display:flex;align-items:center;gap:20px;padding:0 24px 0 16px">
+<div style="width:64px;height:64px;flex:none;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:32px;color:#4C8DFF;background:#4C8DFF24"><i class="ph-fill ph-arrow-counter-clockwise"></i></div><div style="flex:1;font-size:24px;font-weight:500">Resume last station on start</div>
+<div style="width:96px;height:52px;border-radius:26px;background:#34D27B;position:relative"><div style="position:absolute;right:6px;top:6px;width:40px;height:40px;border-radius:20px;background:#FFF5F0"></div></div>
+</div>
+<div style="height:96px;border-radius:14px;background:var(--color-surface);display:flex;align-items:center;gap:20px;padding:0 24px 0 16px">
+<div style="width:64px;height:64px;flex:none;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:32px;color:#FF4D8A;background:#FF4D8A24"><i class="ph-fill ph-heart"></i></div><div style="flex:1;font-size:24px;font-weight:500">Edit favorites</div>
+<i class="ph ph-caret-right" style="font-size:32px;color:var(--color-neutral-500)"></i>
+</div>
+</div>
+<div style="height:104px;flex:none;border-radius:14px;background:var(--color-surface);box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:18px;padding:12px">
+<div style="width:80px;height:80px;flex:none"><image-slot id="1a-mini-settings" shape="rounded" radius="8" placeholder="Logo"></image-slot></div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><div style="font-size:24px;font-weight:500">Coastline FM</div><div style="font-size:18px;color:var(--color-neutral-400);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Harbour Lights · The Tides</div></div>
+<div style="width:80px;height:80px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:38px;color:var(--color-neutral-200)"><i class="ph-fill ph-skip-back"></i></div>
+<div style="width:80px;height:80px;border-radius:40px;display:flex;align-items:center;justify-content:center;font-size:38px;color:#FFF5F0;background:linear-gradient(145deg,#FF8A4C,#FF5A36);box-shadow:0 10px 32px -8px rgba(255,90,54,.75)"><i class="ph-fill ph-pause"></i></div>
+<div style="width:80px;height:80px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:38px;color:var(--color-neutral-200)"><i class="ph-fill ph-skip-forward"></i></div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div id="1b" style="display:flex;flex-direction:column;gap:20px">
+<div style="display:flex;align-items:center;gap:12px"><span style="font-size:15px;font-weight:600;padding:4px 10px;border-radius:6px;background:var(--color-accent-900);color:var(--color-accent-300);box-shadow:inset 0 0 0 1px var(--color-accent-700)">1b</span><span style="font-size:20px;font-weight:500">Docked player panel</span></div>
+<div style="display:flex;flex-direction:column;gap:40px;color:var(--color-text)" data-theme="{{ theme }}">
+
+<!-- 1b HOME -->
+<div data-screen-label="1b Home" style="width:1280px;height:720px;display:flex;background:var(--color-bg);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-md)">
+<div style="width:108px;flex:none;display:flex;flex-direction:column;align-items:center;padding:20px 0;gap:10px;background:var(--hu-rail)">
+<div style="font-size:22px;font-weight:500;margin-bottom:12px">14:32</div>
+<sc-for list="{{ nav.home }}" as="n" hint-placeholder-count="4"><div style="width:88px;height:96px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:{{ n.bg }};color:{{ n.fg }};box-shadow:{{ n.ring }}"><i class="{{ n.icon }}" style="font-size:38px"></i><span style="font-size:15px;font-weight:500">{{ n.label }}</span></div></sc-for>
+</div>
+<div style="width:400px;flex:none;display:flex;flex-direction:column;padding:28px;gap:18px;background:var(--hu-panel);position:relative">
+<div style="width:220px;height:220px;border-radius:16px;box-shadow:0 20px 60px -20px var(--color-accent-700)"><image-slot id="1b-panel-home" shape="rounded" radius="16" placeholder="Station logo"></image-slot></div>
+<div style="display:flex;flex-direction:column;gap:4px;flex:1">
+<div style="display:flex;align-items:center;gap:8px;font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-neutral-300)"><span style="padding:3px 8px;border-radius:5px;background:#FF3B4E;color:#FFF5F5;font-weight:600;letter-spacing:.08em;font-size:13px">LIVE</span></div>
+<div style="font-size:34px;font-weight:500;letter-spacing:-.015em">Coastline FM</div>
+<div style="font-size:21px;color:var(--color-neutral-300)">Harbour Lights</div>
+<div style="font-size:19px;color:var(--color-neutral-500)">The Tides</div>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between">
+<div style="width:92px;height:92px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:42px;color:var(--color-neutral-200);background:color-mix(in srgb,var(--color-bg) 50%,transparent)"><i class="ph-fill ph-skip-back"></i></div>
+<div style="width:112px;height:112px;border-radius:56px;display:flex;align-items:center;justify-content:center;font-size:50px;color:#FFF5F0;background:linear-gradient(145deg,#FF8A4C,#FF5A36);box-shadow:0 10px 32px -8px rgba(255,90,54,.75)"><i class="ph-fill ph-pause"></i></div>
+<div style="width:92px;height:92px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:42px;color:var(--color-neutral-200);background:color-mix(in srgb,var(--color-bg) 50%,transparent)"><i class="ph-fill ph-skip-forward"></i></div>
+</div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;padding:28px 28px 20px;gap:18px;min-width:0">
+<div style="font-size:30px;font-weight:500;letter-spacing:-.015em">Favorites</div>
+<div style="flex:1;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:14px">
+<sc-for list="{{ stations }}" as="s" hint-placeholder-count="6">
+<div style="border-radius:14px;background:{{ s.tileBg }};box-shadow:{{ s.tileRing }};display:flex;align-items:center;gap:14px;padding:12px;min-width:0">
+<div style="width:96px;height:96px;flex:none"><image-slot id="1b-home-{{ s.id }}" shape="rounded" radius="10" placeholder="Logo"></image-slot></div>
+<div style="flex:1;display:flex;flex-direction:column;gap:2px;min-width:0"><div style="font-size:22px;font-weight:500;line-height:1.15">{{ s.name }}</div><div style="font-size:16px;color:{{ s.subFg }}">{{ s.sub }}</div></div><div style="display:flex;flex-direction:column;align-items:center;gap:8px;font-size:26px;padding-right:4px"><i class="ph-fill ph-heart" style="color:#FF4D8A"></i><sc-if value="{{ s.playing }}" hint-placeholder-val="{{ false }}"><i class="ph-bold ph-waveform" style="color:#FF6A3D"></i></sc-if></div>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+
+<!-- 1b STATIONS -->
+<div data-screen-label="1b Stations" style="width:1280px;height:720px;display:flex;background:var(--color-bg);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-md)">
+<div style="width:108px;flex:none;display:flex;flex-direction:column;align-items:center;padding:20px 0;gap:10px;background:var(--hu-rail)">
+<div style="font-size:22px;font-weight:500;margin-bottom:12px">14:32</div>
+<sc-for list="{{ nav.stations }}" as="n" hint-placeholder-count="4"><div style="width:88px;height:96px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:{{ n.bg }};color:{{ n.fg }};box-shadow:{{ n.ring }}"><i class="{{ n.icon }}" style="font-size:38px"></i><span style="font-size:15px;font-weight:500">{{ n.label }}</span></div></sc-for>
+</div>
+<div style="width:400px;flex:none;display:flex;flex-direction:column;padding:28px;gap:18px;background:var(--hu-panel)">
+<div style="width:220px;height:220px;border-radius:16px;box-shadow:0 20px 60px -20px var(--color-accent-700)"><image-slot id="1b-panel-stations" shape="rounded" radius="16" placeholder="Cover art or logo"></image-slot></div>
+<div style="display:flex;flex-direction:column;gap:4px;flex:1">
+<div style="display:flex;align-items:center;gap:8px;font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-neutral-300)"><span style="padding:3px 8px;border-radius:5px;background:#FF3B4E;color:#FFF5F5;font-weight:600;letter-spacing:.08em;font-size:13px">LIVE</span>Coastline FM</div>
+<div style="font-size:34px;font-weight:500;letter-spacing:-.015em;line-height:1.1">Harbour Lights</div>
+<div style="font-size:21px;color:var(--color-neutral-300)">The Tides</div>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between">
+<div style="width:92px;height:92px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:42px;color:var(--color-neutral-200);background:color-mix(in srgb,var(--color-bg) 50%,transparent)"><i class="ph-fill ph-skip-back"></i></div>
+<div style="width:112px;height:112px;border-radius:56px;display:flex;align-items:center;justify-content:center;font-size:50px;color:#FFF5F0;background:linear-gradient(145deg,#FF8A4C,#FF5A36);box-shadow:0 10px 32px -8px rgba(255,90,54,.75)"><i class="ph-fill ph-pause"></i></div>
+<div style="width:92px;height:92px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:42px;color:var(--color-neutral-200);background:color-mix(in srgb,var(--color-bg) 50%,transparent)"><i class="ph-fill ph-skip-forward"></i></div>
+</div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;padding:28px 28px 20px;gap:18px;min-width:0">
+<div style="display:flex;align-items:center;gap:16px">
+<div style="font-size:30px;font-weight:500;letter-spacing:-.015em">All stations</div>
+<div style="font-size:20px;color:var(--color-neutral-500);margin-top:6px">{{ stationCount }}</div>
+<div style="flex:1"></div>
+<div onClick="{{ onScan }}" style="height:64px;padding:0 26px 0 20px;border-radius:14px;display:flex;align-items:center;gap:10px;font-size:20px;font-weight:600;background:#4C8DFF;color:#0B1733;box-shadow:0 10px 28px -10px rgba(76,141,255,.8);cursor:pointer;user-select:none"><i class="{{ scanIcon }}" style="font-size:28px"></i>{{ scanLabel }}</div>
+</div>
+<div data-stations="b" style="flex:1;min-height:0;display:flex;gap:14px;position:relative">
+<div data-scroller="b" onScroll="{{ onScroll }}" style="flex:1;min-width:0;overflow-y:auto;position:relative;scrollbar-width:none;overscroll-behavior:contain;mask-image:linear-gradient(to bottom,#000 calc(100% - 64px),transparent);padding-bottom:56px">
+<sc-for list="{{ stationGroups }}" as="g" hint-placeholder-count="3">
+<div data-letter-group="{{ g.letter }}" style="position:relative">
+<div style="position:sticky;top:0;z-index:2;height:40px;display:flex;align-items:center;padding:0 12px;font-size:18px;font-weight:600;letter-spacing:.04em;color:var(--hu-az);background:var(--hu-sticky);backdrop-filter:blur(12px);border-radius:10px">{{ g.letter }}</div>
+<sc-for list="{{ g.items }}" as="s" hint-placeholder-count="3">
+<div style="position:relative;height:84px;overflow:hidden;border-radius:14px">
+<div style="position:absolute;left:0;top:0;bottom:0;width:{{ s.revealW }};overflow:hidden;background:#FF4D8A;color:#FFF5F7;display:flex;align-items:center;transition:width .3s cubic-bezier(.2,.8,.2,1)"><div style="display:flex;align-items:center;gap:10px;padding-left:24px;font-size:20px;font-weight:600;white-space:nowrap"><i class="{{ s.swipeIcon }}" style="font-size:32px"></i>{{ s.swipeLabel }}</div></div>
+<div data-id="{{ s.id }}" onPointerDown="{{ swipeDown }}" onPointerMove="{{ swipeMove }}" onPointerUp="{{ swipeUp }}" onPointerCancel="{{ swipeUp }}" style="position:absolute;inset:0;display:flex;align-items:center;gap:18px;padding:0 4px 0 8px;touch-action:pan-y;user-select:none;cursor:grab;transform:{{ s.tx }};transition:transform .3s cubic-bezier(.2,.8,.2,1)">
+<div style="width:60px;height:60px;flex:none">
+<sc-if value="{{ s.hasLogo }}" hint-placeholder-val="{{ true }}"><image-slot id="st-b-{{ s.id }}" shape="rounded" radius="10" placeholder="Logo"></image-slot></sc-if>
+<sc-if value="{{ s.noLogo }}" hint-placeholder-val="{{ false }}"><div style="width:60px;height:60px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;background:{{ s.monoBg }};color:{{ s.monoFg }}">{{ s.initials }}</div></sc-if>
+</div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><div style="font-size:24px;font-weight:500;color:{{ s.nameFg }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.name }}</div><div style="font-size:17px;color:var(--color-neutral-400)">{{ s.genre }}</div></div>
+<sc-if value="{{ s.playing }}" hint-placeholder-val="{{ false }}"><i class="ph-bold ph-waveform" style="font-size:30px;color:#FF6A3D"></i></sc-if>
+<div data-id="{{ s.id }}" onClick="{{ onFavClick }}" style="width:64px;height:64px;flex:none;border-radius:32px;display:flex;align-items:center;justify-content:center;font-size:32px;color:{{ s.heartFg }};cursor:pointer"><i class="{{ s.heartIcon }}"></i></div>
+<div style="position:absolute;left:86px;right:0;bottom:0;height:1px;background:linear-gradient(90deg,var(--color-divider) calc(100% - 48px),transparent)"></div>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-for>
+</div>
+<div data-rail="b" onPointerDown="{{ railDown }}" onPointerMove="{{ railMove }}" onPointerUp="{{ railUp }}" onPointerCancel="{{ railUp }}" style="width:52px;flex:none;min-height:0;overflow:hidden;border-radius:26px;background:var(--color-surface);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;padding:8px 0;touch-action:none;user-select:none;cursor:pointer">
+<sc-for list="{{ railB }}" as="r" hint-placeholder-count="27"><div style="flex:1 1 0;min-height:0;display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1;font-weight:{{ r.weight }};color:{{ r.fg }}">{{ r.l }}</div></sc-for>
+</div>
+<sc-if value="{{ bubbleBShow }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;right:80px;top:50%;transform:translateY(-50%);width:120px;height:120px;border-radius:28px;background:#FFB547;color:#2a1a00;display:flex;align-items:center;justify-content:center;font-size:64px;font-weight:600;box-shadow:0 16px 40px -10px rgba(255,181,71,.6);pointer-events:none">{{ bubbleB }}</div></sc-if>
+</div>
+</div>
+</div>
+
+<!-- 1b NOW PLAYING -->
+<div data-screen-label="1b Now playing" style="width:1280px;height:720px;display:flex;background:var(--color-bg);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-md)">
+<div style="width:108px;flex:none;display:flex;flex-direction:column;align-items:center;padding:20px 0;gap:10px;background:var(--hu-rail)">
+<div style="font-size:22px;font-weight:500;margin-bottom:12px">14:32</div>
+<sc-for list="{{ nav.now }}" as="n" hint-placeholder-count="4"><div style="width:88px;height:96px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:{{ n.bg }};color:{{ n.fg }};box-shadow:{{ n.ring }}"><i class="{{ n.icon }}" style="font-size:38px"></i><span style="font-size:15px;font-weight:500">{{ n.label }}</span></div></sc-for>
+</div>
+<div style="flex:1;display:flex;align-items:center;gap:52px;padding:0 56px;background:radial-gradient(ellipse at 20% 35%,var(--hu-np) 0%,var(--color-bg) 62%);min-width:0">
+<div style="width:460px;height:460px;flex:none;position:relative;border-radius:18px;box-shadow:0 0 0 1px var(--color-neutral-800),0 24px 80px -16px rgba(255,106,61,.35)">
+<sc-if value="{{ showCover }}" hint-placeholder-val="{{ true }}"><image-slot id="1b-now-cover" shape="rounded" radius="18" placeholder="Cover art (from stream metadata)"></image-slot></sc-if>
+<sc-if value="{{ showLogo }}" hint-placeholder-val="{{ false }}"><image-slot id="1b-now-logo" shape="rounded" radius="18" placeholder="Station logo (no cover art)"></image-slot></sc-if>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0">
+<div style="display:flex;align-items:center;gap:12px">
+<div style="width:48px;height:48px;flex:none"><image-slot id="1b-now-chip" shape="rounded" radius="8" placeholder="Logo"></image-slot></div>
+<div style="display:flex;flex-direction:column"><div style="font-size:20px;font-weight:500">Coastline FM</div><div style="display:flex;align-items:center;gap:6px;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-neutral-300)"><span style="padding:3px 8px;border-radius:5px;background:#FF3B4E;color:#FFF5F5;font-weight:600;letter-spacing:.08em;font-size:13px">LIVE</span></div></div>
+</div>
+<div style="font-size:50px;font-weight:500;letter-spacing:-.02em;line-height:1.05;margin-top:24px;text-wrap:pretty">Harbour Lights</div>
+<div style="font-size:28px;color:var(--color-neutral-300)">The Tides</div>
+<div style="display:flex;align-items:center;gap:18px;margin-top:40px">
+<div style="width:100px;height:100px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:46px;color:var(--color-neutral-200);background:var(--color-surface)"><i class="ph-fill ph-skip-back"></i></div>
+<div style="width:128px;height:128px;border-radius:64px;display:flex;align-items:center;justify-content:center;font-size:56px;color:#FFF5F0;background:linear-gradient(145deg,#FF8A4C,#FF5A36);box-shadow:0 10px 32px -8px rgba(255,90,54,.75)"><i class="ph-fill ph-pause"></i></div>
+<div style="width:100px;height:100px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:46px;color:var(--color-neutral-200);background:var(--color-surface)"><i class="ph-fill ph-skip-forward"></i></div>
+<div style="width:100px;height:100px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:42px;color:#FF4D8A;background:rgba(255,77,138,.14)"><i class="ph-fill ph-heart"></i></div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 1b RECENT -->
+<div data-screen-label="1b Recent" style="width:1280px;height:720px;display:flex;background:var(--color-bg);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-md)">
+<div style="width:108px;flex:none;display:flex;flex-direction:column;align-items:center;padding:20px 0;gap:10px;background:var(--hu-rail)">
+<div style="font-size:22px;font-weight:500;margin-bottom:12px">14:32</div>
+<sc-for list="{{ nav.recent }}" as="n" hint-placeholder-count="4"><div style="width:88px;height:96px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:{{ n.bg }};color:{{ n.fg }};box-shadow:{{ n.ring }}"><i class="{{ n.icon }}" style="font-size:38px"></i><span style="font-size:15px;font-weight:500">{{ n.label }}</span></div></sc-for>
+</div>
+<div style="width:400px;flex:none;display:flex;flex-direction:column;padding:28px;gap:18px;background:var(--hu-panel)">
+<div style="width:220px;height:220px;border-radius:16px;box-shadow:0 20px 60px -20px var(--color-accent-700)"><image-slot id="1b-panel-recent" shape="rounded" radius="16" placeholder="Cover art or logo"></image-slot></div>
+<div style="display:flex;flex-direction:column;gap:4px;flex:1">
+<div style="display:flex;align-items:center;gap:8px;font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-neutral-300)"><span style="padding:3px 8px;border-radius:5px;background:#FF3B4E;color:#FFF5F5;font-weight:600;letter-spacing:.08em;font-size:13px">LIVE</span>Coastline FM</div>
+<div style="font-size:34px;font-weight:500;letter-spacing:-.015em;line-height:1.1">Harbour Lights</div>
+<div style="font-size:21px;color:var(--color-neutral-300)">The Tides</div>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between">
+<div style="width:92px;height:92px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:42px;color:var(--color-neutral-200);background:color-mix(in srgb,var(--color-bg) 50%,transparent)"><i class="ph-fill ph-skip-back"></i></div>
+<div style="width:112px;height:112px;border-radius:56px;display:flex;align-items:center;justify-content:center;font-size:50px;color:#FFF5F0;background:linear-gradient(145deg,#FF8A4C,#FF5A36);box-shadow:0 10px 32px -8px rgba(255,90,54,.75)"><i class="ph-fill ph-pause"></i></div>
+<div style="width:92px;height:92px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:42px;color:var(--color-neutral-200);background:color-mix(in srgb,var(--color-bg) 50%,transparent)"><i class="ph-fill ph-skip-forward"></i></div>
+</div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;padding:28px 28px 20px;gap:18px;min-width:0">
+<div style="font-size:30px;font-weight:500;letter-spacing:-.015em">Recently played</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px">
+<sc-for list="{{ recent }}" as="s" hint-placeholder-count="4">
+<div style="flex:1;border-radius:14px;background:var(--color-surface);display:flex;align-items:center;gap:16px;padding:0 12px">
+<div style="width:80px;height:80px;flex:none"><image-slot id="1b-recent-{{ s.id }}" shape="rounded" radius="8" placeholder="Logo"></image-slot></div>
+<div style="flex:1;display:flex;flex-direction:column;gap:2px;min-width:0"><div style="font-size:24px;font-weight:500">{{ s.name }}</div><div style="font-size:17px;color:var(--color-neutral-400)">{{ s.when }}</div></div>
+<div style="width:64px;height:72px;display:flex;align-items:center;justify-content:center;font-size:32px;color:{{ s.heartFg }}"><i class="{{ s.heartIcon }}"></i></div><div style="width:72px;height:72px;border-radius:36px;display:flex;align-items:center;justify-content:center;font-size:30px;color:#FF6A3D;background:rgba(255,106,61,.16)"><i class="ph-fill ph-play"></i></div>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+
+<!-- 1b SETTINGS -->
+<div data-screen-label="1b Settings" style="width:1280px;height:720px;display:flex;background:var(--color-bg);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-md)">
+<div style="width:108px;flex:none;display:flex;flex-direction:column;align-items:center;padding:20px 0;gap:10px;background:var(--hu-rail)">
+<div style="font-size:22px;font-weight:500;margin-bottom:12px">14:32</div>
+<sc-for list="{{ nav.settings }}" as="n" hint-placeholder-count="4"><div style="width:88px;height:96px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:{{ n.bg }};color:{{ n.fg }};box-shadow:{{ n.ring }}"><i class="{{ n.icon }}" style="font-size:38px"></i><span style="font-size:15px;font-weight:500">{{ n.label }}</span></div></sc-for>
+</div>
+<div style="width:400px;flex:none;display:flex;flex-direction:column;padding:28px;gap:18px;background:var(--hu-panel)">
+<div style="width:220px;height:220px;border-radius:16px;box-shadow:0 20px 60px -20px var(--color-accent-700)"><image-slot id="1b-panel-settings" shape="rounded" radius="16" placeholder="Cover art or logo"></image-slot></div>
+<div style="display:flex;flex-direction:column;gap:4px;flex:1">
+<div style="display:flex;align-items:center;gap:8px;font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-neutral-300)"><span style="padding:3px 8px;border-radius:5px;background:#FF3B4E;color:#FFF5F5;font-weight:600;letter-spacing:.08em;font-size:13px">LIVE</span>Coastline FM</div>
+<div style="font-size:34px;font-weight:500;letter-spacing:-.015em;line-height:1.1">Harbour Lights</div>
+<div style="font-size:21px;color:var(--color-neutral-300)">The Tides</div>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between">
+<div style="width:92px;height:92px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:42px;color:var(--color-neutral-200);background:color-mix(in srgb,var(--color-bg) 50%,transparent)"><i class="ph-fill ph-skip-back"></i></div>
+<div style="width:112px;height:112px;border-radius:56px;display:flex;align-items:center;justify-content:center;font-size:50px;color:#FFF5F0;background:linear-gradient(145deg,#FF8A4C,#FF5A36);box-shadow:0 10px 32px -8px rgba(255,90,54,.75)"><i class="ph-fill ph-pause"></i></div>
+<div style="width:92px;height:92px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:42px;color:var(--color-neutral-200);background:color-mix(in srgb,var(--color-bg) 50%,transparent)"><i class="ph-fill ph-skip-forward"></i></div>
+</div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;padding:28px 28px 20px;gap:18px;min-width:0">
+<div style="font-size:30px;font-weight:500;letter-spacing:-.015em">Settings</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px">
+<div style="flex:1;border-radius:14px;background:var(--color-surface);display:flex;flex-direction:column;justify-content:center;gap:10px;padding:0 16px">
+<div style="display:flex;align-items:center;gap:12px"><div style="width:44px;height:44px;flex:none;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#FFB547;background:#FFB54724"><i class="ph-fill ph-circle-half"></i></div><div style="font-size:22px;font-weight:500">Display</div></div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:6px;border-radius:12px;background:var(--color-bg)">
+<div style="height:60px;border-radius:9px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:19px;color:var(--color-neutral-400)"><i class="ph ph-sun" style="font-size:24px"></i>Day</div>
+<div style="height:60px;border-radius:9px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:19px;color:#2a1a00;background:#FFB547;font-weight:600"><i class="ph-bold ph-circle-half" style="font-size:24px"></i>Auto</div>
+<div style="height:60px;border-radius:9px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:19px;color:var(--color-neutral-400)"><i class="ph ph-moon" style="font-size:24px"></i>Night</div>
+</div>
+</div>
+<div style="flex:1;border-radius:14px;background:var(--color-surface);display:flex;flex-direction:column;justify-content:center;gap:10px;padding:0 16px">
+<div style="display:flex;align-items:center;gap:12px"><div style="width:44px;height:44px;flex:none;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#34D27B;background:#34D27B24"><i class="ph-fill ph-cell-signal-full"></i></div><div style="font-size:22px;font-weight:500">Stream quality</div></div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:6px;border-radius:12px;background:var(--color-bg)">
+<div style="height:60px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--color-neutral-400)">Low</div>
+<div style="height:60px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--color-neutral-400)">Normal</div>
+<div style="height:60px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:19px;color:#062312;background:#34D27B;font-weight:600">High</div>
+</div>
+</div>
+<div style="height:88px;border-radius:14px;background:var(--color-surface);display:flex;align-items:center;gap:16px;padding:0 16px">
+<div style="width:44px;height:44px;flex:none;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#4C8DFF;background:#4C8DFF24"><i class="ph-fill ph-arrow-counter-clockwise"></i></div><div style="flex:1;font-size:22px;font-weight:500">Resume last station</div>
+<div style="width:96px;height:52px;border-radius:26px;background:#34D27B;position:relative"><div style="position:absolute;right:6px;top:6px;width:40px;height:40px;border-radius:20px;background:#FFF5F0"></div></div>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+</div>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;displayMode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Day&quot;,&quot;Night&quot;],&quot;default&quot;:&quot;Night&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;nowPlayingArt&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Cover art&quot;,&quot;Station logo&quot;],&quot;default&quot;:&quot;Cover art&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;favoritesGrid&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;3 × 2&quot;,&quot;4 × 2&quot;],&quot;default&quot;:&quot;4 × 2&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  state = { favs: { coastline: 1, metro: 1, nightowl: 1, northway: 1, sunday: 1, citytalk: 1, lowlands: 1, echo: 1 }, demo: 'aurora', scrub: {}, cur: { a: '#', b: '#' }, scanning: false };
+  LETTERS = '#ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  STATIONS = [['c101', '101 Classic Hits', 'Classic hits', 1], ['lofi', '24/7 Lofi', 'Lofi', 0], ['aurora', 'Aurora Radio', 'Pop', 1], ['atlantic', 'Atlantic Talk', 'News & talk', 1], ['bayside', 'Bayside FM', 'Adult contemporary', 1], ['bluenote', 'Blue Note Live', 'Jazz', 1], ['boulevard', 'Boulevard 88', 'Hits', 1], ['capital', 'Capital Groove', 'Funk & soul', 1], ['citytalk', 'City Talk', 'News & talk', 1], ['coastline', 'Coastline FM', 'Pop & Hits', 1], ['dune', 'Dune FM', 'Electronic', 1], ['downtown', 'Downtown Beats', 'Hip-hop', 1], ['echo', 'Echo Classic', 'Classical', 1], ['evergreen', 'Evergreen Country', 'Country', 1], ['fjord', 'Fjord Radio', 'Folk', 0], ['golden', 'Golden Oldies FM', 'Oldies', 1], ['groove', 'Groove Garden', 'Disco', 1], ['harbour', 'Harbour Radio', 'Local', 1], ['highway', 'Highway 102', 'Rock', 1], ['island', 'Island Reggae', 'Reggae', 1], ['jazzline', 'Jazzline', 'Jazz', 1], ['kingsway', 'Kingsway FM', 'Hits', 0], ['lowlands', 'Lowlands Indie', 'Indie', 1], ['lighthouse', 'Lighthouse 97', 'Soft rock', 1], ['metro', 'Metro 96.4', 'Dance', 1], ['midnight', 'Midnight Lounge', 'Chill', 1], ['motorway', 'Motorway Rock', 'Rock', 1], ['nightowl', 'Night Owl Jazz', 'Jazz', 1], ['northway', 'Northway Rock', 'Classic rock', 1], ['northsea', 'North Sea Radio', 'Local', 1], ['openroad', 'Open Road FM', 'Americana', 1], ['parkside', 'Parkside Pop', 'Pop', 1], ['pulse', 'Pulse Dance', 'Dance', 1], ['quiet', 'Quiet Storm', 'Slow jams', 0], ['riverside', 'Riverside Radio', 'Local', 1], ['route66', 'Route 66 Country', 'Country', 1], ['sunday', 'Sunday Soul', 'Soul & R&B', 1], ['skyline', 'Skyline Hits', 'Hits', 1], ['static', 'Static Punk', 'Punk', 0], ['tempo', 'Tempo FM', 'Dance', 1], ['tidewater', 'Tidewater Talk', 'Sports & talk', 1], ['urban', 'Urban Heat', 'Hip-hop', 1], ['vinyl', 'Vinyl Vault', 'Rarities', 1], ['westend', 'Westend Radio', 'Musicals', 1], ['wavelength', 'Wavelength', 'Alternative', 1], ['zenith', 'Zenith Chill', 'Ambient', 1]];
+  toggleFav = id => this.setState(s => ({ favs: { ...s.favs, [id]: !s.favs[id] } }));
+  onFavClick = e => { e.stopPropagation(); this.toggleFav(e.currentTarget.dataset.id); };
+  swipeDown = e => { if (e.button > 0) return; const el = e.currentTarget; this.sw = { el, id: el.dataset.id, x: e.clientX, y: e.clientY, dx: 0, on: false, pid: e.pointerId }; if (this.state.demo) this.setState({ demo: null }); };
+  swipeMove = e => {
+    const s = this.sw; if (!s) return;
+    const dx = e.clientX - s.x, dy = e.clientY - s.y, b = s.el.previousElementSibling;
+    if (!s.on) {
+      if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2) { s.on = true; try { s.el.setPointerCapture(s.pid); } catch (_) {} s.t0 = s.el.style.transition; s.t1 = b.style.transition; s.el.style.transition = 'none'; b.style.transition = 'none'; }
+      else { if (Math.abs(dy) > 10) this.sw = null; return; }
+    }
+    const d = Math.max(0, Math.min(200, dx)); s.dx = d;
+    s.el.style.transform = 'translateX(' + d + 'px)'; b.style.width = d + 'px'; b.style.filter = d > 120 ? 'brightness(1.12)' : 'none';
+  };
+  swipeUp = () => {
+    const s = this.sw; this.sw = null; if (!s || !s.on) return;
+    const b = s.el.previousElementSibling;
+    s.el.style.transition = s.t0; b.style.transition = s.t1; s.el.style.transform = 'translateX(0px)'; b.style.width = '0px'; b.style.filter = 'none';
+    if (s.dx > 120) this.toggleFav(s.id);
+  };
+  railAt = e => {
+    const el = e.currentTarget, k = el.dataset.rail, r = el.getBoundingClientRect(), L = this.LETTERS, n = L.length;
+    const i = Math.max(0, Math.min(n - 1, Math.floor((e.clientY - r.top) / r.height * n)));
+    let t = null;
+    for (let j = i; j < n && !t; j++) if (this.present.has(L[j])) t = L[j];
+    for (let j = i; j >= 0 && !t; j--) if (this.present.has(L[j])) t = L[j];
+    const sc = el.closest('[data-stations]').querySelector('[data-scroller]');
+    const g = sc.querySelector('[data-letter-group="' + t + '"]');
+    if (g) sc.scrollTop = g.offsetTop;
+    if (this.state.scrub[k] !== t || this.state.cur[k] !== t) this.setState(s => ({ scrub: { ...s.scrub, [k]: t }, cur: { ...s.cur, [k]: t } }));
+  };
+  railDown = e => { this.railing = true; try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {} this.railAt(e); };
+  railMove = e => { if (this.railing) this.railAt(e); };
+  railUp = e => { this.railing = false; const k = e.currentTarget.dataset.rail; this.setState(s => ({ scrub: { ...s.scrub, [k]: null } })); };
+  onScroll = e => {
+    if (this.railing) return;
+    const sc = e.currentTarget, k = sc.dataset.scroller; let t = '#';
+    sc.querySelectorAll('[data-letter-group]').forEach(g => { if (g.offsetTop <= sc.scrollTop + 4) t = g.dataset.letterGroup; });
+    if (this.state.cur[k] !== t) this.setState(s => ({ cur: { ...s.cur, [k]: t } }));
+  };
+  onScan = () => { if (this.state.scanning) return; this.setState({ scanning: true }); clearTimeout(this.scanT); this.scanT = setTimeout(() => this.setState({ scanning: false }), 2600); };
+  componentWillUnmount() { clearTimeout(this.scanT); }
+  stationVals(light) {
+    const { favs, demo, scrub, cur, scanning } = this.state;
+    const pal = light ? ['#2F6FE0', '#1E9A56', '#B86E00', '#6F5FD0', '#C8431A', '#C92A66'] : ['#4C8DFF', '#34D27B', '#FFB547', '#A99CF0', '#FF6A3D', '#FF4D8A'];
+    const items = this.STATIONS.map(([id, name, genre, logo], i) => {
+      const fav = !!favs[id], playing = id === 'coastline', c = pal[i % pal.length];
+      const letter = /[0-9]/.test(name[0]) ? '#' : name[0].toUpperCase();
+      const initials = name.replace(/[^A-Za-z0-9 ]/g, '').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+      return { id, name, genre, letter, hasLogo: !!logo, noLogo: !logo, initials, monoBg: c + '2e', monoFg: c, playing,
+        nameFg: playing ? 'var(--hu-live-sub)' : 'var(--color-text)',
+        heartIcon: fav ? 'ph-fill ph-heart' : 'ph ph-heart', heartFg: fav ? '#FF4D8A' : 'var(--color-neutral-500)',
+        swipeIcon: fav ? 'ph-bold ph-heart-break' : 'ph-fill ph-heart', swipeLabel: fav ? 'Remove' : 'Favorite',
+        tx: demo === id ? 'translateX(160px)' : 'none', revealW: demo === id ? '160px' : '0px' };
+    });
+    this.present = new Set(items.map(s => s.letter));
+    const groups = this.LETTERS.filter(l => this.present.has(l)).map(l => ({ letter: l, items: items.filter(s => s.letter === l) }));
+    const rail = k => this.LETTERS.map(l => ({ l, weight: l === cur[k] ? 700 : 500, fg: l === cur[k] ? 'var(--hu-az)' : (this.present.has(l) ? 'var(--color-neutral-300)' : 'var(--color-neutral-700)') }));
+    return {
+      stationGroups: groups, stationCount: items.length + ' stations',
+      railA: rail('a'), railB: rail('b'), bubbleA: scrub.a, bubbleAShow: !!scrub.a, bubbleB: scrub.b, bubbleBShow: !!scrub.b,
+      scanLabel: scanning ? 'Scanning…' : 'Scan', scanIcon: scanning ? 'ph-bold ph-circle-notch' : 'ph-bold ph-broadcast',
+      onScan: this.onScan, onFavClick: this.onFavClick, swipeDown: this.swipeDown, swipeMove: this.swipeMove, swipeUp: this.swipeUp,
+      railDown: this.railDown, railMove: this.railMove, railUp: this.railUp, onScroll: this.onScroll
+    };
+  }
+  renderVals() {
+    const p = this.props;
+    const light = (p.displayMode ?? 'Night') === 'Day';
+    const cover = (p.nowPlayingArt ?? 'Cover art') === 'Cover art';
+    const wide = (p.favoritesGrid ?? '3 × 2') === '4 × 2';
+    const all = [
+      ['coastline', 'Coastline FM', 'Pop & Hits'], ['metro', 'Metro 96.4', 'Dance'],
+      ['nightowl', 'Night Owl Jazz', 'Jazz'], ['northway', 'Northway Rock', 'Classic rock'],
+      ['sunday', 'Sunday Soul', 'Soul & R&B'], ['citytalk', 'City Talk', 'News & talk'],
+      ['lowlands', 'Lowlands Indie', 'Indie'], ['echo', 'Echo Classic', 'Classical']
+    ].map(([id, name, sub], i) => ({
+      id, name, sub, playing: i === 0,
+      tileBg: i === 0 ? 'var(--hu-live-tile)' : 'var(--color-surface)',
+      tileRing: i === 0 ? 'inset 0 0 0 2px #FF6A3D, 0 12px 36px -12px rgba(255,106,61,.6)' : 'var(--shadow-sm)',
+      subFg: i === 0 ? 'var(--hu-live-sub)' : 'var(--color-neutral-400)'
+    }));
+    const items = [['home', 'ph-fill ph-house', 'Home', '#4C8DFF'], ['stations', 'ph-fill ph-radio', 'Stations', '#FFB547'], ['now', 'ph-fill ph-waveform', 'Playing', '#FF6A3D'], ['recent', 'ph-fill ph-clock-counter-clockwise', 'Recent', '#34D27B'], ['settings', 'ph-fill ph-gear-six', 'Settings', '#A99CF0']];
+    const nav = {};
+    items.forEach(([k]) => {
+      nav[k] = items.map(([id, icon, label, c]) => {
+        const a = id === k;
+        return { icon, label, bg: a ? c : 'transparent', fg: a ? '#14151f' : (light ? 'var(--color-neutral-500)' : c + 'b3'), ring: a ? '0 10px 28px -10px ' + c : 'none' };
+      });
+    });
+    return {
+      ...this.stationVals(light),
+      nav,
+      stations: all.slice(0, 6),
+      homeStations: all.slice(0, wide ? 8 : 6),
+      cols: wide ? 'repeat(4,minmax(0,1fr))' : 'repeat(3,minmax(0,1fr))',
+      logoSize: wide ? '80px' : '104px',
+      recent: [
+        { id: 'coastline', name: 'Coastline FM', when: 'Playing now', fav: true },
+        { id: 'nightowl', name: 'Night Owl Jazz', when: 'Today, 08:14', fav: true },
+        { id: 'citytalk', name: 'City Talk', when: 'Yesterday, 17:40', fav: false },
+        { id: 'metro', name: 'Metro 96.4', when: 'Monday', fav: true }
+      ].map(r => ({ ...r, heartIcon: r.fav ? 'ph-fill ph-heart' : 'ph ph-heart', heartFg: r.fav ? '#FF4D8A' : 'var(--color-neutral-500)' })),
+      showCover: cover, showLogo: !cover,
+      theme: light ? 'light' : 'dark'
+    };
+  }
+}
+</script>
+</body>
+</html>

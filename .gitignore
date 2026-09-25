@@ -1,0 +1,11 @@
+vendor/
+decompiled/
+*.apk
+*.so
+.venv/
+# testing material (recordings, decoded audio, USB transfer logs): local only, never commit
+captures/*
+!captures/README.md
+# local tooling / OS noise
+__pycache__/
+*.pyc
