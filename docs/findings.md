@@ -17,8 +17,9 @@ this file as work progresses.
 - **Next steps (owner to pick):**
   1. ~~Android decoder check~~ done 2026-09-25: MediaCodec (`OMX.google.aac.decoder`) decodes all three DAB+
      formats (HE-AAC v1 32/48 kHz, v2) correctly on API 26 and 29. No faad2 needed. Re-verify on the Dudu3.
-  2. Smaller PoC gaps: MP2 (DAB classic) services (none received here), service switching without re-init,
-     a proper stop (`FUN_000775b0`), signal level for the UI (u1 / page 9 regs 0x83..0x86 / 0x42 status bytes 4..5),
+  2. Smaller PoC gaps: MP2 (DAB classic) services (none received here), service switching without re-init
+     + proper stop (`FUN_000775b0`, implemented 2026-09-25, not yet tested on hardware), firmware ≤1/≥5 paths
+     (implemented from the decompile, untestable here), signal level for the UI (u1 / page 9 regs 0x83..0x86 / 0x42 status bytes 4..5),
      DLS artist/title split rules per broadcaster, FM (vendor `FUN_00074920`) for DAB→FM fallback.
   3. Then the **Android design session with the owner** before writing any app code.
 - Not a git repo yet (`git init` offered, not done).

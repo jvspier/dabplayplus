@@ -53,6 +53,16 @@ Firmware-level dependent behaviour (`DAT_002025ec` = version reply byte 3):
 - **≥ 2:** the MCU buffers MSC itself. The host polls with 0x42 and pulls with 0x40 (max
   0x480 bytes per read in the flush loop, 4096 in the JNI read).
 - **≥ 5:** `set_flag` uses 0x43 instead of 0x41.
+- Implemented for all three in `tools/dtr100.py` (`start_audio`, `msc_read`, `stop_audio`, `quality`). **Only level 4 is
+  verified on hardware.** ≤ 1 (`FUN_00079e20`: page 9 reg 0x33 bits 4..6 = data/overflow, page 0x0C reg 0x10 burst of n
+  bytes, ack page 9 reg 0x35 = 4, overflow reset page 9 reg 0x48 0→5) and ≥ 5 (0x43 on/off) are straight from the decompile.
+  [hypothesis] On ≥ 5 the packed Java calls `set_flag(1)` (0x43 1) after `set_msc_size` to start streaming.
+- Proper stop (`dab_api_set_flag(0)` → `FUN_00069800(0)` → `FUN_000775b0`): page 9 reg 0x3A = subch (enable bit
+  cleared), page 7 reg 0x62 |= 0x70 then |= 0x0E (mask the audio and data buffer IRQs), flush the MCU buffer
+  (0x42 status → `41 00 len` → `40 00 len` until empty, max 0x480 per round), then `41 00 00 00` (fw 2–4) or
+  `43 00 00 00` (fw ≥ 5).
+- Signal quality on any firmware (`FUN_000719d0`, the `get_signal` path for fw ≤ 1): page 9, if reg 0x37 bit 0: error and
+  total bit counters (regs 0x8C..0x8F / 0x88..0x8B, 32-bit big-endian) → err*1000/total*10; else 8000.
 
 ## DAB chip register interface
 - 8-bit registers, **page select = write reg 0x03**. Pages seen: 4, 6, 7, 9, 0x0A, 0x0C, 0x0F.

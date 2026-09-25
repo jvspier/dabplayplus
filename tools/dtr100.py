@@ -32,7 +32,9 @@ class DTR100:
         self.irq_mask = 0     # DAT_00657c51: shadow of page 7 reg 0x62 (bss, starts 0)
         self.fic_open = False # DAT_00657c10
         self.msc_seq = 0      # DAT_002025e0: rolling counter in cmd 0x42
-        self.msc_size = 0     # DAT_002025e4
+        self.msc_size = 0     # DAT_002025e4 (0x41 threshold) / DAT_00657c38 (fw <= 1 read size)
+        self.fw = None        # DAT_002025ec: MCU firmware level, selects the MSC code path
+        self.subch = None     # active audio sub-channel
         self.t = None
         for dev in usb.core.find(find_all=True, idVendor=VID, idProduct=PID):
             # 16c0:05dc is a shared ID (USBasp etc.): insist on our manufacturer string
@@ -71,9 +73,10 @@ class DTR100:
         rep = self._xfer([0x00, 0, 0, 0], 4, 2000, 2000)
         return rep[1:4] == b"DAB"
 
-    def version(self):  # FUN_00075360; byte 3 = firmware level
+    def version(self):  # FUN_00075360; byte 3 = firmware level (DAT_002025ec)
         rep = self._xfer([0x01, 0, 0, 0], 4)
         self._expect(rep, 0x81, "version")
+        self.fw = rep[3]
         return rep[3]
 
     def power_on(self):  # FUN_00076840 (used by dab_api_init)
@@ -511,14 +514,48 @@ class DTR100:
         self.wreg(0x35, 0x7E)
         self.page(7)
         self.wreg(0x62, self.irq_mask)
-        self.msc_size = n                                # FUN_000770e0
-        rep = self._xfer([0x41, 0, n & 0xFF, n >> 8], 4)
-        self._expect(rep, 0xC1, "set msc size")
+        self.msc_size = n
+        self.subch = subch
+        if self.fw is None:
+            raise RuntimeError("read the firmware level (version) before starting audio")
+        if self.fw > 1:                                  # FUN_000770e0: MCU buffers MSC
+            rep = self._xfer([0x41, 0, n & 0xFF, n >> 8], 4)
+            self._expect(rep, 0xC1, "set msc size")
+        if self.fw > 4:
+            # dab_api_set_flag(1) -> FUN_00077240(1) -> cmd 0x43 (fw >= 5 only).
+            # [hypothesis] the packed Java calls set_flag(1) after set_msc_size to start streaming.
+            rep = self._xfer([0x43, 0, 0, 1], 4)
+            self._expect(rep, 0xC3, "msc flag on")
 
-    def stop_audio(self):  # FUN_00077240(0), firmware level <= 4: 41 00 00 00
+    def stop_audio(self):
+        """dab_api_set_flag(0) -> FUN_00069800(0): FUN_000775b0 (stop the sub-channel in the chip and
+        flush the MCU buffer), then FUN_00077240(0)."""
+        if self.subch is not None:                       # FUN_00071ca0 -> FUN_00071110 (audio slot)
+            self.page(9)
+            self.wreg(0x3A, self.subch)                  # FUN_000782a0(subch, 0, 0): disable
+            self.page(7)
+            self.irq_mask |= 0x70                        # no audio buffer active any more
+            self.wreg(0x62, self.irq_mask)
+            self.page(7)
+            self.irq_mask |= 0x0E                        # no data buffers active either
+            self.wreg(0x62, self.irq_mask)
+            self.subch = None
+        if self.fw is not None and self.fw > 1:          # FUN_000775b0: flush what the MCU still holds
+            for _ in range(64):
+                seq = self.msc_seq
+                self.msc_seq = (seq + 1) & 0xFF
+                st = self._xfer([0x42, 0, 0, seq], 6)
+                avail = st[2] | st[3] << 8
+                if avail == 0:
+                    break
+                m = min(avail, 0x480)
+                self._expect(self._xfer([0x41, 0, m & 0xFF, m >> 8], 4), 0xC1, "flush size")
+                self._xfer([0x40, 0, m & 0xFF, m >> 8], m + 4)
         self.msc_size = 0
-        rep = self._xfer([0x41, 0, 0, 0], 4)
-        self._expect(rep, 0xC1, "stop msc")
+        if self.fw is not None and self.fw > 4:          # FUN_00077240(0)
+            self._expect(self._xfer([0x43, 0, 0, 0], 4), 0xC3, "msc flag off")
+        elif self.fw is not None and self.fw > 1:
+            self._expect(self._xfer([0x41, 0, 0, 0], 4), 0xC1, "stop msc")
 
     def demod_restart_nowait(self):
         self.page(6)
@@ -526,8 +563,23 @@ class DTR100:
         self.wreg(0x10, 0xC9)
 
     def msc_read(self, maxlen=4096):
-        """FUN_00077990 (firmware level >= 2): cmd 0x42 status, then cmd 0x40 read.
-        Returns (data, status_reply)."""
+        """Returns (data, status). fw >= 2: FUN_00077990 (cmd 0x42 status, then cmd 0x40 read).
+        fw <= 1: FUN_00079e20 (poll page 9 reg 0x33, burst-read page 0x0C reg 0x10)."""
+        if self.fw is not None and self.fw <= 1:
+            self.page(9)
+            st = self.rreg(0x33, 3)
+            if not st[0] & 0x70:
+                return b"", st
+            if st[0] & 0x60:                             # overflow: reset the buffer (FUN_000781a0)
+                self.wlist([(0x48, 0x00), (0x48, 0x05)])
+                self.page(9)
+                self.wreg(0x35, 0x04)
+                return b"", st
+            self.page(0x0C)
+            data = self.rreg(0x10, self.msc_size)
+            self.page(9)
+            self.wreg(0x35, 0x04)
+            return data, st
         seq = self.msc_seq
         self.msc_seq = (seq + 1) & 0xFF
         st = self._xfer([0x42, 0, 0, seq], 6)
@@ -541,6 +593,16 @@ class DTR100:
         self._expect(rep, 0xC0, "msc read")
         got = rep[2] | rep[3] << 8
         return rep[4:4 + got], st
+
+    def quality(self):
+        """FUN_000719d0 (dab_api_get_signal on fw <= 1): page 9 error/total bit counters.
+        Returns the vendor's value (lower = better; 8000 = no measurement)."""
+        self.page(9)
+        if not self.rreg(0x37)[0] & 1:
+            return 8000
+        tot = int.from_bytes(self.rreg(0x88, 1) + self.rreg(0x89, 1) + self.rreg(0x8A, 1) + self.rreg(0x8B, 1), "big")
+        err = int.from_bytes(self.rreg(0x8C, 1) + self.rreg(0x8D, 1) + self.rreg(0x8E, 1) + self.rreg(0x8F, 1), "big")
+        return err * 1000 // tot * 10 if tot else 8000
 
     def fic_read(self):  # FUN_00079c20: 384 bytes or None
         self.page(9)
