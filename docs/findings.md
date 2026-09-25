@@ -17,8 +17,8 @@ this file as work progresses.
 - **Next steps (owner to pick):**
   1. ~~Android decoder check~~ done 2026-09-25: MediaCodec (`OMX.google.aac.decoder`) decodes all three DAB+
      formats (HE-AAC v1 32/48 kHz, v2) correctly on API 26 and 29. No faad2 needed. Re-verify on the Dudu3.
-  2. Smaller PoC gaps: MP2 (DAB classic) services (none received here), service switching without re-init
-     + proper stop (`FUN_000775b0`, implemented 2026-09-25, not yet tested on hardware), firmware ≤1/≥5 paths
+  2. Smaller PoC gaps: MP2 (DAB classic) services (none received here), ~~service switching without re-init
+     + proper stop~~ (verified 2026-09-25: 0.90 s switch), firmware ≤1/≥5 paths
      (implemented from the decompile, untestable here), signal level for the UI (u1 / page 9 regs 0x83..0x86 / 0x42 status bytes 4..5),
      DLS artist/title split rules per broadcaster, FM (vendor `FUN_00074920`) for DAB→FM fallback.
   3. Then the **Android design session with the owner** before writing any app code.
@@ -389,6 +389,15 @@ Files in `vendor/` (gitignored), unzipped to `decompiled/<ver>/apk/`:
   - Other families: AP8224 "MP3DAB" (1234:1111, USB mass storage, MP3 out; AlbrechtL docs), Dension DAB+U
     (mass storage), Monkeyboard/Keystone (04d8:000a CDC serial, analog audio only → not useful), RTL-SDR (full
     software demod; AbracaDABra (MIT) shows it works on Android 11+), C100 Dual Tuner (closed protocol).
+
+- **2026-09-25, station switch without re-init** (`tools/switch_test.py`, log `captures/2026-09-25-switch-538-qmusic.log`):
+  - [verified] The ported **proper stop** works on fw level 4: page 9 reg 0x3A = subch (off), page 7 reg 0x62 = 0x70 → 0x7E,
+    one flush round (`42` → `41 00 80 04` / `40 00 80 04` → `42` empty), `41 00 00 00`. It takes **5 ms**.
+  - [verified] 538 → Qmusic (11C) with no re-init and no retune: **first decoded audio 0.90 s after the stop began**;
+    154/154 and 152/152 AUs OK, 0 faad errors, both WAVs contain real audio.
+  - [inference] Floor for a DAB+ switch ≈ 0.6–0.9 s: the chip's time de-interleaver (≈ 384 ms, 16 CIFs) + waiting for
+    the next superframe start (≤ 120 ms) + collecting one superframe (120 ms) + the first decoder frame. So the
+    architecture target is **< 1 s within an ensemble** (≈ 1.5 s across ensembles), not < 0.5 s.
 
 ## Open questions
 1. ~~What is the VID:PID of this unit?~~ Answered: 16c0:05dc, vendor-specific bulk.

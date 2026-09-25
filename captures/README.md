@@ -14,3 +14,4 @@ One line per capture: filename, date, action performed, notes.
 | `raw/2026-09-24-{12C-npo_radio_2,12C-npo_3fm,11C-sky_radio,11C-radio_10,11C-100p_nl,9C-kink}.msc` + `coverart-hunt.txt` | 2026-09-24 | `dtr100.py play --raw --seconds 240` per station | Cover-art hunt: NPO sends per-song album-cover slides; others logo only |
 | `raw/2026-09-25-5B-{radionl,tukker_fm,the_groove,sunrise_fm}.msc` | 2026-09-25 | `dtr100.py play --raw --seconds 20` | HE-AAC v2 (PS) samples, 48 kbit/s |
 | `android/*` | 2026-09-25 | `tools/export_aus.py` + MediaCodecTest on emulators API 26/29 | AU files, faad2 reference WAVs, MediaCodec PCM (`*.api26.pcm`, `*.api29.pcm`) |
+| `2026-09-25-switch-538-qmusic.log`, `switch-a.wav`, `switch-b.wav` | 2026-09-25 | `tools/switch_test.py --channel 11C --a 538 --b Qmusic` | Proper stop + switch without re-init: 0.90 s |

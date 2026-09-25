@@ -4,6 +4,7 @@
   [--seconds N] [--out x.wav] [--raw x.msc] [--log x.log]`. Prints DLS and slides while playing.
 - `fic.py` (FIC/FIG parsing, channel table), `dabplus.py` (superframe/RS/AU + faad2 via ctypes),
   `pad.py` (X-PAD → DLS, DL+, MOT slideshow), `decode_raw.py` (offline decode of `--raw` captures).
+- `switch_test.py`: play A, proper stop, switch to B on the same ensemble without re-init; measures the switch time.
 - `export_aus.py`: raw capture → length-prefixed AU file + ASC JSON + faad2 reference WAV (decoder tests).
 - `android/MediaCodecTest.java` + `android/compare_pcm.py`: Android MediaCodec decode test run via `app_process`
   in an emulator (build: `javac --release 11 -cp android.jar`, then `d8 --min-api 26`); compare with faad2.

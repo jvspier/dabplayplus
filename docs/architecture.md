@@ -9,7 +9,8 @@ and the design decisions in `docs/design-notes.md`.
 - Landscape head units; design baseline 1280×720, scaling to 2000×1200 and others.
 - **Offline first**: DAB reception needs no internet and nothing breaks without it. Online features are still
   first-class: **station-logo download is in v1**, fetched whenever a connection is available and cached.
-- "Quick" targets: preset switch within the same ensemble **< 0.5 s** to audio; across ensembles **< 1.5 s**;
+- "Quick" targets: preset switch within the same ensemble **< 1 s** to audio (measured 0.90 s in the PoC; DAB's
+  time interleaving + superframe alignment put the floor at ≈ 0.6 s); across ensembles **≈ 1.5 s**;
   cold start (boot → audio) as soon as the dongle enumerates, **< 3 s** after that.
 - **Pure Kotlin, no native code** (verified: MediaCodec decodes DAB+ on API 26/29). That gives one universal
   APK for every ABI (arm64, armv7, x86) and no GPL dependencies.
@@ -76,8 +77,7 @@ Everything above the interface (FIC parsing, audio, PAD, UI) is shared. A dongle
 
 ## Playback and tuning flow
 1. Preset tap → `RadioEngine.play(serviceKey)`.
-2. Same ensemble as now: stop the sub-channel, start the new one (no retune), target < 0.5 s. (The PoC doesn't
-   do this yet; to add.)
+2. Same ensemble as now: proper stop, start the new sub-channel (no retune). Verified in the PoC: 0.90 s.
 3. Other ensemble: tune, then **start the stored sub-channel straight away** (don't wait for the FIC), and
    verify against the FIC in the background, target < 1.5 s.
 4. MSC → superframe decoder → AUs → MediaCodec → AudioTrack. PAD from the AUs → DLS / slides → UI.
