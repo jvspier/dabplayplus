@@ -119,4 +119,7 @@ Everything above the interface (FIC parsing, audio, PAD, UI) is shared. A dongle
 - **Vendor AAC decoders** on some head units: choose the platform FDK decoder by name. Verify on the Dudu3.
 - **ACC sleep/wake** and USB re-enumeration behaviour on the Dudu3 (and the ~2 s first-enumeration delay).
 - Dongle firmware levels other than 4 are untested (the code paths come from the decompile).
+- A lock without a single valid FIB happens occasionally (seen on the first tune after a replug): the driver treats it as a
+  failed tune and retries. Never write the vendor's FM registers: their state survives power-off and re-init and degrades DAB
+  until a replug.
 - Build tooling: Gradle + AGP need a JDK AGP supports (installing JDK 21 alongside 25 may be needed).

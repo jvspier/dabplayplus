@@ -673,6 +673,13 @@ def scan(d, channels):
             continue
         d.fic_enable()
         labels, ok, bad, t_fic = read_service_list(d)
+        if ok == 0 and tries < 3:
+            # locked but no valid FIC at all (seen on the first tune after a replug): retune once more
+            rc, info = d.tune(f)
+            tries += 1
+            if rc == 0:
+                labels, ok, bad, t_fic = read_service_list(d)
+                line += f"[FIC retry] "
         pct = 100 * ok // (ok + bad) if ok + bad else 0
         ens = labels.get("ensemble", "?")
         print(line + f"LOCK ({time.monotonic() - t_ch:.2f}s, FIC {t_fic:.2f}s) q={info.get('q')} "

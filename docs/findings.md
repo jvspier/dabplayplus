@@ -418,6 +418,15 @@ Files in `vendor/` (gitignored), unzipped to `decompiled/<ver>/apk/`:
     cycle. That points to local interference/antenna. MCU status bytes 4..5 = `d0 07` (2000) also appear in normal DAB logs (idle value),
     so it isn't FM leftover state.
 
+- **2026-09-25, after the FM test: replug** (scan 5B/9C/9D/11C/12C):
+  - [verified] After a USB replug, DAB is back to normal (q 0–6, 100 % FIB CRC on all five ensembles; 9C even at q=4 vs 34–50
+    before). So the degradation **was dongle state left over from FM mode**, not interference. The FM init writes registers the
+    DAB init never writes (e.g. page 7 reg 0xC8, page 4 reg 0x69, page 6 regs 0xD2–0xD7/0xE5–0xF9), and neither the vendor
+    power-off (`10 00 00 00`) nor a full DAB re-init resets them. Only a power cycle (replug) does.
+  - [verified] The first tune after the replug locked (rc 0) but returned **0 % valid FIBs**; the next tune was fine. The PoC
+    scan now retunes when it locks without a single valid FIB. App requirement: treat "lock without valid FIC" as a failed
+    tune and retry.
+
 ## Open questions
 1. ~~What is the VID:PID of this unit?~~ Answered: 16c0:05dc, vendor-specific bulk.
 2. Does DABdream+ work with this unit?
