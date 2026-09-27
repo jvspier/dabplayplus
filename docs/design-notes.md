@@ -64,3 +64,6 @@ design session.
 ## To discuss
 - "Station unavailable / buffering" states map to DAB states: tuning, no signal, weak signal (signal meter?).
 - Scan (≈ 19 s) progress UI on the Stations screen; ensembles found vs services.
+- **v1 scope additions/removals** (owner, 2026-09-27): MP2 (DAB classic) decoding is a day-1 feature for
+  distribution; the manual station-logo override is dropped. Next up: reception loss handling (tunnels, fringe
+  areas) and a working "Follow station"; Dudu3 run + boot auto-start once the head unit is installed.

@@ -4,6 +4,7 @@ import android.os.Looper
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import io.github.jvspier.dabplay.core.Reception
 import androidx.media3.common.SimpleBasePlayer
 import androidx.media3.common.util.UnstableApi
 import com.google.common.util.concurrent.Futures
@@ -39,7 +40,12 @@ class DabPlayer(private val engine: DabEngine, looper: Looper = Looper.getMainLo
         val b = State.Builder()
             .setAvailableCommands(cmds)
             .setPlayWhenReady(s.playing, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
-            .setPlaybackState(if (cur == null) Player.STATE_IDLE else Player.STATE_READY)
+            // no signal: "buffering" tells the car's own display (and Android Auto-like UIs) that it's waiting, not stopped
+            .setPlaybackState(when {
+                cur == null -> Player.STATE_IDLE
+                s.playing && (s.tuning || s.reception == Reception.LOST) -> Player.STATE_BUFFERING
+                else -> Player.STATE_READY
+            })
         if (cur != null) {
             val np = s.nowPlaying
             val md = MediaMetadata.Builder()

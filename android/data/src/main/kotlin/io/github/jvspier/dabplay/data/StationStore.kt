@@ -17,6 +17,9 @@ data class StoredEnsemble(
 
 data class Recent(val key: ServiceKey, val time: Long)
 
+/** The same service announced on another ensemble (FIG 0/24 + 0/21), learned while listening; for service following. */
+data class AltFreq(val eid: Int, val khz: Int)
+
 /** A station as the UI sees it: one service, on the ensemble where it was seen most recently. */
 data class Station(val service: StoredService, val ensemble: StoredEnsemble) {
     val key get() = service.key
@@ -28,6 +31,7 @@ data class Snapshot(
     val favourites: List<ServiceKey> = emptyList(),
     val recents: List<Recent> = emptyList(),
     val lastPlayed: ServiceKey? = null,
+    val alternatives: Map<ServiceKey, List<AltFreq>> = emptyMap(),
 ) {
     val stations: List<Station> by lazy {
         ensembles.sortedByDescending { it.lastSeen }
@@ -72,6 +76,13 @@ class StationStore(private val file: File, private val now: () -> Long = System:
         s.copy(lastPlayed = key, recents = (listOf(Recent(key, now())) + s.recents.filter { it.key != key }).take(MAX_RECENTS))
     }
 
+    /** Merge learned alternatives (key → other ensembles); only writes when something changed. */
+    fun learnAlternatives(found: Map<ServiceKey, List<AltFreq>>) {
+        val cur = _state.value.alternatives
+        if (found.all { (k, v) -> cur[k] == v }) return
+        change { it.copy(alternatives = it.alternatives + found) }
+    }
+
     fun clearRecents(): List<Recent> { val old = _state.value.recents; change { it.copy(recents = emptyList()) }; return old }
     fun restoreRecents(r: List<Recent>) = change { it.copy(recents = r) }
 
@@ -90,6 +101,8 @@ class StationStore(private val file: File, private val now: () -> Long = System:
             favourites = o.optJSONArray("favourites").strings().map(::key),
             recents = o.optJSONArray("recents").objs().map { Recent(key(it.getString("key")), it.getLong("time")) },
             lastPlayed = o.optString("lastPlayed").takeIf { it.isNotEmpty() }?.let(::key),
+            alternatives = o.optJSONObject("alternatives")?.let { a -> a.keys().asSequence().associate { k ->
+                key(k) to a.getJSONArray(k).objs().map { AltFreq(it.getInt("eid"), it.getInt("khz")) } } }.orEmpty(),
         )
     }.getOrElse { Snapshot() }
 
@@ -105,6 +118,8 @@ class StationStore(private val file: File, private val now: () -> Long = System:
         o.put("favourites", JSONArray(s.favourites.map { it.toString() }))
         o.put("recents", JSONArray(s.recents.map { JSONObject().put("key", it.key.toString()).put("time", it.time) }))
         s.lastPlayed?.let { o.put("lastPlayed", it.toString()) }
+        o.put("alternatives", JSONObject().also { j -> s.alternatives.forEach { (k, v) ->
+            j.put(k.toString(), JSONArray(v.map { JSONObject().put("eid", it.eid).put("khz", it.khz) })) } })
         val tmp = File(file.path + ".tmp")
         tmp.writeText(o.toString(1)); tmp.renameTo(file)
     }

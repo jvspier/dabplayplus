@@ -59,6 +59,7 @@ import com.adamglin.phosphoricons.fill.Radio
 import com.adamglin.phosphoricons.fill.SkipBack
 import com.adamglin.phosphoricons.fill.SkipForward
 import com.adamglin.phosphoricons.fill.Waveform
+import io.github.jvspier.dabplay.core.Reception
 import io.github.jvspier.dabplay.data.DriverSide
 import io.github.jvspier.dabplay.data.LayoutVariant
 import io.github.jvspier.dabplay.data.Recent
@@ -203,6 +204,20 @@ private fun Rail(tab: Tab, labelled: Boolean, right: Boolean, onSelect: (Tab) ->
     }
 }
 
+/**
+ * What the player says while the signal is gone. During a following round it doesn't name channels: failed tunes
+ * take ~0.2 s each, so names would flash by (verified 2026-09-27).
+ */
+fun noSignalText(e: EngineState) = if (e.following != null) "No signal · searching other multiplexes…" else "No signal · waiting for reception"
+
+/** Subtitle colour: red for real problems, amber while the signal is gone (it comes back by itself). */
+@Composable
+fun statusColor(e: EngineState, normal: Color) = when {
+    e.problem != null -> Accent.liveRed
+    e.playing && e.reception == Reception.LOST -> Accent.amber
+    else -> normal
+}
+
 /** Title/artist lines for the player: always "Artist – Title" for songs; raw DLS otherwise. */
 data class NowLines(val title: String, val subtitle: String?)
 
@@ -213,6 +228,7 @@ fun nowLines(e: EngineState): NowLines {
         st == null -> NowLines("No station", "Pick a station to start")
         e.problem != null -> NowLines(st.label, e.problem)
         e.tuning -> NowLines(st.label, "Tuning…")
+        e.playing && e.reception == Reception.LOST -> NowLines(st.label, noSignalText(e))
         np == null -> NowLines(st.label, null)
         np.isSong -> NowLines(st.label, np.display)
         else -> NowLines(st.label, np.raw)
@@ -231,10 +247,10 @@ private fun MiniPlayer(e: EngineState, a: RadioActions, open: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(lines.title, color = c.text, fontSize = 24.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false))
-                if (e.current != null && e.signalBars > 0) SignalBars(e.signalBars, 14.dp, Modifier.padding(start = 12.dp))
+                if (e.current != null && e.playing) SignalBars(e.signalBars, 14.dp, Modifier.padding(start = 12.dp))
             }
             lines.subtitle?.let {
-                Text(it, color = if (e.problem != null) Accent.liveRed else c.neutral400, fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(it, color = statusColor(e, c.neutral400), fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
         SquareButton(PhosphorIcons.Fill.SkipBack, "Previous", 80.dp, { a.skip(-1) }, background = Color.Transparent)
@@ -257,11 +273,11 @@ private fun PlayerPanel(e: EngineState, db: Snapshot, a: RadioActions, open: () 
     ) {
         Box(Modifier.pressable(open)) { Artwork(e.slide, e.current?.label ?: "", e.current?.key, 344.dp, 258.dp) }
         Spacer(Modifier.height(24.dp))
-        if (e.current != null && e.signalBars > 0) SignalBars(e.signalBars, 16.dp)
+        if (e.current != null && e.playing) SignalBars(e.signalBars, 16.dp)
         Text(lines.title, color = c.text, fontSize = 30.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 8.dp))
         lines.subtitle?.let {
-            Text(it, color = if (e.problem != null) Accent.liveRed else c.neutral300, fontSize = 22.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
+            Text(it, color = statusColor(e, c.neutral300), fontSize = 22.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 6.dp))
         }
         Spacer(Modifier.weight(1f))

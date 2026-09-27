@@ -115,4 +115,7 @@ Fallbacks:
   title, artist and show (verified): show the whole slide, don't crop it. **Station logos:** fetched when online and cached per
   ECC+SId: RadioDNS SPI (official, keyed by DAB ids; NPO and Talpa have it) → the station website's
   web app manifest icon / apple-touch-icon (homepage via radio-browser.info name match; e.g. KINK: 512×512)
-  → radio-browser.info favicon → the broadcast slideshow logo → a generated tile. The user can override.
+  → radio-browser.info favicon → a generated tile (initials). No slideshow-logo step (a logo can't be told from a news
+  card) and no manual logo override (owner, 2026-09-27: not needed).
+- **MP2 (DAB classic) is a v1 feature** (owner, 2026-09-27): not needed in NL, but users elsewhere (UK etc.) need it
+  for distribution. Own Kotlin Layer II decoder.

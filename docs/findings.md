@@ -33,6 +33,29 @@ this file as work progresses.
     port 443 (plain HTTP there hangs, so 443 = HTTPS); radio-browser names often add "Radio" ("Omroep Zeeland
     Radio"), so generic words are ignored when there is no exact match. The broadcast SLS logo step is left out
     for now: a logo can't be told apart from a news card reliably.
+  - **Reception loss** (2026-09-27, antenna pulled 3×, emulator + dongle):
+    - [verified] Bytes 4..5 of the `0x42` status reply are the signal value: the vendor's `dab_api_get_signal` on
+      fw ≥ 2 returns exactly them (`FUN_000773c0` → `DAT_002025e8`, set in `FUN_00077990`). Scale: 0 = perfect,
+      **2000 = nothing** (jumps there the moment the antenna is pulled). Seen while re-locking: 950 → 670 → 340 → 170
+      → 0. Bars thresholds (100/300/700/2000) are [hypothesis]: calibrate in the car.
+    - [verified] Antenna out: audio data stops within ~2 s (0 bytes from the MCU), bad AUs are dropped by the AU CRC,
+      so the output goes silent (no noise). Antenna back: **the chip re-locks by itself without a retune** (~2 s to
+      audio, one clean re-buffer), even after 2 minutes out.
+    - App: `ReceptionMonitor` (dab-core, with hysteresis) → GOOD/WEAK/LOST, live bars, "No signal · waiting for
+      reception" (amber), MediaSession `STATE_BUFFERING`; PAD half-messages are dropped after a gap (the DLS toggle has
+      only 2 values: stale segments could be stitched into a new text; a blank title was seen once after a gap).
+  - **FIC during playback** (2026-09-27, owner-approved test):
+    - [verified in decompiled code] the vendor lib wraps its FIC read (`FUN_00079c20`, the same register sequence as
+      our `ficRead`) and MSC read in one process-wide mutex (`DAT_00101e48`): built to interleave them.
+    - [verified on hw] polling the FIC every 50 ms while streaming: audio stays clean (126/0 AUs per 5 s, 0 resyncs),
+      all FIBs valid (1320/0 in 90 s), but only ~15 % of FIC frames are caught (the "FIC ready" bit is mostly already
+      cleared, presumably by the MCU's own MSC handling). Enough for slow FIGs: on 5B the FIG 0/24 list of
+      RADIONL's other ensembles (5A, 6A, 7C, 8B, 12B, 7C) plus their FIG 0/21 DAB frequencies arrived after ~85 s.
+  - **Service following** [verified, emulator]: alternatives learned live are stored per station (stations.json);
+    after 6 s LOST the engine tries them plus scan-known ensembles with the same service (tune, brief FIC read to
+    confirm the service), about 0.2 s per unreceivable candidate; none → back to the own frequency (retuned every
+    5 s until it locks) and another round every 30 s. Antenna test on RADIONL: 3 rounds, then back on 5B by itself.
+    A real switch to another ensemble is untested here (no second ensemble carries the same service locally).
 - Next: first run on the Dudu3 (Android 10) over ADB-on-Wi-Fi, MP2 decoder,
   service following, boot auto-start, a baseline profile for app code.
 

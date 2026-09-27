@@ -26,9 +26,12 @@ import com.adamglin.PhosphorIcons
 import com.adamglin.phosphoricons.Fill
 import com.adamglin.phosphoricons.fill.SkipBack
 import com.adamglin.phosphoricons.fill.SkipForward
+import io.github.jvspier.dabplay.core.Reception
 import io.github.jvspier.dabplay.data.Snapshot
 import io.github.jvspier.dabplay.engine.EngineState
 import io.github.jvspier.dabplay.ui.Artwork
+import io.github.jvspier.dabplay.ui.noSignalText
+import io.github.jvspier.dabplay.ui.statusColor
 import io.github.jvspier.dabplay.ui.RadioActions
 import io.github.jvspier.dabplay.ui.components.HeartIcon
 import io.github.jvspier.dabplay.ui.components.PlayButton
@@ -57,7 +60,7 @@ fun NowPlayingScreen(e: EngineState, db: Snapshot, a: RadioActions, large: Boole
                     StationLogo(st.label, st.key, 48.dp)
                     Column(Modifier.padding(start = 12.dp)) {
                         Text(st.label, color = c.text, fontSize = 20.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        if (e.signalBars > 0) SignalBars(e.signalBars, 14.dp, Modifier.padding(top = 4.dp))
+                        if (e.playing) SignalBars(e.signalBars, 14.dp, Modifier.padding(top = 4.dp))
                     }
                 }
                 Spacer(Modifier.height(20.dp))
@@ -65,6 +68,7 @@ fun NowPlayingScreen(e: EngineState, db: Snapshot, a: RadioActions, large: Boole
                     st == null -> "Nothing playing" to "Pick a station on Home or Stations"
                     e.problem != null -> st.label to e.problem
                     e.tuning -> st.label to "Tuning…"
+                    e.playing && e.reception == Reception.LOST -> st.label to noSignalText(e)
                     np == null -> st.label to ""
                     np.isSong -> np.title!! to np.artist!!
                     else -> np.raw to ""
@@ -72,7 +76,7 @@ fun NowPlayingScreen(e: EngineState, db: Snapshot, a: RadioActions, large: Boole
                 val long = title.length > 28
                 Text(title, color = c.text, fontSize = if (long) 40.sp else 52.sp, fontWeight = FontWeight.Medium, lineHeight = if (long) 44.sp else 55.sp,
                     letterSpacing = (-0.5).sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                if (artist.isNotEmpty()) Text(artist, color = if (e.problem != null) Accent.liveRed else c.neutral300, fontSize = 28.sp,
+                if (artist.isNotEmpty()) Text(artist, color = statusColor(e, c.neutral300), fontSize = 28.sp,
                     maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 8.dp))
                 Spacer(Modifier.height(38.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (large) 20.dp else 12.dp)) {

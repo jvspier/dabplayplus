@@ -19,6 +19,11 @@ class Dtr100(
     private var bandMode = 0                               // DAT_00657c00: 1 = band III lists loaded
     private var irqMask = 0                                // DAT_00657c51: shadow of page 7 reg 0x62
     private var ficOpen = false                            // DAT_00657c10
+    /**
+     * Bytes 4..5 of the last 0x42 status reply: what the vendor's dab_api_get_signal returns on fw >= 2
+     * (FUN_000773c0 returns DAT_002025e8, set from these bytes in FUN_00077990). Scale still being calibrated.
+     */
+    @Volatile var mcuSignal: Int? = null; private set
     private var mscSeq = 0                                 // DAT_002025e0: rolling counter in cmd 0x42
     private var mscSize = 0                                // DAT_002025e4 / DAT_00657c38
     private var subch: Int? = null                         // active audio sub-channel
@@ -428,6 +433,7 @@ class Dtr100(
             return data
         }
         val st = xfer(0x42, 0, 0, nextSeq(), replyLen = 6)
+        if (st.size >= 6) mcuSignal = st.u(4) or (st.u(5) shl 8)
         val avail = if (st.size >= 4) st.u(2) or (st.u(3) shl 8) else 0
         if (avail == 0) return EMPTY
         val m = minOf(avail, maxLen)
@@ -453,6 +459,15 @@ class Dtr100(
         const val MANUFACTURER = "dabusb@126.com"
         const val EP_OUT = 0x02
         const val EP_IN = 0x82
+
+        /** [mcuSignal] value meaning nothing receivable (antenna pulled, 2026-09-27: it jumps straight to 2000). */
+        const val SIGNAL_NONE = 2000
+
+        /**
+         * Bars from [mcuSignal] (0 = perfect, [SIGNAL_NONE] = nothing). [hypothesis] thresholds from the antenna test,
+         * where audio was clean from ~340 down: calibrate in the car.
+         */
+        fun signalBars(sig: Int) = when { sig >= SIGNAL_NONE -> 0; sig >= 700 -> 1; sig >= 300 -> 2; sig >= 100 -> 3; else -> 4 }
         private val EMPTY = ByteArray(0)
         private val MODE_1A = intArrayOf(0xB4, 0x44, 0x04, 0x84)   // page 6 reg 0x1a by reg 0x27 bits 4..5
 

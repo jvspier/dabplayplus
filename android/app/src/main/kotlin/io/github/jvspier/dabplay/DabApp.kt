@@ -24,7 +24,7 @@ class DabApp : Application() {
         store = StationStore(File(filesDir, "stations.json"))
         settings = SettingsStore(this)
         engine = DabEngine(getSystemService(UsbManager::class.java), store, AudioFocus(getSystemService(AudioManager::class.java)),
-            resumeOnStart = { settings.state.value.resumeOnStart })
+            resumeOnStart = { settings.state.value.resumeOnStart }, followStation = { settings.state.value.followStation })
         logos = LogoStore(File(filesDir, "logos"))
         logoFetcher = LogoFetcher(this, store, logos, settings, current = { engine.state.value.current?.key }).also { it.start() }
     }

@@ -44,6 +44,16 @@ class PadDecoder(
         fun start(d: ByteArray, need: Int): ByteArray? { buf = d; this.need = need; return done() }
         fun cont(d: ByteArray): ByteArray? { buf = (buf ?: return null) + d; return done() }
         private fun done(): ByteArray? { val b = buf ?: return null; if (b.size < need) return null; buf = null; return b.copyOf(need) }
+        fun reset() { buf = null }
+    }
+
+    /**
+     * After a reception gap: drop half-received data groups and DLS segments. The DLS toggle has only two values,
+     * so without this, segments of a message from before the gap can be stitched into a new one. The current
+     * [label] stays (it's still what the station last said).
+     */
+    fun resetPartial() {
+        dlAsm.reset(); motAsm.reset(); dlSegs.clear(); dlToggle = null
     }
 
     private class MotObject {
