@@ -50,6 +50,7 @@ import io.github.jvspier.dabplay.engine.EngineState
 import io.github.jvspier.dabplay.ui.EmptyHint
 import io.github.jvspier.dabplay.ui.RadioActions
 import io.github.jvspier.dabplay.ui.ScreenTitle
+import io.github.jvspier.dabplay.ui.rememberTimeFormatter
 import io.github.jvspier.dabplay.ui.components.HeartIcon
 import io.github.jvspier.dabplay.ui.components.StationLogo
 import io.github.jvspier.dabplay.ui.components.Waveform
@@ -121,8 +122,9 @@ fun RecentScreen(e: EngineState, db: Snapshot, a: RadioActions, compactTitle: Bo
 @Composable
 private fun whenText(t: Long): String {
     val ctx = LocalContext.current
-    return remember(t) {
-        val time = DateFormat.getTimeFormat(ctx).format(t)
+    val format = rememberTimeFormatter()
+    return remember(t, format) {
+        val time = format(t)
         val then = Calendar.getInstance().apply { timeInMillis = t }
         // midnight today, stepped back a day at a time (DST-safe, unlike dividing by 24h)
         val day = Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }

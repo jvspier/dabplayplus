@@ -1,7 +1,6 @@
 package io.github.jvspier.dabplay.ui
 
 import android.graphics.BitmapFactory
-import android.text.format.DateFormat
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -26,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,7 +45,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -117,6 +116,7 @@ fun AppShell(engine: EngineState, db: Snapshot, settings: Settings, actions: Rad
 
     // the Now-playing glow fades in over the whole screen (not just the content column), 300ms
     val npGlow by animateFloatAsState(if (tab == Tab.PLAYING) 1f else 0f, tween(300), label = "npGlow")
+    CompositionLocalProvider(LocalClockFormat provides settings.clock) {
     Box(Modifier.fillMaxSize().background(c.bg).pageGlow().drawBehind {
         if (npGlow > 0f) drawRect(Brush.radialGradient(listOf(c.npGlow, Color.Transparent), center = Offset(size.width * 0.45f, size.height * 0.5f),
             radius = size.width * 0.6f), alpha = npGlow)
@@ -150,6 +150,7 @@ fun AppShell(engine: EngineState, db: Snapshot, settings: Settings, actions: Rad
             (if (right) parts.reversed() else parts).forEach { it() }
         }
     }
+    }
 }
 
 /** Page background: radial glows from the design (g1 bottom-right, g2 top-left). */
@@ -162,10 +163,10 @@ private fun Modifier.pageGlow(): Modifier {
 
 @Composable
 private fun Clock(size: Int) {
-    val ctx = LocalContext.current
+    val format = rememberTimeFormatter()
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(5_000) } }
-    Text(DateFormat.getTimeFormat(ctx).format(now), color = LocalDabColors.current.text, fontSize = size.sp, fontWeight = FontWeight.Medium)
+    Text(format(now), color = LocalDabColors.current.text, fontSize = size.sp, fontWeight = FontWeight.Medium)
 }
 
 @Composable

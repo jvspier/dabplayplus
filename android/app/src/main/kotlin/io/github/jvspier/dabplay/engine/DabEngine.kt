@@ -88,6 +88,8 @@ class DabEngine(
     private fun status(s: String) { Log.i(TAG, s); _state.update { it.copy(status = s) } }
 
     private fun run(dev: UsbDevice) {
+        // the MSC reader must never fall behind the dongle (its buffer overflows: audible skips)
+        runCatching { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO) }
         var conn: UsbDeviceConnection? = null
         val player = AacPlayer()
         try {
@@ -222,7 +224,10 @@ class DabEngine(
                     commands.offer(next)          // play/scan: handled by the main loop after stopping here
                     return
                 }
+                val t0 = System.nanoTime()
                 val data = d.mscRead()
+                val ms = (System.nanoTime() - t0) / 1_000_000
+                if (ms > 150) Log.w(TAG, "slow MSC read: $ms ms")
                 if (data.isEmpty()) { Thread.sleep(5); continue }
                 dec.feed(data) { au ->
                     pad.feedAu(au.data)

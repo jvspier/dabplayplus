@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.update
 enum class DisplayMode { DAY, AUTO, NIGHT }
 enum class LayoutVariant { BAR, PANEL }          // design 1a (mini player bar) / 1b (docked player panel)
 enum class DriverSide { LEFT, RIGHT }
+enum class ClockFormat { SYSTEM, H12, H24 }      // SYSTEM follows Android's 12/24-hour setting
 
 data class Settings(
     val display: DisplayMode = DisplayMode.AUTO,
@@ -17,6 +18,7 @@ data class Settings(
     val resumeOnStart: Boolean = true,
     val downloadLogos: Boolean = true,
     val followStation: Boolean = true,
+    val clock: ClockFormat = ClockFormat.SYSTEM,
 )
 
 /** Countries that drive on the left, so the driver sits on the right and the controls belong on the right. */
@@ -36,7 +38,8 @@ class SettingsStore(context: Context) {
         val s = _state.value
         prefs.edit().putString("display", s.display.name).putString("layout", s.layout.name)
             .putString("driverSide", s.driverSide.name).putBoolean("resumeOnStart", s.resumeOnStart)
-            .putBoolean("downloadLogos", s.downloadLogos).putBoolean("followStation", s.followStation).apply()
+            .putBoolean("downloadLogos", s.downloadLogos).putBoolean("followStation", s.followStation)
+            .putString("clock", s.clock.name).apply()
     }
 
     private fun load(): Settings {
@@ -49,6 +52,7 @@ class SettingsStore(context: Context) {
             resumeOnStart = prefs.getBoolean("resumeOnStart", d.resumeOnStart),
             downloadLogos = prefs.getBoolean("downloadLogos", d.downloadLogos),
             followStation = prefs.getBoolean("followStation", d.followStation),
+            clock = e("clock", d.clock, ClockFormat::valueOf),
         )
     }
 }

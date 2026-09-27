@@ -48,6 +48,7 @@ import com.adamglin.phosphoricons.fill.ArrowsClockwise
 import com.adamglin.phosphoricons.fill.CaretDown
 import com.adamglin.phosphoricons.fill.CaretRight
 import com.adamglin.phosphoricons.fill.CaretUp
+import com.adamglin.phosphoricons.fill.Clock
 import com.adamglin.phosphoricons.fill.CircleHalf
 import com.adamglin.phosphoricons.fill.DownloadSimple
 import com.adamglin.phosphoricons.fill.Heart
@@ -59,6 +60,7 @@ import com.adamglin.phosphoricons.fill.SignIn
 import com.adamglin.phosphoricons.fill.SteeringWheel
 import com.adamglin.phosphoricons.fill.Sun
 import com.adamglin.phosphoricons.fill.X
+import io.github.jvspier.dabplay.data.ClockFormat
 import io.github.jvspier.dabplay.data.DisplayMode
 import io.github.jvspier.dabplay.data.DriverSide
 import io.github.jvspier.dabplay.data.LayoutVariant
@@ -108,6 +110,10 @@ private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Bo
                 Segmented(listOf(DriverSide.LEFT to "Left", DriverSide.RIGHT to "Right"), s.driverSide, Accent.amber, ON_AMBER,
                     { v -> a.updateSettings { it.copy(driverSide = v) } }, optionWidth = segW)
             }
+            SettingRow(PhosphorIcons.Fill.Clock, Accent.blue, tile, "Clock", "System follows the Android setting") {
+                Segmented(listOf(ClockFormat.SYSTEM to "System", ClockFormat.H12 to "12h", ClockFormat.H24 to "24h"), s.clock, Accent.amber, ON_AMBER,
+                    { v -> a.updateSettings { it.copy(clock = v) } }, optionWidth = segW)
+            }
             SettingRow(PhosphorIcons.Fill.SignIn, Accent.blue, tile, "Resume last station", "Start playing when the car starts") {
                 DabSwitch(s.resumeOnStart) { v -> a.updateSettings { it.copy(resumeOnStart = v) } }
             }
@@ -117,7 +123,7 @@ private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Bo
             SettingRow(PhosphorIcons.Fill.ArrowsClockwise, Accent.orange, tile, "Follow station", "Switch to a stronger signal of the same station") {
                 DabSwitch(s.followStation) { v -> a.updateSettings { it.copy(followStation = v) } }
             }
-            SettingRow(PhosphorIcons.Fill.Heart, Accent.pink, tile, "Edit favorites", "${db.favourites.size} of 24 · reorder or remove", onClick = onEditFavourites) {
+            SettingRow(PhosphorIcons.Fill.Heart, Accent.pink, tile, "Edit favorites", "${db.favourites.size} of 24 · or long-press a tile on Home and drag it", onClick = onEditFavourites) {
                 Icon(PhosphorIcons.Fill.CaretRight, null, tint = LocalDabColors.current.neutral400, modifier = Modifier.size(30.dp))
             }
         }

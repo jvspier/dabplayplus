@@ -18,6 +18,14 @@ this file as work progresses.
   - [verified] After the app is killed mid-stream (reinstall, force-stop, crash) the dongle still holds a stale reply
     on EP 0x82 (seen: `c2 00 00 00 72 01`), so the next `version` read fails. Fix: `Dtr100.drainStale()` reads (never
     writes) EP 0x82 until empty before init; recovery then works on every restart.
+  - [verified] Audio stutter/skips right after a cold-start auto-resume (owner, 2026-09-27; fine once warm). Cause: USB
+    read, superframe decode, AAC decode and a blocking AudioTrack write all ran on one thread with ~0.1–0.3 s of buffer
+    and no pre-roll. Fix: AAC decode + AudioTrack on their own URGENT_AUDIO thread behind a non-blocking queue, a 1 s
+    track buffer with a 400 ms pre-roll (DAB+ PCM arrives in 120 ms superframe bursts), re-prime after an underrun, USB
+    thread at AUDIO priority. After the fix: cold starts and a UI stress run (tab switching + list flings) log no underruns
+    and no MSC read slower than 150 ms (one underrun was seen once under heavy host load in the emulator).
+  - [verified] NPO slides are 320×240 (4:3) like the artwork frame and are drawn with Fit, so the whole slide shows; a
+    photo cut off at the top is how NPO composed that card.
 - Next: online logo fetching, then the first run on the Dudu3 (Android 10) over ADB-on-Wi-Fi, MP2 decoder,
   service following, boot auto-start, a baseline profile for app code.
 

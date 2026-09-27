@@ -31,6 +31,11 @@ design session.
 - **Keep Recent**, with a **Clear** button (with undo).
 - **Settings:** Display Day/Auto/Night, Layout (bar/panel), Driver side (left/right), Resume last station,
   Edit favourites, Download station logos (when online), Follow station when the signal drops. Later: traffic announcements.
+- **Clock** (owner, 2026-09-27): Settings → Clock System / 12h / 24h; System follows Android's setting. Applies to the
+  rail clock and the Recent times.
+- **Reorder favourites by dragging** (owner, 2026-09-27): long-press a Home tile, drag it to another slot, drop.
+  Head units have no vibration motor, so the pickup is visual and subtle: a small springy pop (scale 1.05) with a
+  soft shadow; the other tiles dim to 82 %. Settings → Edit favourites keeps big up/down buttons as the alternative.
 - **Resolution:** design baseline 1280×720 (the owner's Dudu3), but it must scale properly to other head units
   (2000×1200 etc.): the app is intended for the **Play Store** eventually.
 
