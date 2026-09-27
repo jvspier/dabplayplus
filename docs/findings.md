@@ -7,7 +7,10 @@ this file as work progresses.
 - **Android skeleton done** (`android/`, see `android/README.md`): builds and runs on a 1280×720 emulator.
 - **dab-core ported** (2026-09-27): FIC parser, Reed-Solomon, DAB+ superframes, PAD (DLS/DL+/slideshow) and the
   "Artist – Title" parser. Golden tests reproduce the Python PoC exactly on all captures (37k FIBs, 39k AUs, all DLS
-  changes and slides); 15 tests pass. Next: the dtr100 driver (port of tools/dtr100.py); no replay driver (USB passthrough into the emulator instead).
+  changes and slides); 15 tests pass. - **dtr100 driver ported** (2026-09-27): replaying the real 538→Qmusic switch session log, the Kotlin driver sends the
+  same 6030 USB requests in the same order (init, full tune, FIC enable, start/stop/switch).
+  Next: first hardware run in the emulator via USB passthrough (app: USB permission, driver, FIC → service list,
+  MediaCodec + AudioTrack).
 
 ## Status (2026-09-24, end of day)
 - Phases 0 and 2 done; phase 4 (Linux PoC) nearly done. Protocol: `docs/protocol.md`. Tools: `tools/README.md`.

@@ -15,3 +15,9 @@ dependencies {
     api(project(":tuner-api"))
     testImplementation(libs.kotlin.test)
 }
+
+// Transfer-level golden tests replay local USB logs (captures/*.log, gitignored); skipped when absent.
+tasks.test {
+    systemProperty("dabplay.captures", rootDir.resolve("../captures").absolutePath)
+    testLogging { events("passed", "skipped", "failed"); showStandardStreams = true }
+}
