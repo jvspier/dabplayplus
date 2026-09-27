@@ -59,5 +59,6 @@ binaries. Station names and logos shown belong to their broadcasters.
 
 ## Licence
 
-Not decided yet. The Inter font is under the SIL Open Font License
-(`android/app/src/main/assets/licenses/Inter-OFL.txt`).
+[MIT](LICENSE). Third-party parts keep their own licences: the Inter font (SIL Open Font License,
+`android/app/src/main/assets/licenses/Inter-OFL.txt`), Phosphor icons (MIT), OkHttp and AndroidX/Media3 (Apache 2.0),
+dnsjava (BSD).
