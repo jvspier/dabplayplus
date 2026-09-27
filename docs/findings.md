@@ -436,6 +436,18 @@ Files in `vendor/` (gitignored), unzipped to `decompiled/<ver>/apk/`:
     scan now retunes when it locks without a single valid FIB. App requirement: treat "lock without valid FIC" as a failed
     tune and retry.
 
+- **2026-09-27, first light on Android** (API 34 emulator, dongle via xHCI USB passthrough, temporary radio-test screen):
+  - [verified] The API 26/29 emulator kernels (4.14) have only EHCI (no OHCI/UHCI/xHCI), so QEMU refuses the full-speed
+    dongle ("speed mismatch"). The API 34 image (kernel 6.1, xHCI) sees it. Emulator images also lack the
+    `android.hardware.usb.host` feature; adding the standard permissions XML enables UsbManager. Real head units
+    declare it (the vendor app, DABdream+ and DAB-Z use the same USB host API).
+  - [verified] Permission dialog "Allow DABplay+ to access DAB USB Dongle?" with "Always open DABplay+ when connected"
+    (the device_filter works). Kotlin Dtr100 over UsbDeviceConnection: fw level 4, init 0.4 s, 11C locked in 0.6 s
+    (u1 18133, q 4), 14 stations after 0.9 s of FIC.
+  - [verified] **Audio plays**: 538 (HE-AAC 32 kHz, `c2.android.aac.decoder`), 234/234 AUs OK; switch to Qmusic without
+    re-init works, 388/388 AUs OK; live DLS "All Star - SMASH MOUTH" is shown as "Smash Mouth – All Star".
+  - Still to verify on the real Dudu3 (Android 10): USB host + permission flow, the decoder choice (OMX vs c2 naming), audio focus.
+
 ## Open questions
 1. ~~What is the VID:PID of this unit?~~ Answered: 16c0:05dc, vendor-specific bulk.
 2. Does DABdream+ work with this unit?

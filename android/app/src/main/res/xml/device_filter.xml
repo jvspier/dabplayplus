@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- wRadio C100 / DTR-100 family (vendor-specific bulk). 16c0:05dc is a shared ID; the driver checks the
+         manufacturer string after opening. -->
+    <usb-device vendor-id="5824" product-id="1500" />
+</resources>

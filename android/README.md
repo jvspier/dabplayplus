@@ -28,6 +28,12 @@ Golden tests: `../tools/golden.py` writes `../captures/golden/*.txt` from the Py
 `../captures/raw`; the `dab-core` tests reproduce them line by line (FIC content, every AU, every DLS change and
 slide). Captures and goldens are local test material (gitignored); the tests skip when they're absent.
 
-Testing the app with the real dongle in the emulator: pass it through with
-`emulator -avd dab-headunit-api29 -gpu host -qemu -usb -device usb-host,vendorid=0x16c0,productid=0x05dc`
-(no recordings are bundled in the app; there is deliberately no replay driver).
+Testing the app with the real dongle in the emulator (no recordings are bundled; there is deliberately no replay driver):
+- The API 26/29 emulator kernels can't host a full-speed USB device (EHCI only, no OHCI/UHCI/xHCI). Use the API 34
+  image, AVD `dab-headunit-api34` (1280×720), with xHCI passthrough.
+- Emulator images don't declare `android.hardware.usb.host` (real head units do). Once per AVD: boot with
+  `-writable-system`, `adb root && adb remount`, reboot, `adb root && adb remount`, push
+  `<permissions><feature name="android.hardware.usb.host"/></permissions>` to
+  `/system/etc/permissions/android.hardware.usb.host.xml`, reboot. Keep using `-writable-system` afterwards.
+- Start: `emulator -avd dab-headunit-api34 -gpu host -no-snapshot -writable-system -qemu -device qemu-xhci,id=xhci -device usb-host,bus=xhci.0,vendorid=0x16c0,productid=0x05dc`
+
