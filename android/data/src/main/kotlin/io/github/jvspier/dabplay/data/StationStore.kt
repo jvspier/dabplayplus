@@ -1,0 +1,121 @@
+package io.github.jvspier.dabplay.data
+
+import java.io.File
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
+import org.json.JSONArray
+import org.json.JSONObject
+
+/** A service as found on one ensemble. */
+data class StoredService(val key: ServiceKey, val label: String, val subchannel: Int, val bitrateKbps: Int, val ascty: Int)
+
+data class StoredEnsemble(
+    val eid: Int, val channel: String, val freqKhz: Int, val label: String,
+    val lastSeen: Long, val missedScans: Int, val services: List<StoredService>,
+)
+
+data class Recent(val key: ServiceKey, val time: Long)
+
+/** A station as the UI sees it: one service, on the ensemble where it was seen most recently. */
+data class Station(val service: StoredService, val ensemble: StoredEnsemble) {
+    val key get() = service.key
+    val label get() = service.label
+}
+
+data class Snapshot(
+    val ensembles: List<StoredEnsemble> = emptyList(),
+    val favourites: List<ServiceKey> = emptyList(),
+    val recents: List<Recent> = emptyList(),
+    val lastPlayed: ServiceKey? = null,
+) {
+    val stations: List<Station> by lazy {
+        ensembles.sortedByDescending { it.lastSeen }
+            .flatMap { e -> e.services.map { Station(it, e) } }
+            .distinctBy { it.key }
+            .sortedBy { it.label.lowercase() }
+    }
+    fun station(key: ServiceKey) = stations.firstOrNull { it.key == key }
+    val favouriteStations get() = favourites.mapNotNull(::station)
+}
+
+/**
+ * Local station database (offline first): scan results per ensemble, favourites (ordered), recents, last played.
+ * Stored as one JSON file; small enough that rewriting it on every change is fine.
+ */
+class StationStore(private val file: File, private val now: () -> Long = System::currentTimeMillis) {
+    private val _state = MutableStateFlow(load())
+    val state: StateFlow<Snapshot> = _state
+
+    /**
+     * Merge a band scan: found ensembles replace their old entry; ensembles on scanned channels that weren't found
+     * are kept until they've been missed [DROP_AFTER_MISSES] times (marginal multiplexes come and go).
+     */
+    fun applyScan(found: List<StoredEnsemble>, scannedChannels: Set<String>) = change { s ->
+        val foundEids = found.map { it.eid }.toSet()
+        val kept = s.ensembles.filter { it.eid !in foundEids }.mapNotNull { e ->
+            if (e.channel !in scannedChannels) e
+            else e.copy(missedScans = e.missedScans + 1).takeIf { it.missedScans < DROP_AFTER_MISSES }
+        }
+        s.copy(ensembles = found.map { it.copy(lastSeen = now(), missedScans = 0) } + kept)
+    }
+
+    fun toggleFavourite(key: ServiceKey) = change { s ->
+        s.copy(favourites = if (key in s.favourites) s.favourites - key else (s.favourites + key).take(MAX_FAVOURITES))
+    }
+
+    fun moveFavourite(from: Int, to: Int) = change { s ->
+        val l = s.favourites.toMutableList(); if (from in l.indices && to in l.indices) l.add(to, l.removeAt(from)); s.copy(favourites = l)
+    }
+
+    fun played(key: ServiceKey) = change { s ->
+        s.copy(lastPlayed = key, recents = (listOf(Recent(key, now())) + s.recents.filter { it.key != key }).take(MAX_RECENTS))
+    }
+
+    fun clearRecents(): List<Recent> { val old = _state.value.recents; change { it.copy(recents = emptyList()) }; return old }
+    fun restoreRecents(r: List<Recent>) = change { it.copy(recents = r) }
+
+    private fun change(f: (Snapshot) -> Snapshot) { _state.update(f); save(_state.value) }
+
+    private fun load(): Snapshot = runCatching {
+        if (!file.exists()) return Snapshot()
+        val o = JSONObject(file.readText())
+        Snapshot(
+            ensembles = o.optJSONArray("ensembles").objs().map { e ->
+                StoredEnsemble(e.getInt("eid"), e.getString("channel"), e.getInt("freqKhz"), e.getString("label"),
+                    e.getLong("lastSeen"), e.optInt("missedScans"), e.getJSONArray("services").objs().map { sv ->
+                        StoredService(key(sv.getString("key")), sv.getString("label"), sv.getInt("subch"), sv.getInt("bitrate"), sv.getInt("ascty"))
+                    })
+            },
+            favourites = o.optJSONArray("favourites").strings().map(::key),
+            recents = o.optJSONArray("recents").objs().map { Recent(key(it.getString("key")), it.getLong("time")) },
+            lastPlayed = o.optString("lastPlayed").takeIf { it.isNotEmpty() }?.let(::key),
+        )
+    }.getOrElse { Snapshot() }
+
+    private fun save(s: Snapshot) {
+        val o = JSONObject()
+        o.put("ensembles", JSONArray(s.ensembles.map { e ->
+            JSONObject().put("eid", e.eid).put("channel", e.channel).put("freqKhz", e.freqKhz).put("label", e.label)
+                .put("lastSeen", e.lastSeen).put("missedScans", e.missedScans)
+                .put("services", JSONArray(e.services.map { sv ->
+                    JSONObject().put("key", sv.key.toString()).put("label", sv.label).put("subch", sv.subchannel)
+                        .put("bitrate", sv.bitrateKbps).put("ascty", sv.ascty) }))
+        }))
+        o.put("favourites", JSONArray(s.favourites.map { it.toString() }))
+        o.put("recents", JSONArray(s.recents.map { JSONObject().put("key", it.key.toString()).put("time", it.time) }))
+        s.lastPlayed?.let { o.put("lastPlayed", it.toString()) }
+        val tmp = File(file.path + ".tmp")
+        tmp.writeText(o.toString(1)); tmp.renameTo(file)
+    }
+
+    private fun JSONArray?.objs() = if (this == null) emptyList() else (0 until length()).map { getJSONObject(it) }
+    private fun JSONArray?.strings() = if (this == null) emptyList() else (0 until length()).map { getString(it) }
+    private fun key(s: String) = s.split(".").let { ServiceKey(it[0].toInt(16), it[1].toLong(16)) }
+
+    companion object {
+        const val MAX_FAVOURITES = 24
+        const val MAX_RECENTS = 30
+        const val DROP_AFTER_MISSES = 3
+    }
+}

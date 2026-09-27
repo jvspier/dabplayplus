@@ -448,6 +448,14 @@ Files in `vendor/` (gitignored), unzipped to `decompiled/<ver>/apk/`:
     re-init works, 388/388 AUs OK; live DLS "All Star - SMASH MOUTH" is shown as "Smash Mouth – All Star".
   - Still to verify on the real Dudu3 (Android 10): USB host + permission flow, the decoder choice (OMX vs c2 naming), audio focus.
 
+- **2026-09-27, playback core on Android** (API 34 emulator + dongle passthrough; DabEngine, StationStore, RadioService/DabPlayer):
+  - [verified] First start (empty store) scans automatically: **full band III scan on Android in 22 s: 5 ensembles, 55 stations**
+    (same as the PoC). Results, favourites (by ECC+SId, e.g. E3.83C7) and last-played are persisted in `files/stations.json`.
+  - [verified] Media3 MediaSession: DABplay+ is the system's "media button session", state PLAYING/PAUSED. KEYCODE_MEDIA_NEXT/
+    PREVIOUS step through the favourites (538 → KINK → NPO 3FM, retuning 9C/12C in ≈ 0.75–0.85 s); PLAY_PAUSE pauses/resumes.
+  - [verified] Cold restart resumes the last station without a scan: dongle ready → audio 1.8 s (tune 0.84 s + first audio 0.98 s);
+    3.3 s including the app launch.
+
 ## Open questions
 1. ~~What is the VID:PID of this unit?~~ Answered: 16c0:05dc, vendor-specific bulk.
 2. Does DABdream+ work with this unit?

@@ -1,9 +1,10 @@
 package io.github.jvspier.dabplay.ui
 
 import android.graphics.BitmapFactory
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,40 +19,60 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.jvspier.dabplay.data.Snapshot
+import io.github.jvspier.dabplay.data.Station
 import io.github.jvspier.dabplay.engine.EngineState
-import io.github.jvspier.dabplay.engine.Station
 import io.github.jvspier.dabplay.ui.theme.Accent
 import io.github.jvspier.dabplay.ui.theme.LocalDabColors
 
-/** Temporary hardware-test screen: station buttons, now playing, current slide. Not the real UI. */
+/** Temporary engine-test screen (scan, all stations, favourites via long-press, play/pause). Not the real UI. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun RadioTestScreen(s: EngineState, onPlay: (Station) -> Unit) {
+fun RadioTestScreen(s: EngineState, db: Snapshot, onPlay: (Station) -> Unit, onFavourite: (Station) -> Unit,
+                    onScan: () -> Unit, onPlayPause: () -> Unit) {
     val c = LocalDabColors.current
     Row(Modifier.fillMaxSize().background(c.bg).padding(24.dp)) {
         Column(Modifier.weight(1f).fillMaxHeight()) {
-            Text("DABplay+ · radio test", color = c.text, fontSize = 30.sp, fontWeight = FontWeight.Medium)
-            Text(s.status, color = c.neutral400, fontSize = 18.sp, maxLines = 2)
-            Spacer(Modifier.height(16.dp))
-            LazyVerticalGrid(GridCells.Fixed(3), horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(s.stations) { st ->
-                    val playing = st == s.playing
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("DABplay+ · engine test", color = c.text, fontSize = 28.sp, fontWeight = FontWeight.Medium)
+                    val sc = s.scan
+                    Text(if (sc != null) "Scanning ${sc.channel} (${sc.index}/${sc.total}) · ${sc.ensembles} ensembles, ${sc.services} stations"
+                         else "${s.status} · ${db.stations.size} stations, ${db.favourites.size} favourites",
+                         color = c.neutral400, fontSize = 16.sp, maxLines = 2)
+                }
+                Box(Modifier.height(56.dp).background(Accent.blue, RoundedCornerShape(14.dp))
+                    .combinedClickable(onClick = onScan).padding(horizontal = 20.dp), contentAlignment = Alignment.Center) {
+                    Text(if (s.scan != null) "Scanning…" else "Scan", color = Accent.onAccent, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            LazyVerticalGrid(GridCells.Fixed(3), horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(db.stations, key = { it.key.toString() }) { st ->
+                    val playing = st.key == s.current?.key
+                    val fav = st.key in db.favourites
                     Box(
-                        Modifier.height(72.dp).background(if (playing) Accent.orange.copy(alpha = .25f) else c.surface, RoundedCornerShape(14.dp))
-                            .clickable { onPlay(st) }.padding(horizontal = 16.dp),
+                        Modifier.height(64.dp).background(if (playing) Accent.orange.copy(alpha = .25f) else c.surface, RoundedCornerShape(14.dp))
+                            .combinedClickable(onClick = { onPlay(st) }, onLongClick = { onFavourite(st) }).padding(horizontal = 14.dp),
                         contentAlignment = Alignment.CenterStart,
-                    ) { Text(st.label, color = if (playing) c.liveSub else c.text, fontSize = 22.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                    ) {
+                        Text((if (fav) "♥ " else "") + st.label, color = if (playing) c.liveSub else c.text, fontSize = 20.sp,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
             }
         }
@@ -62,10 +83,18 @@ fun RadioTestScreen(s: EngineState, onPlay: (Station) -> Unit) {
                 if (bmp != null) Image(bmp, contentDescription = null, modifier = Modifier.fillMaxSize())
                 else Text("slideshow", color = c.neutral500, fontSize = 16.sp)
             }
-            Spacer(Modifier.height(20.dp))
-            Text(s.playing?.label ?: "—", color = c.text, fontSize = 28.sp, fontWeight = FontWeight.Medium)
-            Text(s.nowPlaying ?: "", color = c.neutral300, fontSize = 22.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(s.info ?: "", color = c.neutral500, fontSize = 14.sp)
+            Spacer(Modifier.height(16.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(s.current?.label ?: "—", color = c.text, fontSize = 28.sp, fontWeight = FontWeight.Medium)
+                    Text(s.nowPlaying?.display ?: "", color = c.neutral300, fontSize = 20.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text("signal " + "▮".repeat(s.signalBars) + "▯".repeat(4 - s.signalBars), color = c.neutral500, fontSize = 14.sp)
+                }
+                Box(Modifier.size(80.dp).background(Brush.linearGradient(listOf(Accent.playFrom, Accent.playTo)), CircleShape)
+                    .combinedClickable(onClick = onPlayPause), contentAlignment = Alignment.Center) {
+                    Text(if (s.playing) "❚❚" else "▶", color = Accent.onAccent, fontSize = 28.sp)
+                }
+            }
         }
     }
 }

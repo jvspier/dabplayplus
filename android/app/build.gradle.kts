@@ -33,6 +33,8 @@ dependencies {
     implementation(project(":data"))
 
     implementation(libs.androidx.core.ktx)
+    implementation(libs.media3.session)
+    implementation(libs.media3.common)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(platform(libs.compose.bom))
