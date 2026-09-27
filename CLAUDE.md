@@ -15,9 +15,9 @@ architecture are decided and approved. Read these before starting any task:
 - `docs/findings.md`: hardware findings and test log; its **Status** section says where work stopped.
 - `docs/protocol.md`: the decoded USB/chip protocol. `tools/`: the Python reference implementation to port.
 
-Status in short: the skeleton builds (JDK 25, AGP 9.4, Kotlin 2.4, Compose) and runs on a 1280×720 API 29 emulator;
-6 unit tests pass. Next: port `dab-core` (FIC/FIG, superframe, PAD) with golden tests on the captures, then the
-dtr100 driver, the replay driver, playback service and the real UI.
+Status in short: the skeleton builds (JDK 25, AGP 9.4, Kotlin 2.4, Compose) and runs on a 1280×720 API 29 emulator.
+`dab-core` is ported (FIC, RS, DAB+ superframes, PAD, "Artist – Title") and matches the Python PoC exactly on all
+captures (golden tests). Next: the dtr100 driver, the replay driver, the playback service and the real UI.
 
 ## Hardware summary
 - **Dongle:** DollaTek "DAB+ Receiver for Android Navigation", model **DTR-100**

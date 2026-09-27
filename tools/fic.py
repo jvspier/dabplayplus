@@ -19,9 +19,10 @@ def fib_ok(fib):
     return (crc16_ccitt(fib[:30]) ^ 0xFFFF) == (fib[30] << 8 | fib[31])
 
 
-def _label(b):
-    # EBU Latin charset: close enough to latin-1 for station names
-    return bytes(b).decode("latin-1").rstrip()
+def _label(b, charset=0):
+    # FIG 1 labels: charset from the FIG 1 header (0 = EBU Latin, 15 = UTF-8, 6 = UCS-2)
+    from pad import decode_text
+    return decode_text(bytes(b), charset).rstrip()
 
 
 EEP_A = (12, 8, 6, 4)    # size (CU) per 8 kbit/s, protection 1-A..4-A
@@ -224,9 +225,9 @@ def parse_fib(fib, out):
         ext = body[0] & 0x07
         if ext == 0 and len(body) >= 1 + 2 + 16:
             out["eid"] = body[1] << 8 | body[2]
-            out["ensemble"] = _label(body[3:19])
+            out["ensemble"] = _label(body[3:19], body[0] >> 4)
         elif ext == 1 and len(body) >= 1 + 2 + 16:
-            out["services"][body[1] << 8 | body[2]] = _label(body[3:19])
+            out["services"][body[1] << 8 | body[2]] = _label(body[3:19], body[0] >> 4)
 
 
 # Band III channel raster (ETSI EN 300 401 table), kHz
