@@ -8,7 +8,7 @@ safely use while driving. This is a personal hobby / interoperability project.
 Why: the owner used DABdream+ in a previous car. It worked fine, but the UI is not
 car-friendly: lots of swiping, small buttons, small text. DAB-Z works but feels dated.
 
-## Current phase: 5 — Android app (skeleton, playback core and real UI done 2026-09-27)
+## Current phase: 5 — Android app (skeleton, playback core, real UI and station logos done 2026-09-27)
 The PoC (phase 4) is complete. The Android project lives in `android/` (see `android/README.md`); design and
 architecture are decided and approved. Read these before starting any task:
 - `docs/architecture.md` (modules, driver interface, playback/USB/boot) and `docs/design-notes.md` (UI decisions).
@@ -19,7 +19,9 @@ Status in short: the skeleton builds (JDK 25, AGP 9.4, Kotlin 2.4, Compose) and 
 `dab-core` is ported (FIC, RS, DAB+ superframes, PAD, "Artist – Title") and matches the Python PoC exactly on all
 captures (golden tests). The dtr100 driver is ported too (identical USB traffic to the Python driver on a real session log). The playback core
 runs with the real dongle in the API 34 emulator (USB passthrough): band scan, station store, Media3 MediaSession
-(media keys), audio focus, auto-resume. Next: the real UI from the design (still a temporary engine-test screen).
+(media keys), audio focus, auto-resume. Also done: the real UI (both layouts, driver side, day/night, drag-to-reorder),
+the audio thread with pre-roll, and online station logos (RadioDNS → website → radio-browser, cached). Next: the first
+run on the Dudu3 (see findings.md Status).
 
 ## Hardware summary
 - **Dongle:** DollaTek "DAB+ Receiver for Android Navigation", model **DTR-100**

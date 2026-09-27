@@ -1,5 +1,10 @@
 package io.github.jvspier.dabplay.ui.components
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.ui.layout.ContentScale
+import io.github.jvspier.dabplay.ui.theme.LocalNight
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -71,9 +76,33 @@ fun Modifier.pressable(onClick: () -> Unit, enabled: Boolean = true): Modifier {
 
 private val LOGO_PALETTE = listOf(Accent.orange, Accent.blue, Accent.amber, Accent.green, Accent.lavender, Accent.pink)
 
-/** Station logo. Until real logos are fetched (logo step), an initials tile in the station's palette colour. */
+/**
+ * Station logo: the downloaded logo when there is one (fading in over the initials when it arrives), else an
+ * initials tile in the station's palette colour. Opaque logos fill the tile; transparent ones sit on a light
+ * "paper" tile, because they're drawn for light web pages (Qmusic's grey "music" vanishes on the night theme).
+ */
 @Composable
 fun StationLogo(label: String, key: ServiceKey?, size: Dp, radius: Dp = 10.dp, modifier: Modifier = Modifier) {
+    val logo = rememberLogo(key)
+    val shape = RoundedCornerShape(radius)
+    Crossfade(logo, modifier.size(size), animationSpec = tween(250), label = "logo") { img ->
+        when {
+            img == null -> Initials(label, key, size, shape)
+            img.fullBleed -> Image(img.bitmap, contentDescription = label, contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().clip(shape))
+            else -> Box(Modifier.fillMaxSize().clip(shape).background(LOGO_PAPER)
+                .then(if (LocalNight.current) Modifier else Modifier.border(1.dp, LocalDabColors.current.neutral800.copy(alpha = 0.35f), shape)),
+                contentAlignment = Alignment.Center) {
+                Image(img.bitmap, contentDescription = label, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(size * 0.06f))
+            }
+        }
+    }
+}
+
+private val LOGO_PAPER = Color(0xFFF4F4F7)
+
+@Composable
+private fun Initials(label: String, key: ServiceKey?, size: Dp, shape: RoundedCornerShape) {
     val col = LOGO_PALETTE[abs((key?.sid ?: label.hashCode().toLong()).toInt()) % LOGO_PALETTE.size]
     val initials = remember(label) {
         val words = label.split(' ', '-', '.').filter { it.isNotBlank() }
@@ -83,7 +112,7 @@ fun StationLogo(label: String, key: ServiceKey?, size: Dp, radius: Dp = 10.dp, m
             else -> label
         }.uppercase()
     }
-    Box(modifier.size(size).clip(RoundedCornerShape(radius)).background(col.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().clip(shape).background(col.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
         Text(initials, color = col, fontSize = (size.value * 0.34f).sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
     }
 }

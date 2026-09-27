@@ -36,7 +36,7 @@ and the design decisions in `docs/design-notes.md`.
          │ Android USB host API (UsbDeviceConnection.bulkTransfer)
        dongle
  data: Room (ensembles, services, favourites, recents) · DataStore (settings) · disk cache (logos, slides)
- logos: RadioDNS SPI → website manifest icon → radio-browser → SLS logo (WorkManager, only when online)
+ logos: RadioDNS SPI → website manifest icon / apple-touch-icon → radio-browser favicon (app-scoped coroutine, only when online)
 ```
 
 ## Modules (Gradle)
@@ -47,7 +47,7 @@ and the design decisions in `docs/design-notes.md`.
 | `:driver-dtr100` | Port of `tools/dtr100.py`: MCU commands, register access, init, full tune, FIC read, sub-channel start/stop, MSC read; firmware paths ≤1, 2–4, ≥5 | USB host API |
 | `:audio` | AAC via MediaCodec (decoder chosen by name: `c2.android.aac.decoder` / `OMX.google.aac.decoder`, then fallback), MP2 via an own Kotlin Layer II decoder, AudioTrack output, audio focus and ducking | media |
 | `:data` | Room DB, DataStore settings, image cache | Room, DataStore |
-| `:logos` | RadioDNS lookup (DNS CNAME/SRV via dnsjava), SPI XML parse, manifest/apple-touch-icon scrape, radio-browser API | OkHttp, WorkManager |
+| `:logos` | RadioDNS lookup (DNS CNAME/SRV via dnsjava), SPI XML parse, manifest/apple-touch-icon scrape, radio-browser API | OkHttp, dnsjava (no WorkManager: the fetcher runs while the app does) |
 | `:app` | Compose UI (Nocturne tokens → theme, Inter font, Phosphor icons), navigation, settings screens, playback service wiring, diagnostics export | Compose, Media3 |
 
 ## Tuner driver interface (sketch)

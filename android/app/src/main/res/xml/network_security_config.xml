@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- RadioDNS SPI files and the official logos (metadata.radio) are served over plain HTTP, and station sites are
+     arbitrary hosts. The app only downloads public logo images this way (every file is type/size-checked). -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

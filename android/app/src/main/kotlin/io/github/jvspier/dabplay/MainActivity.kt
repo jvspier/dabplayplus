@@ -13,6 +13,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.OptIn
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.core.view.WindowCompat
@@ -28,6 +29,7 @@ import io.github.jvspier.dabplay.driver.dtr100.Dtr100
 import io.github.jvspier.dabplay.playback.RadioService
 import io.github.jvspier.dabplay.ui.AppShell
 import io.github.jvspier.dabplay.ui.RadioActions
+import io.github.jvspier.dabplay.ui.components.LocalLogos
 import io.github.jvspier.dabplay.ui.theme.DabPlayTheme
 
 class MainActivity : ComponentActivity() {
@@ -79,7 +81,8 @@ class MainActivity : ComponentActivity() {
                         updateSettings = app.settings::update,
                     )
                 }
-                AppShell(s, db, settings, actions)
+                val logos by app.logos.state.collectAsStateWithLifecycle()
+                CompositionLocalProvider(LocalLogos provides logos) { AppShell(s, db, settings, actions) }
             }
         }
         findDongle()

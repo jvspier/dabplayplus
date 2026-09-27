@@ -26,7 +26,14 @@ this file as work progresses.
     and no MSC read slower than 150 ms (one underrun was seen once under heavy host load in the emulator).
   - [verified] NPO slides are 320×240 (4:3) like the artwork frame and are drawn with Fit, so the whole slide shows; a
     photo cut off at the top is how NPO composed that card.
-- Next: online logo fetching, then the first run on the Dudu3 (Android 10) over ADB-on-Wi-Fi, MP2 decoder,
+  - **Station logos** (2026-09-27) [verified, emulator online]: first pass found 41 of the 55 received services in
+    ≈ 18 s (24 RadioDNS SPI, 3 website manifest, 6 apple-touch-icon, 8 radio-browser favicon). The 14 misses are
+    small local stations with no usable image anywhere (not in radio-browser, or only a banner under 96 px);
+    they keep the initials tile and are retried after 3 days. Found on the way: Radioplayer's SPI SRV points to
+    port 443 (plain HTTP there hangs, so 443 = HTTPS); radio-browser names often add "Radio" ("Omroep Zeeland
+    Radio"), so generic words are ignored when there is no exact match. The broadcast SLS logo step is left out
+    for now: a logo can't be told apart from a news card reliably.
+- Next: first run on the Dudu3 (Android 10) over ADB-on-Wi-Fi, MP2 decoder,
   service following, boot auto-start, a baseline profile for app code.
 
 ## Status (2026-09-24, end of day)

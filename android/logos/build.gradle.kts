@@ -12,5 +12,9 @@ kotlin {
 }
 
 dependencies {
+    api(libs.okhttp)
+    implementation(libs.dnsjava)
+    compileOnly(libs.orgjson)          // part of the Android platform; only needed on the JVM for tests
+    testImplementation(libs.orgjson)
     testImplementation(libs.kotlin.test)
 }

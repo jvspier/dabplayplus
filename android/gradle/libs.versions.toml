@@ -9,6 +9,9 @@ coroutines = "1.10.2"
 junit = "4.13.2"
 media3 = "1.11.1"
 phosphor = "1.0.0"
+okhttp = "5.5.0"
+dnsjava = "3.6.5"
+orgjson = "20260814"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
@@ -25,6 +28,9 @@ junit = { module = "junit:junit", version.ref = "junit" }
 media3-session = { module = "androidx.media3:media3-session", version.ref = "media3" }
 phosphor-icons = { module = "com.adamglin:phosphor-icon-android", version.ref = "phosphor" }
 media3-common = { module = "androidx.media3:media3-common", version.ref = "media3" }
+okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+dnsjava = { module = "dnsjava:dnsjava", version.ref = "dnsjava" }
+orgjson = { module = "org.json:json", version.ref = "orgjson" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
