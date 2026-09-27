@@ -9,3 +9,11 @@ captures/*
 # local tooling / OS noise
 __pycache__/
 *.pyc
+# Android / Gradle
+android/.gradle/
+android/.kotlin/
+android/build/
+android/*/build/
+android/local.properties
+*.iml
+.idea/

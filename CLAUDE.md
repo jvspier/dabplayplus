@@ -8,20 +8,16 @@ safely use while driving. This is a personal hobby / interoperability project.
 Why: the owner used DABdream+ in a previous car. It worked fine, but the UI is not
 car-friendly: lots of swiping, small buttons, small text. DAB-Z works but feels dated.
 
-## Current phase: 4 — Linux proof of concept (nearly done), then the Android design session
-There is no Android code yet. Work happens on the owner's **Fedora laptop** with the dongle
-plugged in. Read these before starting any task:
-- `docs/findings.md`: hardware findings, sources and test log. Its **Status** section at the
-  top says where work stopped and what's next.
-- `docs/protocol.md`: the decoded USB/chip protocol, with every item tagged as verified in
-  the decompiled code or verified on hardware.
-- `tools/README.md`: the PoC scripts (`tools/dtr100.py`), the Python venv and the Ghidra
-  decompile setup.
+## Current phase: 5 — Android app (skeleton done 2026-09-27)
+The PoC (phase 4) is complete. The Android project lives in `android/` (see `android/README.md`); design and
+architecture are decided and approved. Read these before starting any task:
+- `docs/architecture.md` (modules, driver interface, playback/USB/boot) and `docs/design-notes.md` (UI decisions).
+- `docs/findings.md`: hardware findings and test log; its **Status** section says where work stopped.
+- `docs/protocol.md`: the decoded USB/chip protocol. `tools/`: the Python reference implementation to port.
 
-Status in short: the protocol has been decoded from the vendor's native `libdab.so`. The Python
-PoC scans band III (≈19 s), plays DAB+ audio (faad2) with DLS and slideshow, and parses the
-service-following FIGs. Android's MediaCodec decodes DAB+ (HE-AAC v1/v2, 960-sample frames) on API 26 and 29
-(emulator-verified), so no faad2 in the app. Next: the Android design session (small PoC gaps in findings.md Status).
+Status in short: the skeleton builds (JDK 25, AGP 9.4, Kotlin 2.4, Compose) and runs on a 1280×720 API 29 emulator;
+6 unit tests pass. Next: port `dab-core` (FIC/FIG, superframe, PAD) with golden tests on the captures, then the
+dtr100 driver, the replay driver, playback service and the real UI.
 
 ## Hardware summary
 - **Dongle:** DollaTek "DAB+ Receiver for Android Navigation", model **DTR-100**

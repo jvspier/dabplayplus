@@ -3,6 +3,10 @@
 Every claim is tagged **[verified]** (seen directly) or **[hypothesis]** (inferred). Update
 this file as work progresses.
 
+## Status (2026-09-27)
+- **Android skeleton done** (`android/`, see `android/README.md`): builds, 6 unit tests pass, runs on a 1280×720 emulator.
+  Next: port dab-core with golden tests, then the dtr100 driver.
+
 ## Status (2026-09-24, end of day)
 - Phases 0 and 2 done; phase 4 (Linux PoC) nearly done. Protocol: `docs/protocol.md`. Tools: `tools/README.md`.
 - The PoC (`tools/dtr100.py`) does all of this on real hardware:
