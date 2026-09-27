@@ -56,8 +56,10 @@ this file as work progresses.
     confirm the service), about 0.2 s per unreceivable candidate; none → back to the own frequency (retuned every
     5 s until it locks) and another round every 30 s. Antenna test on RADIONL: 3 rounds, then back on 5B by itself.
     A real switch to another ensemble is untested here (no second ensemble carries the same service locally).
-- Next: first run on the Dudu3 (Android 10) over ADB-on-Wi-Fi, MP2 decoder,
-  service following, boot auto-start, a baseline profile for app code.
+- Next session (owner, 2026-09-27): **MP2 decoder** (v1 feature), **extra dongle drivers** (docs/dongles.md; the
+  best candidates need their vendor APKs: C100 Dual Antenna/Dual Tuner, Si4684 "Eonon" 1a86:5537), and a
+  **bug + security review** of the app. When the head unit is in the car: first run on the Dudu3 (Android 10) over
+  ADB-on-Wi-Fi, boot auto-start, a real service-following switch, signal-bar calibration. Later: baseline profile.
 
 ## Status (2026-09-24, end of day)
 - Phases 0 and 2 done; phase 4 (Linux PoC) nearly done. Protocol: `docs/protocol.md`. Tools: `tools/README.md`.
