@@ -5,8 +5,9 @@ import android.graphics.BitmapFactory
 import android.util.LruCache
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import io.github.jvspier.dabplay.data.LogoStore
@@ -52,8 +53,10 @@ private object LogoCache {
 fun rememberLogo(key: ServiceKey?): LogoImage? {
     val entry = key?.let { LocalLogos.current[it] } ?: return null
     val cacheKey = "${entry.file.path}@${entry.fetched}"
-    val img by produceState(LogoCache.get(cacheKey), cacheKey) {
-        if (value == null) value = withContext(Dispatchers.IO) { LogoCache.load(cacheKey, entry) }
+    // state per logo: when the station in the same place changes (mini player, panel), the old logo must not linger
+    val img = remember(cacheKey) { mutableStateOf(LogoCache.get(cacheKey)) }
+    LaunchedEffect(cacheKey) {
+        if (img.value == null) img.value = withContext(Dispatchers.IO) { LogoCache.load(cacheKey, entry) }
     }
-    return img
+    return img.value
 }
