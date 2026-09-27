@@ -17,6 +17,7 @@ class DabApp : Application() {
     lateinit var engine: DabEngine; private set
     lateinit var settings: SettingsStore; private set
     lateinit var logos: LogoStore; private set
+    lateinit var logoFetcher: LogoFetcher; private set
 
     override fun onCreate() {
         super.onCreate()
@@ -25,6 +26,6 @@ class DabApp : Application() {
         engine = DabEngine(getSystemService(UsbManager::class.java), store, AudioFocus(getSystemService(AudioManager::class.java)),
             resumeOnStart = { settings.state.value.resumeOnStart })
         logos = LogoStore(File(filesDir, "logos"))
-        LogoFetcher(this, store, logos, settings, current = { engine.state.value.current?.key }).start()
+        logoFetcher = LogoFetcher(this, store, logos, settings, current = { engine.state.value.current?.key }).also { it.start() }
     }
 }

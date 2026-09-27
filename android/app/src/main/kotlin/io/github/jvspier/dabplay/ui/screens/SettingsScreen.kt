@@ -66,11 +66,13 @@ import io.github.jvspier.dabplay.data.DriverSide
 import io.github.jvspier.dabplay.data.LayoutVariant
 import io.github.jvspier.dabplay.data.Settings
 import io.github.jvspier.dabplay.data.Snapshot
+import io.github.jvspier.dabplay.logos.LogoStatus
 import io.github.jvspier.dabplay.ui.EmptyHint
 import io.github.jvspier.dabplay.ui.RadioActions
 import io.github.jvspier.dabplay.ui.ScreenTitle
 import io.github.jvspier.dabplay.ui.components.DabSwitch
 import io.github.jvspier.dabplay.ui.components.IconTile
+import io.github.jvspier.dabplay.ui.components.LocalLogos
 import io.github.jvspier.dabplay.ui.components.Segmented
 import io.github.jvspier.dabplay.ui.components.SquareButton
 import io.github.jvspier.dabplay.ui.components.StationLogo
@@ -81,16 +83,16 @@ import io.github.jvspier.dabplay.ui.theme.LocalDabColors
 private val ON_AMBER = Color(0xFF2A1A00)
 
 @Composable
-fun SettingsScreen(s: Settings, db: Snapshot, a: RadioActions, compactTitle: Boolean) {
+fun SettingsScreen(s: Settings, db: Snapshot, a: RadioActions, compactTitle: Boolean, logoStatus: LogoStatus = LogoStatus()) {
     var editing by rememberSaveable { mutableStateOf(false) }
     AnimatedContent(editing, transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) }, label = "settings") { edit ->
         if (edit) EditFavourites(db, a, compactTitle) { editing = false }
-        else SettingsList(s, db, a, compactTitle) { editing = true }
+        else SettingsList(s, db, a, compactTitle, logoStatus) { editing = true }
     }
 }
 
 @Composable
-private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Boolean, onEditFavourites: () -> Unit) {
+private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Boolean, logoStatus: LogoStatus, onEditFavourites: () -> Unit) {
     val tile = if (compact) 44.dp else 64.dp
     val segW = if (compact) 104.dp else 120.dp
     Column(Modifier.fillMaxSize()) {
@@ -117,7 +119,7 @@ private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Bo
             SettingRow(PhosphorIcons.Fill.SignIn, Accent.blue, tile, "Resume last station", "Start playing when the car starts") {
                 DabSwitch(s.resumeOnStart) { v -> a.updateSettings { it.copy(resumeOnStart = v) } }
             }
-            SettingRow(PhosphorIcons.Fill.DownloadSimple, Accent.green, tile, "Download station logos", "When there is an internet connection") {
+            SettingRow(PhosphorIcons.Fill.DownloadSimple, Accent.green, tile, "Download station logos", logoLine(s.downloadLogos, logoStatus, db)) {
                 DabSwitch(s.downloadLogos) { v -> a.updateSettings { it.copy(downloadLogos = v) } }
             }
             SettingRow(PhosphorIcons.Fill.ArrowsClockwise, Accent.orange, tile, "Follow station", "Switch to a stronger signal of the same station") {
@@ -127,6 +129,21 @@ private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Bo
                 Icon(PhosphorIcons.Fill.CaretRight, null, tint = LocalDabColors.current.neutral400, modifier = Modifier.size(30.dp))
             }
         }
+    }
+}
+
+/** Tells what the logo download is doing: it's automatic, so the row shows its state instead of a button. */
+@Composable
+private fun logoLine(enabled: Boolean, st: LogoStatus, db: Snapshot): String {
+    val logos = LocalLogos.current
+    val total = db.stations.size
+    val have = db.stations.count { it.key in logos }
+    return when {
+        !enabled -> "Off · stations show their initials"
+        total == 0 -> "Automatic when online · scan for stations first"
+        st.running && st.online -> "Downloading… $have of $total"
+        !st.online -> "Automatic when online · no internet now · $have of $total have a logo"
+        else -> "Automatic when online · $have of $total have a logo"
     }
 }
 

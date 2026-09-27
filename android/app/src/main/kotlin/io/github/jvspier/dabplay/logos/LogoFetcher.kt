@@ -15,6 +15,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -22,6 +24,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+
+/** For Settings: is it online, and is a download pass running right now. */
+data class LogoStatus(val online: Boolean = false, val running: Boolean = false)
 
 /**
  * Downloads missing station logos whenever the device is online and Settings → "Download station logos" is on
@@ -38,18 +43,25 @@ class LogoFetcher(
     private val cm = context.getSystemService(ConnectivityManager::class.java)
     private val online = MutableStateFlow(false)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val _status = MutableStateFlow(LogoStatus())
+    val status: StateFlow<LogoStatus> = _status
 
     fun start() {
         cm.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
             override fun onCapabilitiesChanged(n: Network, caps: NetworkCapabilities) {
                 online.value = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+                _status.update { it.copy(online = online.value) }
             }
-            override fun onLost(n: Network) { online.value = false }
+            override fun onLost(n: Network) { online.value = false; _status.update { it.copy(online = false) } }
         })
         scope.launch {
             combine(online, settings.state.map { it.downloadLogos }.distinctUntilChanged(),
                 stations.state.map { s -> s.stations.map { it.key } }.distinctUntilChanged()) { on, enabled, _ -> on && enabled }
-                .collectLatest { go -> if (go) pass() }
+                .collectLatest { go ->
+                    if (!go) return@collectLatest
+                    _status.update { it.copy(running = true) }
+                    try { pass() } finally { _status.update { it.copy(running = false) } }
+                }
         }
     }
 

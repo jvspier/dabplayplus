@@ -66,6 +66,7 @@ import io.github.jvspier.dabplay.data.ServiceKey
 import io.github.jvspier.dabplay.data.Settings
 import io.github.jvspier.dabplay.data.Snapshot
 import io.github.jvspier.dabplay.engine.EngineState
+import io.github.jvspier.dabplay.logos.LogoStatus
 import io.github.jvspier.dabplay.ui.components.PlayButton
 import io.github.jvspier.dabplay.ui.components.SignalBars
 import io.github.jvspier.dabplay.ui.components.SquareButton
@@ -105,7 +106,7 @@ class RadioActions(
 )
 
 @Composable
-fun AppShell(engine: EngineState, db: Snapshot, settings: Settings, actions: RadioActions) {
+fun AppShell(engine: EngineState, db: Snapshot, settings: Settings, actions: RadioActions, logoStatus: LogoStatus = LogoStatus()) {
     val c = LocalDabColors.current
     var tab by rememberSaveable { mutableStateOf(if (db.favourites.isEmpty() && db.stations.isNotEmpty()) Tab.STATIONS else Tab.HOME) }
     val saved = rememberSaveableStateHolder()
@@ -135,7 +136,7 @@ fun AppShell(engine: EngineState, db: Snapshot, settings: Settings, actions: Rad
                                     Tab.STATIONS -> StationsScreen(engine, db, actions, compactTitle = panelLayout)
                                     Tab.PLAYING -> NowPlayingScreen(engine, db, actions, large = !panelLayout)
                                     Tab.RECENT -> RecentScreen(engine, db, actions, compactTitle = panelLayout)
-                                    Tab.SETTINGS -> SettingsScreen(settings, db, actions, compactTitle = panelLayout)
+                                    Tab.SETTINGS -> SettingsScreen(settings, db, actions, compactTitle = panelLayout, logoStatus = logoStatus)
                                 }
                             }
                         }

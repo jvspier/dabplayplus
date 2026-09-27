@@ -33,6 +33,9 @@ design session.
   Edit favourites, Download station logos (when online), Follow station when the signal drops. Later: traffic announcements.
 - **Clock** (owner, 2026-09-27): Settings → Clock System / 12h / 24h; System follows Android's setting. Applies to the
   rail clock and the Recent times.
+- **Logo download is automatic** (owner asked how people would know, 2026-09-27): no button; the Settings row shows
+  what it's doing instead: "Automatic when online · 41 of 55 have a logo", "Downloading… 23 of 55",
+  "… no internet now …", or "Off · stations show their initials".
 - **Reorder favourites by dragging** (owner, 2026-09-27): long-press a Home tile, drag it to another slot, drop.
   Head units have no vibration motor, so the pickup is visual and subtle: a small springy pop (scale 1.05) with a
   soft shadow; the other tiles dim to 82 %. Settings → Edit favourites keeps big up/down buttons as the alternative.

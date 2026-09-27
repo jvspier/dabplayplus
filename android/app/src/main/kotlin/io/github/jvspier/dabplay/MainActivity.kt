@@ -82,7 +82,8 @@ class MainActivity : ComponentActivity() {
                     )
                 }
                 val logos by app.logos.state.collectAsStateWithLifecycle()
-                CompositionLocalProvider(LocalLogos provides logos) { AppShell(s, db, settings, actions) }
+                val logoStatus by app.logoFetcher.status.collectAsStateWithLifecycle()
+                CompositionLocalProvider(LocalLogos provides logos) { AppShell(s, db, settings, actions, logoStatus) }
             }
         }
         findDongle()
