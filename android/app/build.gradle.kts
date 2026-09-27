@@ -16,6 +16,17 @@ android {
         versionName = "0.1.0"
     }
 
+    buildTypes {
+        release {
+            // R8: Compose is only smooth when minified and optimised (debug builds jank by design)
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // local testing only, until there is a real upload key
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+
     buildFeatures { compose = true }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -35,6 +46,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.media3.session)
     implementation(libs.media3.common)
+    implementation(libs.phosphor.icons)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(platform(libs.compose.bom))

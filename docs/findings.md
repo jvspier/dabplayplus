@@ -4,13 +4,22 @@ Every claim is tagged **[verified]** (seen directly) or **[hypothesis]** (inferr
 this file as work progresses.
 
 ## Status (2026-09-27)
-- **Android skeleton done** (`android/`, see `android/README.md`): builds and runs on a 1280×720 emulator.
-- **dab-core ported** (2026-09-27): FIC parser, Reed-Solomon, DAB+ superframes, PAD (DLS/DL+/slideshow) and the
-  "Artist – Title" parser. Golden tests reproduce the Python PoC exactly on all captures (37k FIBs, 39k AUs, all DLS
-  changes and slides); 15 tests pass. - **dtr100 driver ported** (2026-09-27): replaying the real 538→Qmusic switch session log, the Kotlin driver sends the
-  same 6030 USB requests in the same order (init, full tune, FIC enable, start/stop/switch).
-  Next: first hardware run in the emulator via USB passthrough (app: USB permission, driver, FIC → service list,
-  MediaCodec + AudioTrack).
+- **Android app, phase 5** (`android/`, see `android/README.md`). Done and verified on the API 34 head-unit emulator
+  (1280×720) with the real dongle over USB passthrough:
+  - dab-core, the dtr100 driver and the playback core (scan 22 s / 55 stations, MediaCodec audio, DLS, slides,
+    Media3 session + media keys, auto-resume).
+  - **Real UI** from the Claude Design handoff: Home (favourites grid 1a / list tiles 1b, "+ Add" tiles), Stations
+    (letter groups with sticky headers, swipe-right to favourite, A–Z scrubber), Now playing (4:3 artwork),
+    Recent (Clear + Undo), Settings (Day/Auto/Night, Bar/Panel, driver side Left/Right, switches, Edit favourites).
+    Both layouts, both driver sides and both themes checked with screenshots.
+  - **Smoothness** [verified, emulator]: R8 release build 2.1 MB (debug 19.5 MB); flinging the station list:
+    4.4 % janky frames and 1 slow UI-thread frame in 412 (debug build: 28 % / 28). Animations are read in the
+    draw layer (no per-frame recomposition), slides decode off the UI thread, tabs keep their scroll position.
+  - [verified] After the app is killed mid-stream (reinstall, force-stop, crash) the dongle still holds a stale reply
+    on EP 0x82 (seen: `c2 00 00 00 72 01`), so the next `version` read fails. Fix: `Dtr100.drainStale()` reads (never
+    writes) EP 0x82 until empty before init; recovery then works on every restart.
+- Next: online logo fetching, then the first run on the Dudu3 (Android 10) over ADB-on-Wi-Fi, MP2 decoder,
+  service following, boot auto-start, a baseline profile for app code.
 
 ## Status (2026-09-24, end of day)
 - Phases 0 and 2 done; phase 4 (Linux PoC) nearly done. Protocol: `docs/protocol.md`. Tools: `tools/README.md`.

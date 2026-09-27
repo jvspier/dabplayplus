@@ -14,6 +14,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.OptIn
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
@@ -22,7 +26,8 @@ import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import io.github.jvspier.dabplay.driver.dtr100.Dtr100
 import io.github.jvspier.dabplay.playback.RadioService
-import io.github.jvspier.dabplay.ui.RadioTestScreen
+import io.github.jvspier.dabplay.ui.AppShell
+import io.github.jvspier.dabplay.ui.RadioActions
 import io.github.jvspier.dabplay.ui.theme.DabPlayTheme
 
 class MainActivity : ComponentActivity() {
@@ -49,16 +54,32 @@ class MainActivity : ComponentActivity() {
         }, ContextCompat.RECEIVER_EXPORTED)
         // Connect to the media service so it runs (and becomes the active MediaSession for the steering-wheel keys)
         controller = MediaController.Builder(this, SessionToken(this, ComponentName(this, RadioService::class.java))).buildAsync()
+        // head unit: the whole 1280×720 is ours; the system bars come back with a swipe from the edge
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            hide(WindowInsetsCompat.Type.systemBars())
+        }
         setContent {
-            DabPlayTheme {
+            val settings by app.settings.state.collectAsStateWithLifecycle()
+            DabPlayTheme(settings.display) {
                 val s by app.engine.state.collectAsStateWithLifecycle()
                 val db by app.store.state.collectAsStateWithLifecycle()
-                RadioTestScreen(s, db,
-                    onPlay = { app.engine.play(it.key) },
-                    onFavourite = { app.store.toggleFavourite(it.key) },
-                    onScan = { app.engine.scan() },
-                    onPlayPause = { if (s.playing) app.engine.pause() else app.engine.resume() },
-                )
+                // one stable instance: the lambdas read current state when called, so nothing below recomposes because of them
+                val actions = remember {
+                    val e = app.engine
+                    RadioActions(
+                        play = e::play,
+                        togglePlay = { if (e.state.value.playing) e.pause() else e.resume() },
+                        skip = e::skip,
+                        toggleFavourite = app.store::toggleFavourite,
+                        moveFavourite = app.store::moveFavourite,
+                        scan = e::scan,
+                        clearRecents = app.store::clearRecents,
+                        restoreRecents = app.store::restoreRecents,
+                        updateSettings = app.settings::update,
+                    )
+                }
+                AppShell(s, db, settings, actions)
             }
         }
         findDongle()

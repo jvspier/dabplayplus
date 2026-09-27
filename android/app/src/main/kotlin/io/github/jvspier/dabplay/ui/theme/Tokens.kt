@@ -11,6 +11,8 @@ data class DabColors(
     val neutral200: Color, val neutral300: Color, val neutral400: Color, val neutral500: Color, val neutral800: Color,
     val glow1: Color, val glow2: Color, val npGlow: Color,
     val liveSub: Color, val az: Color,
+    val liveTileFrom: Color, val liveTileTo: Color, val sticky: Color, val neutral700: Color,
+    val panelFrom: Color, val panelMid: Color, val panelTo: Color,
 )
 
 object Accent {
@@ -23,6 +25,8 @@ object Accent {
     val playFrom = Color(0xFFFF8A4C)
     val playTo = Color(0xFFFF5A36)
     val onAccent = Color(0xFF14151F)
+    val liveRed = Color(0xFFFF3B4E)
+    val playIcon = Color(0xFFFFF5F0)
 }
 
 val NightColors = DabColors(
@@ -31,6 +35,8 @@ val NightColors = DabColors(
     neutral500 = Color(0xFF9397AB), neutral800 = Color(0xFF3F424D),
     glow1 = Color(0xFF3D2244), glow2 = Color(0xFF232846), npGlow = Color(0xFF43264A),
     liveSub = Color(0xFFFF9A73), az = Color(0xFFFFB547),
+    liveTileFrom = Color(0xFF4A2A3C), liveTileTo = Color(0xFF2B2135), sticky = Color(0xD1161826), neutral700 = Color(0xFF55596A),
+    panelFrom = Color(0xFF43264A), panelMid = Color(0xFF2C2239), panelTo = Color(0xFF1C1E2C),
 )
 
 val DayColors = DabColors(
@@ -39,6 +45,9 @@ val DayColors = DabColors(
     neutral500 = Color(0xFF6F7385), neutral800 = Color(0xFFDFE2EE),
     glow1 = Color(0xFFFFDCCB), glow2 = Color(0xFFE4E6FF), npGlow = Color(0xFFFFDCCB),
     liveSub = Color(0xFFC8431A), az = Color(0xFFB86E00),
+    liveTileFrom = Color(0xFFFFE7DC), liveTileTo = Color(0xFFFFF6F1), sticky = Color(0xDBF3F2F7), neutral700 = Color(0xFFB9BCC9),
+    panelFrom = Color(0xFFFFE3D5), panelMid = Color(0xFFF7E8F3), panelTo = Color(0xFFFFFFFF),
 )
 
 val LocalDabColors = staticCompositionLocalOf { NightColors }
+val LocalNight = staticCompositionLocalOf { true }

@@ -9,8 +9,11 @@ data class NowPlaying(val raw: String, val artist: String? = null, val title: St
 
 enum class DlsFormat { ARTIST_TITLE, TITLE_ARTIST }
 
-/** A per-station DLS rule: format plus optional prefix to strip (e.g. 100% NL's "Onair: "). */
-data class DlsRule(val format: DlsFormat, val prefix: String? = null)
+/**
+ * A per-station DLS rule: format, an optional prefix to strip (e.g. 100% NL's "Onair: "), and [notSong]: texts that,
+ * as the first " - " part, mark a station message rather than a song (KINK's "Alternative Rock Radio - <presenter>").
+ */
+data class DlsRule(val format: DlsFormat, val prefix: String? = null, val notSong: Set<String> = emptySet())
 
 /**
  * Turns DLS text into [NowPlaying]. Only stations with a known rule are split; unknown stations and
@@ -36,7 +39,9 @@ object DlsParser {
         // 100% NL: verified, "Onair: Artist - Title"
         put(0x83D3, DlsRule(DlsFormat.ARTIST_TITLE, prefix = "Onair: "))
         // verified: KINK (9C); Omroep Zeeland, RADIONL, Tukker FM, THE GROOVE (5B)
-        for (sid in listOf(0x8358L, 0x841B, 0x8421, 0x8457, 0x84AE)) put(sid, at)
+        for (sid in listOf(0x841BL, 0x8421, 0x8457, 0x84AE)) put(sid, at)
+        // KINK between songs: "Alternative Rock Radio - KINK non-stop" / "- <presenter>" (seen on air 2026-09-27)
+        put(0x8358, DlsRule(DlsFormat.ARTIST_TITLE, notSong = setOf("alternative rock radio")))
     }
 
     fun parse(text: String, ecc: Int, sid: Long, stationLabel: String? = null,
@@ -52,6 +57,7 @@ object DlsParser {
         if (stationLabel != null && s.contains(stationLabel.trim(), ignoreCase = true)) return NowPlaying(raw)
         val parts = s.split(" - ")
         if (parts.size != 2 || parts.any { it.isBlank() }) return NowPlaying(raw)
+        if (parts[0].trim().lowercase() in rule.notSong) return NowPlaying(raw)
         val (first, second) = parts.map { smartCase(it.trim()) }
         return when (rule.format) {
             DlsFormat.ARTIST_TITLE -> NowPlaying(raw, artist = first, title = second)

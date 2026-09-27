@@ -43,6 +43,21 @@ class Dtr100(
 
     private fun ByteArray.u(i: Int) = this[i].toInt() and 0xFF
 
+    /**
+     * Discard replies a previous session left queued on EP 0x82 (app killed between a command and its reply read).
+     * Only reads, never writes: nothing is sent to the dongle. Returns the number of stale bytes dropped.
+     */
+    fun drainStale(maxReads: Int = 64): Int {
+        val buf = ByteArray(16 * 1024)
+        var total = 0
+        repeat(maxReads) {
+            val n = try { t.read(EP_IN, buf, 30) } catch (_: IOException) { return total }
+            if (n <= 0) return total
+            total += n
+        }
+        return total
+    }
+
     // --- MCU commands ---------------------------------------------------------------------
 
     /** FUN_00075200: reply bytes 1..3 must be "DAB". */

@@ -8,7 +8,7 @@ safely use while driving. This is a personal hobby / interoperability project.
 Why: the owner used DABdream+ in a previous car. It worked fine, but the UI is not
 car-friendly: lots of swiping, small buttons, small text. DAB-Z works but feels dated.
 
-## Current phase: 5 — Android app (skeleton done 2026-09-27)
+## Current phase: 5 — Android app (skeleton, playback core and real UI done 2026-09-27)
 The PoC (phase 4) is complete. The Android project lives in `android/` (see `android/README.md`); design and
 architecture are decided and approved. Read these before starting any task:
 - `docs/architecture.md` (modules, driver interface, playback/USB/boot) and `docs/design-notes.md` (UI decisions).

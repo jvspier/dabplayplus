@@ -28,6 +28,7 @@ class DlsParserTest {
     @Test fun slogansAndShowsStayRaw() {
         for ((text, sid, label) in listOf(
             Triple("Alternative Rock Radio - KINK non-stop", 0x8358L, "KINK"),
+            Triple("Alternative Rock Radio - Mick Hummel", 0x8358L, "KINK"),
             Triple("NPO Radio 2 - Met Morad - PowNed", 0x8202L, "NPO Radio 2"),
             Triple("De Grootste Hits Aller Tijden", 0x83D2L, "Radio 10"),
             Triple("Non-Stop Greatest Hits", 0x83C6L, "Sky Radio"),

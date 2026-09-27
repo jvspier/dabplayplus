@@ -36,6 +36,8 @@ data class EngineState(
     val nowPlaying: NowPlaying? = null,
     val slide: ByteArray? = null,
     val signalBars: Int = 0,
+    val tuning: Boolean = false,
+    val problem: String? = null,
     val error: String? = null,
 )
 
@@ -43,7 +45,12 @@ data class EngineState(
  * The radio engine: one USB thread runs the dtr100 driver; commands arrive through a queue. Scans the band, plays a
  * station (retuning only when it's on another ensemble), decodes audio and PAD, and publishes [state].
  */
-class DabEngine(private val usb: UsbManager, private val store: StationStore, private val focus: AudioFocus) {
+class DabEngine(
+    private val usb: UsbManager,
+    private val store: StationStore,
+    private val focus: AudioFocus,
+    private val resumeOnStart: () -> Boolean = { true },
+) {
     private val _state = MutableStateFlow(EngineState())
     val state: StateFlow<EngineState> = _state
 
@@ -91,6 +98,7 @@ class DabEngine(private val usb: UsbManager, private val store: StationStore, pr
             val eps = (0 until intf.endpointCount).map { intf.getEndpoint(it) }
                 .filter { it.type == UsbConstants.USB_ENDPOINT_XFER_BULK }.associateBy { it.address }
             val d = Dtr100(AndroidUsbTransport(conn, eps))
+            d.drainStale().takeIf { it > 0 }?.let { Log.i(TAG, "dropped $it stale bytes from a previous session") }
             val fw = d.version()
             d.powerOn()
             d.systemInit()
@@ -98,7 +106,7 @@ class DabEngine(private val usb: UsbManager, private val store: StationStore, pr
             status("Dongle ready (firmware level $fw)")
             val radio = Session(d, player)
             if (store.state.value.ensembles.isEmpty()) commands.offer(Cmd.Scan)
-            else store.state.value.lastPlayed?.let { commands.offer(Cmd.Play(it)) }
+            else if (resumeOnStart()) store.state.value.lastPlayed?.let { commands.offer(Cmd.Play(it)) }
             while (!Thread.currentThread().isInterrupted) {
                 when (val c = commands.take()) {
                     Cmd.Scan -> radio.scan()
@@ -189,17 +197,18 @@ class DabEngine(private val usb: UsbManager, private val store: StationStore, pr
         fun play(key: ServiceKey) {
             val st = store.state.value.station(key) ?: return status("Station not found, please scan")
             stopAudio()
-            _state.update { it.copy(current = st, nowPlaying = null, slide = null) }
-            if (st.service.ascty != 63) return status("${st.label}: DAB (MP2) is not supported yet")
+            _state.update { it.copy(current = st, nowPlaying = null, slide = null, problem = null, tuning = true) }
+            fun problem(msg: String) { status(msg); _state.update { it.copy(tuning = false, problem = msg) } }
+            if (st.service.ascty != 63) return problem("DAB (MP2) stations are not supported yet")
             if (tunedKhz != st.ensemble.freqKhz) {
                 status("Tuning ${st.ensemble.channel}…")
-                if (!tune(st.ensemble.freqKhz, retries = true).locked) return status("No signal for ${st.label}")
+                if (!tune(st.ensemble.freqKhz, retries = true).locked) return problem("Station unavailable (no signal)")
             }
-            if (!focus.request { pause() }) return status("Audio focus denied")
+            if (!focus.request { pause() }) return problem("Audio focus denied")
             d.startAudio(st.service.subchannel, st.service.bitrateKbps * 3)
             playingKey = key
             store.played(key)
-            _state.update { it.copy(playing = true) }
+            _state.update { it.copy(playing = true, tuning = false) }
             status("Playing ${st.label}")
             val dec = SuperframeDecoder(st.service.bitrateKbps)
             val pad = PadDecoder(

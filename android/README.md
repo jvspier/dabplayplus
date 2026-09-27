@@ -12,12 +12,21 @@ Kotlin 2.4, Compose. Builds with the installed JDK 25 (no Android Studio needed)
 | `usb-android` | Android lib | `Transport` over `UsbDeviceConnection.bulkTransfer` |
 | `audio` | Android lib | MediaCodec AAC decoder choice (FDK by name); MP2 decoder to come |
 | `data` | Android lib | station model (`ServiceKey` = ECC + SId); Room/DataStore to come |
-| `app` | Android app | Compose UI, theme tokens from `../design_handoff_radio_head_unit/`, placeholder Home |
+| `app` | Android app | Compose UI (Home, Stations, Now playing, Recent, Settings) from `../design_handoff_radio_head_unit/`, engine, Media3 service |
 
 ```
 cd android
 echo "sdk.dir=$HOME/.local/opt/android-sdk" > local.properties    # once
 JAVA_HOME=/usr/lib/jvm/java-25-openjdk ./gradlew test assembleDebug
+```
+
+Judge smoothness only on a **release** build: debug Compose is unoptimised and janks by design. The release build is
+R8-minified and, for now, signed with the debug key (local testing only; no upload key yet):
+```
+JAVA_HOME=/usr/lib/jvm/java-25-openjdk ./gradlew assembleRelease
+adb install -r app/build/outputs/apk/release/app-release.apk
+adb shell cmd package compile -m speed-profile -f io.github.jvspier.dabplay   # what Play does with baseline profiles
+adb shell dumpsys gfxinfo io.github.jvspier.dabplay reset   # then interact, and read it back without "reset"
 ```
 
 Emulator that mimics the head unit: AVD `dab-headunit-api29` (1280×720, 160 dpi, landscape), started with
