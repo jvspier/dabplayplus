@@ -30,7 +30,7 @@ and the design decisions in `docs/design-notes.md`.
  ┌───────┴─────────┐          ┌──────────┴──────────────┐      ┌─────────┴──────────────┐
  │ driver-dtr100   │  FIC,MSC │ FIC/FIG → service DB    │ AUs  │ MediaCodec AAC (FDK)   │
  │ (16c0:05dc)     │ ───────► │ DAB+ superframe, RS, AU │ ───► │ MP2 (own Kotlin dec.)  │
- │ driver-replay   │          │ PAD: DLS, DL+, MOT SLS  │ PCM  │ AudioTrack, audio focus│
+ │                 │          │ PAD: DLS, DL+, MOT SLS  │ PCM  │ AudioTrack, audio focus│
  │ (future others) │          │ "Artist – Title" rules  │      └────────────────────────┘
  └───────┬─────────┘          └─────────────────────────┘
          │ Android USB host API (UsbDeviceConnection.bulkTransfer)
@@ -45,7 +45,6 @@ and the design decisions in `docs/design-notes.md`.
 | `:dab-core` | FIC/FIG parsing (0/0,1,2,6,9,13,21,24; 1/x), service model, DAB+ superframe (firecode, RS(120,110), AU split), ASC building, PAD (X-PAD, DLS, DL+, MOT slideshow), DLS → "Artist – Title" normaliser with per-broadcaster rules | **none** (plain Kotlin/JVM, so fast unit tests) |
 | `:tuner-api` | `DabTuner` interface, capabilities, driver registry (match by VID/PID + probe) | USB types only |
 | `:driver-dtr100` | Port of `tools/dtr100.py`: MCU commands, register access, init, full tune, FIC read, sub-channel start/stop, MSC read; firmware paths ≤1, 2–4, ≥5 | USB host API |
-| `:driver-replay` | Plays back `captures/raw` recordings as if a dongle were attached, for development in the emulator and UI work without hardware | none |
 | `:audio` | AAC via MediaCodec (decoder chosen by name: `c2.android.aac.decoder` / `OMX.google.aac.decoder`, then fallback), MP2 via an own Kotlin Layer II decoder, AudioTrack output, audio focus and ducking | media |
 | `:data` | Room DB, DataStore settings, image cache | Room, DataStore |
 | `:logos` | RadioDNS lookup (DNS CNAME/SRV via dnsjava), SPI XML parse, manifest/apple-touch-icon scrape, radio-browser API | OkHttp, WorkManager |
@@ -107,7 +106,8 @@ Everything above the interface (FIC parsing, audio, PAD, UI) is shared. A dongle
 ## Testing
 - `:dab-core` **golden tests on the JVM**: feed `captures/raw/*.msc` / `*.fic` and compare with the Python PoC's
   output (services, DLS, slides, AU CRCs). Captures stay out of any public repo (broadcast content).
-- `:driver-replay` lets the whole app run in the emulator without a dongle.
+- No replay driver (owner, 2026-09-27: no broadcast recordings anywhere near the app). The emulator gets the real
+  dongle via USB passthrough (`-qemu -usb -device usb-host,vendorid=0x16c0,productid=0x05dc`).
 - Decoder: MediaCodec test like `tools/android/MediaCodecTest.java`, also as an instrumented test.
 - On-device: the Dudu3 over ADB on Wi-Fi with logcat, plus the in-app diagnostics export (transfer log + events).
 

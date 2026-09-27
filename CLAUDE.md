@@ -17,7 +17,7 @@ architecture are decided and approved. Read these before starting any task:
 
 Status in short: the skeleton builds (JDK 25, AGP 9.4, Kotlin 2.4, Compose) and runs on a 1280×720 API 29 emulator.
 `dab-core` is ported (FIC, RS, DAB+ superframes, PAD, "Artist – Title") and matches the Python PoC exactly on all
-captures (golden tests). Next: the dtr100 driver, the replay driver, the playback service and the real UI.
+captures (golden tests). Next: the dtr100 driver, the playback service and the real UI (no replay driver: test via USB passthrough).
 
 ## Hardware summary
 - **Dongle:** DollaTek "DAB+ Receiver for Android Navigation", model **DTR-100**

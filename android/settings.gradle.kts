@@ -16,6 +16,6 @@ dependencyResolutionManagement {
 rootProject.name = "DABplay"
 
 // Pure Kotlin/JVM (unit-testable on the laptop)
-include(":dab-core", ":tuner-api", ":driver-dtr100", ":driver-replay", ":logos")
+include(":dab-core", ":tuner-api", ":driver-dtr100", ":logos")
 // Android
 include(":usb-android", ":audio", ":data", ":app")
