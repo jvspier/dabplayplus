@@ -125,7 +125,7 @@ fun AppShell(engine: EngineState, db: Snapshot, settings: Settings, actions: Rad
     }) {
         Row(Modifier.fillMaxSize()) {
             val parts = buildList<@Composable RowScope.() -> Unit> {
-                add { Rail(tab, panelLayout, right) { tab = it } }
+                add { Rail(tab, right) { tab = it } }
                 if (showPanel) add { PlayerPanel(engine, db, actions) { tab = Tab.PLAYING } }
                 add {
                     Column(Modifier.weight(1f).fillMaxHeight().padding(start = if (!right && !showPanel) 8.dp else 28.dp, end = if (right && !showPanel) 8.dp else 28.dp)) {
@@ -171,33 +171,34 @@ private fun Clock(size: Int) {
     Text(format(now), color = LocalDabColors.current.text, fontSize = size.sp, fontWeight = FontWeight.Medium)
 }
 
+/**
+ * Navigation rail, the same in both layouts: icons only, no labels (owner, 2026-09-28; the design handoff had a labelled,
+ * filled rail for layout 1b). Fading divider on the content side.
+ */
 @Composable
-private fun Rail(tab: Tab, labelled: Boolean, right: Boolean, onSelect: (Tab) -> Unit) {
+private fun Rail(tab: Tab, right: Boolean, onSelect: (Tab) -> Unit) {
     val c = LocalDabColors.current
     val night = LocalNight.current
-    val width = if (labelled) 108.dp else 120.dp
-    Box(Modifier.width(width).fillMaxHeight().then(if (labelled) Modifier.background(c.rail) else Modifier)) {
+    Box(Modifier.width(120.dp).fillMaxHeight()) {
         Column(Modifier.fillMaxSize().padding(top = 20.dp), horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(if (labelled) 10.dp else 14.dp)) {
-            Clock(if (labelled) 20 else 24)
-            Spacer(Modifier.height(if (labelled) 8.dp else 12.dp))
+            verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Clock(24)
+            Spacer(Modifier.height(12.dp))
             for (t in Tab.entries) {
                 val active = t == tab
                 val tint = when { active -> Accent.onAccent; night -> t.color.copy(alpha = 0.7f); else -> c.neutral500 }
-                Column(
-                    Modifier.size(if (labelled) 88.dp else 92.dp, if (labelled) 96.dp else 92.dp)
+                Box(
+                    Modifier.size(92.dp)
                         .then(if (active) Modifier.shadow(18.dp, RoundedCornerShape(14.dp), ambientColor = t.color, spotColor = t.color) else Modifier)
                         .clip(RoundedCornerShape(14.dp)).background(if (active) t.color else Color.Transparent)
                         .pressable({ onSelect(t) }),
-                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Icon(t.icon, contentDescription = t.label, tint = tint, modifier = Modifier.size(if (labelled) 38.dp else 42.dp))
-                    if (labelled) Text(t.label, color = if (active) Accent.onAccent else if (night) t.color.copy(alpha = 0.85f) else c.neutral500,
-                        fontSize = 15.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(top = 4.dp))
+                    Icon(t.icon, contentDescription = t.label, tint = tint, modifier = Modifier.size(42.dp))
                 }
             }
         }
-        if (!labelled) Canvas(Modifier.fillMaxHeight().width(1.dp).align(if (right) Alignment.CenterStart else Alignment.CenterEnd)) {
+        Canvas(Modifier.fillMaxHeight().width(1.dp).align(if (right) Alignment.CenterStart else Alignment.CenterEnd)) {
             drawRect(Brush.verticalGradient(0f to Color.Transparent, 48f / size.height to c.neutral800,
                 1f - 48f / size.height to c.neutral800, 1f to Color.Transparent))
         }
