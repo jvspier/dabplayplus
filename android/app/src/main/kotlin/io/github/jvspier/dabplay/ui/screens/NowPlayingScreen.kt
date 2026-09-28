@@ -1,25 +1,41 @@
 package io.github.jvspier.dabplay.ui.screens
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.adamglin.PhosphorIcons
@@ -28,75 +44,135 @@ import com.adamglin.phosphoricons.fill.SkipBack
 import com.adamglin.phosphoricons.fill.SkipForward
 import io.github.jvspier.dabplay.core.Reception
 import io.github.jvspier.dabplay.data.Snapshot
+import io.github.jvspier.dabplay.data.Station
 import io.github.jvspier.dabplay.engine.EngineState
-import io.github.jvspier.dabplay.ui.Artwork
+import io.github.jvspier.dabplay.ui.RadioActions
 import io.github.jvspier.dabplay.ui.noSignalText
 import io.github.jvspier.dabplay.ui.statusColor
-import io.github.jvspier.dabplay.ui.RadioActions
 import io.github.jvspier.dabplay.ui.components.HeartIcon
 import io.github.jvspier.dabplay.ui.components.PlayButton
 import io.github.jvspier.dabplay.ui.components.SignalBars
+import io.github.jvspier.dabplay.ui.components.SquareButton
 import io.github.jvspier.dabplay.ui.components.StationLogo
 import io.github.jvspier.dabplay.ui.components.pressable
+import io.github.jvspier.dabplay.ui.components.rememberBlurred
+import io.github.jvspier.dabplay.ui.components.rememberLogo
+import io.github.jvspier.dabplay.ui.components.rememberSlide
 import io.github.jvspier.dabplay.ui.theme.Accent
 import io.github.jvspier.dabplay.ui.theme.LocalDabColors
+import io.github.jvspier.dabplay.ui.theme.LocalNight
 
-/** Now playing: 4:3 artwork (slide or logo) left; station, "Artist – Title" and controls right. */
+private val CARD_W = 560.dp
+private val CARD_H = 420.dp          // 4:3 like DAB slides (320×240 at 1.75×)
+private const val BAND = 0.25f       // the glass band: bottom quarter of the card
+private const val LOGO = 0.55f       // logo tile size (of the card height) when there's no slide
+private val LOGO_GAP = 12.dp         // the logo "stands" this far above the glass, its reflection smearing into it
+
+/**
+ * Now playing (owner's mockup, 2026-09-28): the slide or logo centred up top, a frosted-glass band over its bottom
+ * quarter with the "Artist – Title" line on it (one font and size, scrolling when long), the controls centred
+ * below, and the station (logo, name, signal) in the top corner away from the rail.
+ */
 @Composable
-fun NowPlayingScreen(e: EngineState, db: Snapshot, a: RadioActions, large: Boolean) {
-    val c = LocalDabColors.current
+fun NowPlayingScreen(e: EngineState, db: Snapshot, a: RadioActions, chipOnLeft: Boolean) {
     val st = e.current
+    Box(Modifier.fillMaxSize()) {
+        if (st != null) StationChip(st, e, Modifier.align(if (chipOnLeft) Alignment.TopStart else Alignment.TopEnd).padding(top = 24.dp))
+        Column(Modifier.fillMaxSize().padding(top = 36.dp, bottom = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            NowCard(e, st)
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Controls(e, db, a, st) }
+        }
+    }
+}
+
+/** What the glass band says, and in which colour. */
+@Composable
+private fun nowLine(e: EngineState, st: Station?): Pair<String, Color> {
+    val c = LocalDabColors.current
     val np = e.nowPlaying
-    val artW = if (large) 520.dp else 552.dp
-    val artH = artW * 3 / 4
-    // the npGlow background is drawn full-screen by AppShell, so it isn't clipped by the content padding
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Artwork(e.slide, st?.label ?: "", st?.key, artW, artH,
-                modifier = Modifier.shadow(40.dp, RoundedCornerShape(18.dp), ambientColor = Accent.orange.copy(alpha = 0.35f), spotColor = Accent.orange.copy(alpha = 0.35f)))
-            Spacer(Modifier.width(if (large) 44.dp else 36.dp))
-            Column(Modifier.width(if (large) 520.dp else 450.dp)) {
-                if (st != null) Row(verticalAlignment = Alignment.CenterVertically) {
-                    StationLogo(st.label, st.key, 48.dp)
-                    Column(Modifier.padding(start = 12.dp)) {
-                        Text(st.label, color = c.text, fontSize = 20.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        if (e.playing) SignalBars(e.signalBars, 14.dp, Modifier.padding(top = 4.dp))
-                    }
-                }
-                Spacer(Modifier.height(20.dp))
-                val (title, artist) = when {
-                    st == null -> "Nothing playing" to "Pick a station on Home or Stations"
-                    e.problem != null -> st.label to e.problem
-                    e.tuning -> st.label to "Tuning…"
-                    e.playing && e.reception == Reception.LOST -> st.label to noSignalText(e)
-                    np == null -> st.label to ""
-                    np.isSong -> np.title!! to np.artist!!
-                    else -> np.raw to ""
-                }
-                val long = title.length > 28
-                Text(title, color = c.text, fontSize = if (long) 40.sp else 52.sp, fontWeight = FontWeight.Medium, lineHeight = if (long) 44.sp else 55.sp,
-                    letterSpacing = (-0.5).sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                if (artist.isNotEmpty()) Text(artist, color = statusColor(e, c.neutral300), fontSize = 28.sp,
-                    maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 8.dp))
-                Spacer(Modifier.height(38.dp))
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (large) 20.dp else 12.dp)) {
-                    val side = if (large) 104.dp else 88.dp
-                    SkipButton(true, side) { a.skip(-1) }
-                    PlayButton(e.playing, if (large) 136.dp else 128.dp, a.togglePlay, busy = e.tuning)
-                    SkipButton(false, side) { a.skip(+1) }
-                    if (st != null) {
-                        val fav = st.key in db.favourites
-                        Box(Modifier.size(side).background(Accent.pink.copy(alpha = 0.14f), RoundedCornerShape(16.dp))
-                            .pressable({ a.toggleFavourite(st.key) }), contentAlignment = Alignment.Center) { HeartIcon(fav, 44.dp) }
-                    }
+    val text = when {
+        st == null -> "Nothing playing"
+        !e.dongle && !e.playing -> "DAB dongle not connected"
+        e.problem != null -> e.problem
+        e.tuning -> "Tuning…"
+        e.playing && e.reception == Reception.LOST -> noSignalText(e)
+        np == null -> st.label
+        else -> np.display                     // "Artist – Title" for songs, else what the station sends
+    }
+    return text to statusColor(e, c.text)
+}
+
+@Composable
+private fun NowCard(e: EngineState, st: Station?) {
+    val c = LocalDabColors.current
+    val night = LocalNight.current
+    val shape = RoundedCornerShape(18.dp)
+    val slide = rememberSlide(e.slide)
+    val logo = rememberLogo(st?.key)
+    val blurred = rememberBlurred(slide ?: logo?.bitmap)
+    val (line, lineColor) = nowLine(e, st)
+    Box(Modifier.size(CARD_W, CARD_H)
+        .shadow(40.dp, shape, ambientColor = Accent.orange.copy(alpha = 0.35f), spotColor = Accent.orange.copy(alpha = 0.35f))
+        .clip(shape).background(c.surface)) {
+        // the picture: the slide, whole (4:3 in 4:3), or the station logo centred above the band
+        Crossfade(slide, animationSpec = tween(300), label = "art") { b ->
+            if (b != null) Image(b, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
+            else Box(Modifier.fillMaxWidth().fillMaxHeight(1f - BAND).padding(bottom = LOGO_GAP), contentAlignment = Alignment.BottomCenter) {
+                if (st != null) StationLogo(st.label, st.key, CARD_H * LOGO, radius = 22.dp)
+            }
+        }
+        // the glass band: over a slide, the blurred bottom of that same slide; over a logo, the logo's colours
+        Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(CARD_H * BAND).clipToBounds()) {
+            if (blurred != null) {
+                if (slide != null) Image(blurred, null, contentScale = ContentScale.Fit, filterQuality = FilterQuality.High,
+                    modifier = Modifier.requiredSize(CARD_W, CARD_H).align(Alignment.BottomCenter))
+                else {
+                    // a soft reflection: the blurred logo mirrored right under the sharp one, fading into the glass
+                    val tile = CARD_H * LOGO
+                    Image(blurred, null, contentScale = ContentScale.Fit, filterQuality = FilterQuality.High,
+                        modifier = Modifier.align(Alignment.TopCenter).offset(y = -LOGO_GAP).requiredSize(tile)
+                            .graphicsLayer { scaleY = -1f; alpha = 0.85f; compositingStrategy = CompositingStrategy.Offscreen }
+                            .drawWithContent {
+                                drawContent()
+                                // drawn before the mirroring: the logo's bottom edge (opaque) is this box's bottom
+                                drawRect(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color.Black), blendMode = BlendMode.DstIn)
+                            })
                 }
             }
+            Box(Modifier.fillMaxSize().background(if (night) Color(0x8C12131F) else Color(0xA6FFFFFF)))
+            Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = if (night) 0.14f else 0.6f)))
+            Text(line, color = lineColor, fontSize = 30.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Clip,
+                modifier = Modifier.align(Alignment.Center).padding(horizontal = 28.dp)
+                    .basicMarquee(iterations = Int.MAX_VALUE, initialDelayMillis = 2500, repeatDelayMillis = 3000))
         }
     }
 }
 
 @Composable
-private fun SkipButton(back: Boolean, size: Dp, onClick: () -> Unit) {
-    io.github.jvspier.dabplay.ui.components.SquareButton(if (back) PhosphorIcons.Fill.SkipBack else PhosphorIcons.Fill.SkipForward,
-        if (back) "Previous" else "Next", size, onClick, radius = 16.dp)
+private fun StationChip(st: Station, e: EngineState, modifier: Modifier) {
+    val c = LocalDabColors.current
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        StationLogo(st.label, st.key, 44.dp)
+        Column(Modifier.padding(start = 12.dp)) {
+            Text(st.label, color = c.text, fontSize = 20.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (e.playing) SignalBars(e.signalBars, 14.dp, Modifier.padding(top = 4.dp))
+        }
+    }
+}
+
+@Composable
+private fun Controls(e: EngineState, db: Snapshot, a: RadioActions, st: Station?) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+        SkipButton(true) { a.skip(-1) }
+        PlayButton(e.playing, 136.dp, a.togglePlay, busy = e.tuning)
+        SkipButton(false) { a.skip(+1) }
+        if (st != null) Box(Modifier.size(104.dp).background(Accent.pink.copy(alpha = 0.14f), RoundedCornerShape(16.dp))
+            .pressable({ a.toggleFavourite(st.key) }), contentAlignment = Alignment.Center) { HeartIcon(st.key in db.favourites, 44.dp) }
+        else Spacer(Modifier.size(104.dp))
+    }
+}
+
+@Composable
+private fun SkipButton(back: Boolean, onClick: () -> Unit) {
+    SquareButton(if (back) PhosphorIcons.Fill.SkipBack else PhosphorIcons.Fill.SkipForward, if (back) "Previous" else "Next", 104.dp, onClick, radius = 16.dp)
 }

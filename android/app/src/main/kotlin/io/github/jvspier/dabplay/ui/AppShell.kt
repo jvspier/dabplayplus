@@ -73,6 +73,7 @@ import io.github.jvspier.dabplay.ui.components.SignalBars
 import io.github.jvspier.dabplay.ui.components.SquareButton
 import io.github.jvspier.dabplay.ui.components.StationLogo
 import io.github.jvspier.dabplay.ui.components.pressable
+import io.github.jvspier.dabplay.ui.components.rememberSlide
 import io.github.jvspier.dabplay.ui.screens.HomeScreen
 import io.github.jvspier.dabplay.ui.screens.NowPlayingScreen
 import io.github.jvspier.dabplay.ui.screens.RecentScreen
@@ -135,7 +136,7 @@ fun AppShell(engine: EngineState, db: Snapshot, settings: Settings, actions: Rad
                                 when (t) {
                                     Tab.HOME -> HomeScreen(engine, db, actions, compactTitle = panelLayout, onBrowse = { tab = Tab.STATIONS })
                                     Tab.STATIONS -> StationsScreen(engine, db, actions, compactTitle = panelLayout)
-                                    Tab.PLAYING -> NowPlayingScreen(engine, db, actions, large = !panelLayout)
+                                    Tab.PLAYING -> NowPlayingScreen(engine, db, actions, chipOnLeft = right)
                                     Tab.RECENT -> RecentScreen(engine, db, actions, compactTitle = panelLayout)
                                     Tab.SETTINGS -> SettingsScreen(settings, db, actions, compactTitle = panelLayout, logoStatus = logoStatus)
                                 }
@@ -216,6 +217,7 @@ fun noSignalText(e: EngineState) = if (e.following != null) "No signal · search
 fun statusColor(e: EngineState, normal: Color) = when {
     e.problem != null -> Accent.liveRed
     e.playing && e.reception == Reception.LOST -> Accent.amber
+    e.current != null && !e.dongle && !e.playing -> Accent.amber       // last station shown, dongle not (yet) there
     else -> normal
 }
 
@@ -227,6 +229,7 @@ fun nowLines(e: EngineState): NowLines {
     val np = e.nowPlaying
     return when {
         st == null -> NowLines("No station", "Pick a station to start")
+        !e.dongle && !e.playing -> NowLines(st.label, "DAB dongle not connected")
         e.problem != null -> NowLines(st.label, e.problem)
         e.tuning -> NowLines(st.label, "Tuning…")
         e.playing && e.reception == Reception.LOST -> NowLines(st.label, noSignalText(e))
@@ -298,10 +301,7 @@ private fun PlayerPanel(e: EngineState, db: Snapshot, a: RadioActions, open: () 
 fun Artwork(slide: ByteArray?, label: String, key: ServiceKey?, width: Dp, height: Dp, radius: Dp = 18.dp, preferLogo: Boolean = false,
             modifier: Modifier = Modifier) {
     val c = LocalDabColors.current
-    // decode off the UI thread so a new slide never costs a frame
-    val bmp by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, slide) {
-        value = slide?.let { b -> withContext(Dispatchers.Default) { runCatching { BitmapFactory.decodeByteArray(b, 0, b.size)?.asImageBitmap() }.getOrNull() } }
-    }
+    val bmp = rememberSlide(slide)                  // decoded off the UI thread: a new slide never costs a frame
     Box(modifier.size(width, height).clip(RoundedCornerShape(radius)).background(c.surface), contentAlignment = Alignment.Center) {
         Crossfade(if (preferLogo) null else bmp, animationSpec = tween(300), label = "art") { b ->
             if (b != null) Image(b, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())

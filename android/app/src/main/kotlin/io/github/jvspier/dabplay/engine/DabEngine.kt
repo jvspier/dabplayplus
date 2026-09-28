@@ -60,7 +60,8 @@ class DabEngine(
     private val resumeOnStart: () -> Boolean = { true },
     private val followStation: () -> Boolean = { true },
 ) {
-    private val _state = MutableStateFlow(EngineState())
+    // show the last-played station straight away (car start: the dongle takes a moment; or it isn't plugged in)
+    private val _state = MutableStateFlow(EngineState(current = store.state.value.let { s -> s.lastPlayed?.let(s::station) }))
     val state: StateFlow<EngineState> = _state
 
     private sealed interface Cmd {

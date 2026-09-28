@@ -69,3 +69,11 @@ design session.
   areas) and a working "Follow station"; Dudu3 run + boot auto-start once the head unit is installed.
 - **Rail: icons only, in both layouts** (owner, 2026-09-28): the handoff's labelled, filled rail for 1b is dropped;
   1b uses the same 120 dp icon rail as 1a.
+- **Now playing, v2** (owner's mockup, 2026-09-28): the slide/logo card centred up top (560×420, 4:3); a frosted-glass
+  band over its bottom quarter carrying one line, "Artist – Title" (same font and size, scrolls when long); controls
+  centred below; station logo/name/signal in the top corner away from the rail. The blur is our own (a shrunk,
+  box-blurred copy drawn with bilinear filtering) because Compose's blur needs Android 12 and the Dudu3 runs 10.
+  Over a logo, the band shows the logo's blurred reflection. **To check with the dongle:** how much the band hides
+  of NPO's song cards (their show name sits in the bottom strip); alternative: band under the image.
+- **Startup shows the last-played station** (2026-09-28): logo and name at once, "DAB dongle not connected" (amber)
+  until the dongle is ready, instead of an empty player.
