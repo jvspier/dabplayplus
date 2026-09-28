@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -66,6 +67,7 @@ private val CARD_W = 560.dp
 private val CARD_H = 420.dp          // 4:3 like DAB slides (320×240 at 1.75×)
 private const val BAND = 0.25f       // the glass band: bottom quarter of the card
 private const val LOGO = 0.55f       // logo tile size (of the card height) when there's no slide
+private val FADE = 90.dp             // the ramp above the text band over which sharp turns frosted
 private val LOGO_GAP = 12.dp         // the logo "stands" this far above the glass, its reflection smearing into it
 
 /**
@@ -111,27 +113,39 @@ private fun NowCard(e: EngineState, st: Station?) {
     val logo = rememberLogo(st?.key)
     val blurred = rememberBlurred(slide ?: logo?.bitmap)
     val (line, lineColor) = nowLine(e, st)
+    val tint = if (night) Color(0x8C12131F) else Color(0xA6FFFFFF)
+    val band = CARD_H * BAND
+    val frost = band + FADE                              // frosted area: the text band plus the ramp above it
+    val tile = CARD_H * LOGO
+    val tileTop = CARD_H * (1f - BAND) - LOGO_GAP - tile  // in card coordinates
     Box(Modifier.size(CARD_W, CARD_H)
         .shadow(40.dp, shape, ambientColor = Accent.orange.copy(alpha = 0.35f), spotColor = Accent.orange.copy(alpha = 0.35f))
         .clip(shape).background(c.surface)) {
-        // the picture: the slide, whole (4:3 in 4:3), or the station logo centred above the band
+        // the picture, sharp: the slide, whole (4:3 in 4:3), or the station logo standing just above the text band
         Crossfade(slide, animationSpec = tween(300), label = "art") { b ->
             if (b != null) Image(b, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
             else Box(Modifier.fillMaxWidth().fillMaxHeight(1f - BAND).padding(bottom = LOGO_GAP), contentAlignment = Alignment.BottomCenter) {
-                if (st != null) StationLogo(st.label, st.key, CARD_H * LOGO, radius = 22.dp)
+                if (st != null) StationLogo(st.label, st.key, tile, radius = 22.dp)
             }
         }
-        // the glass band: over a slide, the blurred bottom of that same slide; over a logo, the logo's colours
-        Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(CARD_H * BAND).clipToBounds()) {
+        // the glass: the blurred copy plus a tint, faded in over [FADE] so sharp turns frosted with no edge
+        Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(frost).clipToBounds()
+            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+            .drawWithContent {
+                drawContent()
+                drawRect(Brush.verticalGradient(0f to Color.Transparent, FADE / frost to Color.Black), blendMode = BlendMode.DstIn)
+            }) {
+            val top = CARD_H - frost                          // this box's top, in card coordinates
             if (blurred != null) {
                 if (slide != null) Image(blurred, null, contentScale = ContentScale.Fit, filterQuality = FilterQuality.High,
                     modifier = Modifier.requiredSize(CARD_W, CARD_H).align(Alignment.BottomCenter))
                 else {
-                    // a soft reflection: the blurred logo mirrored right under the sharp one, fading into the glass
-                    val tile = CARD_H * LOGO
+                    // the logo's bottom goes soft, and its reflection smears on into the glass below it
                     Image(blurred, null, contentScale = ContentScale.Fit, filterQuality = FilterQuality.High,
-                        modifier = Modifier.align(Alignment.TopCenter).offset(y = -LOGO_GAP).requiredSize(tile)
-                            .graphicsLayer { scaleY = -1f; alpha = 0.85f; compositingStrategy = CompositingStrategy.Offscreen }
+                        modifier = Modifier.align(Alignment.TopCenter).offset(y = tileTop - top).requiredSize(tile))
+                    Image(blurred, null, contentScale = ContentScale.Fit, filterQuality = FilterQuality.High,
+                        modifier = Modifier.align(Alignment.TopCenter).offset(y = tileTop + tile - top).requiredSize(tile)
+                            .graphicsLayer { scaleY = -1f; alpha = 0.4f; compositingStrategy = CompositingStrategy.Offscreen }   // soft: the text sits on it
                             .drawWithContent {
                                 drawContent()
                                 // drawn before the mirroring: the logo's bottom edge (opaque) is this box's bottom
@@ -139,12 +153,12 @@ private fun NowCard(e: EngineState, st: Station?) {
                             })
                 }
             }
-            Box(Modifier.fillMaxSize().background(if (night) Color(0x8C12131F) else Color(0xA6FFFFFF)))
-            Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = if (night) 0.14f else 0.6f)))
-            Text(line, color = lineColor, fontSize = 30.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Clip,
-                modifier = Modifier.align(Alignment.Center).padding(horizontal = 28.dp)
-                    .basicMarquee(iterations = Int.MAX_VALUE, initialDelayMillis = 2500, repeatDelayMillis = 3000))
+            Box(Modifier.fillMaxSize().background(tint))
         }
+        Text(line, color = lineColor, fontSize = 30.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Clip,
+            modifier = Modifier.align(Alignment.BottomCenter).height(band).wrapContentHeight(Alignment.CenterVertically)
+                .padding(horizontal = 28.dp)
+                .basicMarquee(iterations = Int.MAX_VALUE, initialDelayMillis = 2500, repeatDelayMillis = 3000))
     }
 }
 

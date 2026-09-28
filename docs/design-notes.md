@@ -73,6 +73,7 @@ design session.
   band over its bottom quarter carrying one line, "Artist – Title" (same font and size, scrolls when long); controls
   centred below; station logo/name/signal in the top corner away from the rail. The blur is our own (a shrunk,
   box-blurred copy drawn with bilinear filtering) because Compose's blur needs Android 12 and the Dudu3 runs 10.
+  No hard edge (owner, 2026-09-28): the blur and tint fade in over a 90 dp ramp above the text, so sharp turns frosted.
   Over a logo, the band shows the logo's blurred reflection. **To check with the dongle:** how much the band hides
   of NPO's song cards (their show name sits in the bottom strip); alternative: band under the image.
 - **Startup shows the last-played station** (2026-09-28): logo and name at once, "DAB dongle not connected" (amber)
