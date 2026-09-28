@@ -68,6 +68,20 @@ this file as work progresses.
     - [verified] FIG 0/1 short form (UEP, typical for MP2) had no bitrate, so scans dropped MP2 stations. Added EN 300
       401 Table 8, checked entry by entry against the vendor lib's copy (u16 records size/level/bitrate at 0xd7180).
     - Untested on air: no DAB (MP2) services in NL. Needs a listener in the UK or elsewhere.
+  - **Independent confirmation of the protocol** (2026-09-28): github.com/flohoff/wradio-c100 (C++, LGPL-2.1, 2026) is
+    derived from the IRT's OMRI-USB (github.com/hradio/omri-usb, 2020), the "default DAB layer" of many Android head
+    units. Its `RaonTunerInput` drives this dongle with byte-identical commands (SPI write `21 00 00 02 reg val`, read
+    `22 00 01 00 reg`, power `10 00 00 01`, echo, version), the same clock-plan values (page 6 0x3C..0x43) and demod
+    restart (`0x10` = 0x48, 0xC9). [verified by reading their source] Consequences:
+    - The DAB chip is a **RAONTECH** part (page register 0x03 is RAON's map select), not FCI as guessed earlier.
+    - The `0x42` status bytes 4..5 are RAON's **CER** (channel error rate): `cer ≤ 4000 counts → 0`, else
+      `err·1000/period·10`, `> 1200 → 2000`; no lock → 2000. Exactly the 0…2000 scale we measured.
+    - RAON's antenna-level table (CER thresholds 810/700/490/400/250/180/0 → levels 0..6, moving one step per update)
+      gives grounded signal-bar thresholds: 4 bars = CER < 180, 3 < 400, 2 < 700, 1 < 2000 (to adopt).
+    - Page 9 reg 0x33 bits: 0 FIC ready, 1..3 MSC0 int/underflow/overflow, 4..6 MSC1 int/underflow/overflow, 7 OFDM lock.
+    - OMRI-USB wires only this RAON stick; its device filter also lists 1d19:110d, 0fd9:004c, 0416:b003 without code
+      (a "Found Siano device" log line hints Siano support was removed). No help for other dongle families.
+    - Their code is LGPL: read for knowledge only, nothing copied into DABplay+ (MIT).
 - Next session (owner, 2026-09-27): **MP2 decoder** (v1 feature), **extra dongle drivers** (docs/dongles.md; the
   best candidates need their vendor APKs: C100 Dual Antenna/Dual Tuner, Si4684 "Eonon" 1a86:5537), and a
   **bug + security review** of the app. When the head unit is in the car: first run on the Dudu3 (Android 10) over
