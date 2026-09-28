@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -42,6 +43,7 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.adamglin.PhosphorIcons
@@ -68,10 +70,10 @@ import io.github.jvspier.dabplay.ui.theme.Accent
 import io.github.jvspier.dabplay.ui.theme.LocalDabColors
 import io.github.jvspier.dabplay.ui.theme.LocalNight
 
-private val CARD_W = 560.dp
-private val CARD_H = 420.dp          // 4:3 like DAB slides (320×240 at 1.75×)
+private val CARD_MAX_H = 480.dp      // 4:3, 640×480 = DAB's 320×240 slides at exactly 2× (sharpest scaling)
+private val CONTROLS_H = 136.dp
 private const val BAND = 0.25f       // the glass band: bottom quarter of the card
-private const val LOGO = 0.55f       // logo tile size (of the card height) when there's no slide
+private const val LOGO = 0.62f       // logo tile size (of the card height) when there's no slide
 private val FADE = 90.dp             // the ramp above the text band over which sharp turns frosted
 private val LOGO_GAP = 12.dp         // the logo "stands" this far above the glass, its reflection smearing into it
 
@@ -83,10 +85,12 @@ private val LOGO_GAP = 12.dp         // the logo "stands" this far above the gla
 @Composable
 fun NowPlayingScreen(e: EngineState, db: Snapshot, a: RadioActions, chipOnLeft: Boolean) {
     val st = e.current
-    Box(Modifier.fillMaxSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        // as big as fits (up to 640×480), leaving room for the controls below and the station chip beside it
+        val cardH = minOf(CARD_MAX_H, maxHeight - 28.dp - CONTROLS_H - 56.dp, (maxWidth - 400.dp) * 3 / 4)
         if (st != null) StationChip(st, e, Modifier.align(if (chipOnLeft) Alignment.TopStart else Alignment.TopEnd).padding(top = 24.dp))
-        Column(Modifier.fillMaxSize().padding(top = 36.dp, bottom = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            NowCard(e, st)
+        Column(Modifier.fillMaxSize().padding(top = 28.dp, bottom = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            NowCard(e, st, cardH)
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Controls(e, db, a, st) }
         }
     }
@@ -110,7 +114,8 @@ private fun nowLine(e: EngineState, st: Station?): Pair<String, Color> {
 }
 
 @Composable
-private fun NowCard(e: EngineState, st: Station?) {
+private fun NowCard(e: EngineState, st: Station?, CARD_H: Dp) {
+    val CARD_W = CARD_H * 4 / 3
     val c = LocalDabColors.current
     val night = LocalNight.current
     val shape = RoundedCornerShape(18.dp)
@@ -154,7 +159,7 @@ private fun NowCard(e: EngineState, st: Station?) {
                     Image(blurred, null, contentScale = ContentScale.Fit, filterQuality = FilterQuality.High,
                         modifier = Modifier.align(Alignment.TopCenter).offset(y = tileTop + tile - top).requiredSize(tile)
                             // soft, the text sits on it; fainter by day, where a dark logo tile's reflection would show as a grey block
-                            .graphicsLayer { scaleY = -1f; alpha = if (night) 0.4f else 0.12f; compositingStrategy = CompositingStrategy.Offscreen }
+                            .graphicsLayer { scaleY = -1f; alpha = if (night) 0.4f else 0.25f; compositingStrategy = CompositingStrategy.Offscreen }
                             .drawWithContent {
                                 drawContent()
                                 // drawn before the mirroring: the logo's bottom edge (opaque) is this box's bottom
