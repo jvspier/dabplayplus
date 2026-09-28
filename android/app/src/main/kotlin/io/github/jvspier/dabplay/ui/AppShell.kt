@@ -215,9 +215,9 @@ fun noSignalText(e: EngineState) = if (e.following != null) "No signal · search
 /** Subtitle colour: red for real problems, amber while the signal is gone (it comes back by itself). */
 @Composable
 fun statusColor(e: EngineState, normal: Color) = when {
-    e.problem != null -> Accent.liveRed
-    e.playing && e.reception == Reception.LOST -> Accent.amber
-    e.current != null && !e.dongle && !e.playing -> Accent.amber       // last station shown, dongle not (yet) there
+    e.problem != null -> LocalDabColors.current.error
+    e.playing && e.reception == Reception.LOST -> LocalDabColors.current.warn
+    e.current != null && !e.dongle && !e.playing -> LocalDabColors.current.warn   // last station shown, dongle not (yet) there
     else -> normal
 }
 

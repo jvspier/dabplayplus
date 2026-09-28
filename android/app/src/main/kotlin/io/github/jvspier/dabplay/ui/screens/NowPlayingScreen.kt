@@ -153,7 +153,8 @@ private fun NowCard(e: EngineState, st: Station?) {
                     // the logo stays sharp; only its reflection smears on below it
                     Image(blurred, null, contentScale = ContentScale.Fit, filterQuality = FilterQuality.High,
                         modifier = Modifier.align(Alignment.TopCenter).offset(y = tileTop + tile - top).requiredSize(tile)
-                            .graphicsLayer { scaleY = -1f; alpha = 0.4f; compositingStrategy = CompositingStrategy.Offscreen }   // soft: the text sits on it
+                            // soft, the text sits on it; fainter by day, where a dark logo tile's reflection would show as a grey block
+                            .graphicsLayer { scaleY = -1f; alpha = if (night) 0.4f else 0.12f; compositingStrategy = CompositingStrategy.Offscreen }
                             .drawWithContent {
                                 drawContent()
                                 // drawn before the mirroring: the logo's bottom edge (opaque) is this box's bottom

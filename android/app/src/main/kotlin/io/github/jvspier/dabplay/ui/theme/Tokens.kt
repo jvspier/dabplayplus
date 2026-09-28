@@ -13,6 +13,8 @@ data class DabColors(
     val liveSub: Color, val az: Color,
     val liveTileFrom: Color, val liveTileTo: Color, val sticky: Color, val neutral700: Color,
     val panelFrom: Color, val panelMid: Color, val panelTo: Color,
+    /** Status text: "No signal", "DAB dongle not connected" (warn) and real problems (error). Day needs darker ones. */
+    val warn: Color = Color(0xFFFFB547), val error: Color = Color(0xFFFF3B4E),
 )
 
 object Accent {
@@ -47,6 +49,7 @@ val DayColors = DabColors(
     liveSub = Color(0xFFC8431A), az = Color(0xFFB86E00),
     liveTileFrom = Color(0xFFFFE7DC), liveTileTo = Color(0xFFFFF6F1), sticky = Color(0xDBF3F2F7), neutral700 = Color(0xFFB9BCC9),
     panelFrom = Color(0xFFFFE3D5), panelMid = Color(0xFFF7E8F3), panelTo = Color(0xFFFFFFFF),
+    warn = Color(0xFFA35A00), error = Color(0xFFC81E32),   // ≥ 4.5:1 on the light backgrounds
 )
 
 val LocalDabColors = staticCompositionLocalOf { NightColors }
