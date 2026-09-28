@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -83,7 +84,7 @@ private val LOGO_GAP = 12.dp         // the logo "stands" this far above the gla
  * below, and the station (logo, name, signal) in the top corner away from the rail.
  */
 @Composable
-fun NowPlayingScreen(e: EngineState, db: Snapshot, a: RadioActions, chipOnLeft: Boolean) {
+fun NowPlayingScreen(e: EngineState, db: Snapshot, a: RadioActions, chipOnLeft: Boolean, taOn: Boolean = false) {
     val st = e.current
     BoxWithConstraints(Modifier.fillMaxSize()) {
         // as big as fits (up to 640×480), leaving room for the controls below and the station chip beside it
@@ -91,7 +92,7 @@ fun NowPlayingScreen(e: EngineState, db: Snapshot, a: RadioActions, chipOnLeft: 
         if (st != null) {
             // station chip in one top corner, the favourite heart in the other, level with it (owner, 2026-09-28):
             // symmetric, and on the driver's side (the rail's side) the heart is closest to hand
-            StationChip(st, e, Modifier.align(if (chipOnLeft) Alignment.TopStart else Alignment.TopEnd).padding(top = 24.dp))
+            StationChip(st, e, taOn, Modifier.align(if (chipOnLeft) Alignment.TopStart else Alignment.TopEnd).padding(top = 24.dp))
             // the content has 8 dp next to the rail and 28 dp on the far side: +20 dp so both corners are inset alike
             Box(Modifier.align(if (chipOnLeft) Alignment.TopEnd else Alignment.TopStart)
                 .padding(top = 22.dp, start = if (chipOnLeft) 0.dp else 20.dp, end = if (chipOnLeft) 20.dp else 0.dp).size(48.dp)
@@ -188,14 +189,29 @@ private fun NowCard(e: EngineState, st: Station?, CARD_H: Dp) {
 
 /** Station logo, name and signal. */
 @Composable
-private fun StationChip(st: Station, e: EngineState, modifier: Modifier) {
+private fun StationChip(st: Station, e: EngineState, taOn: Boolean, modifier: Modifier) {
     val c = LocalDabColors.current
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         StationLogo(st.label, st.key, 44.dp)
         Column(Modifier.padding(start = 12.dp)) {
             Text(st.label, color = c.text, fontSize = 20.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (e.playing) SignalBars(e.signalBars, 14.dp, Modifier.padding(top = 4.dp))
+            Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (e.playing) SignalBars(e.signalBars, 14.dp)
+                if (taOn) TaBadge(e, Modifier.padding(start = 8.dp))
+            }
         }
+    }
+}
+
+/** "TA", as on car radios: lit when the station takes part in traffic announcements, amber while one plays. */
+@Composable
+private fun TaBadge(e: EngineState, modifier: Modifier) {
+    val c = LocalDabColors.current
+    val on = e.announcement != null
+    val ink = when { on -> Color(0xFF2A1A00); e.taSupported -> c.text; else -> c.neutral500.copy(alpha = 0.6f) }
+    Box(modifier.clip(RoundedCornerShape(5.dp)).background(if (on) Accent.amber else Color.Transparent)
+        .border(1.5.dp, if (on) Accent.amber else ink, RoundedCornerShape(5.dp)).padding(horizontal = 5.dp, vertical = 1.dp)) {
+        Text("TA", color = ink, fontSize = 11.sp, fontWeight = FontWeight.Bold, lineHeight = 13.sp)
     }
 }
 

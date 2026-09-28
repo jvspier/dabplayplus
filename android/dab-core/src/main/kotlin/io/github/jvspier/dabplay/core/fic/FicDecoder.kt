@@ -1,5 +1,7 @@
 package io.github.jvspier.dabplay.core.fic
 
+import io.github.jvspier.dabplay.core.AnnouncementSupport
+import io.github.jvspier.dabplay.core.AnnouncementSwitch
 import io.github.jvspier.dabplay.core.Crc
 import io.github.jvspier.dabplay.core.DabText
 import io.github.jvspier.dabplay.core.u8
@@ -40,6 +42,11 @@ class FicDecoder {
     val links = LinkedHashMap<Pair<Boolean, Int>, LinkageSet>()
     val frequencyInfo = LinkedHashMap<FiKey, MutableSet<FiFrequency>>()
     val otherEnsembleServices = LinkedHashMap<Long, MutableSet<Int>>()
+    /** FIG 0/18: per service, the announcement types it takes part in (ASu flags) and its announcement clusters. */
+    val announcementSupport = LinkedHashMap<Long, AnnouncementSupport>()
+    /** FIG 0/19 (this ensemble): per cluster, the announcement on now (ASw flags, 0 = none) and its sub-channel. */
+    val announcementSwitching = LinkedHashMap<Int, AnnouncementSwitch>()
+    private var switchSeq = 0L
     var fibsOk = 0; private set
     var fibsBad = 0; private set
 
@@ -81,7 +88,38 @@ class FicDecoder {
             9 -> if (b.size >= 3) ecc = b.u8(2)
             13 -> fig0_13(b)
             21 -> fig0_21(b)
+            18 -> fig0_18(b)
+            19 -> if ((b.u8(0) shr 6) and 1 == 0) fig0_19(b)     // OE = 0: this ensemble's announcements only
             24 -> fig0_24(b)
+        }
+    }
+
+    /** EN 300 401 §8.1.6.1: SId (16), ASu flags (16), Rfa (5), number of clusters (3), cluster ids (8 each). */
+    private fun fig0_18(b: ByteArray) {
+        var i = 1
+        while (i + 5 <= b.size) {
+            val sid = ((b.u8(i) shl 8) or b.u8(i + 1)).toLong()
+            val asu = (b.u8(i + 2) shl 8) or b.u8(i + 3)
+            val n = b.u8(i + 4) and 0x1F
+            i += 5
+            if (i + n > b.size) return
+            announcementSupport[sid] = AnnouncementSupport(asu, (0 until n).map { b.u8(i + it) }.toSet())
+            i += n
+        }
+    }
+
+    /** §8.1.6.2: cluster id (8), ASw flags (16), new flag (1), region flag (1), SubChId (6), [Rfa (2), region (6)]. */
+    private fun fig0_19(b: ByteArray) {
+        var i = 1
+        while (i + 4 <= b.size) {
+            val cluster = b.u8(i)
+            val asw = (b.u8(i + 1) shl 8) or b.u8(i + 2)
+            val newFlag = b.u8(i + 3) and 0x80 != 0
+            val regionFlag = b.u8(i + 3) and 0x40 != 0
+            val subch = b.u8(i + 3) and 0x3F
+            i += 4
+            val region = if (regionFlag) { if (i >= b.size) return; (b.u8(i) and 0x3F).also { i += 1 } } else null
+            announcementSwitching[cluster] = AnnouncementSwitch(asw, subch, newFlag, region, ++switchSeq)
         }
     }
 

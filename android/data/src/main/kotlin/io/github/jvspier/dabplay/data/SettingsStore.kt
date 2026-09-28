@@ -19,6 +19,8 @@ data class Settings(
     val downloadLogos: Boolean = true,
     val followStation: Boolean = true,
     val clock: ClockFormat = ClockFormat.SYSTEM,
+    /** Switch to traffic announcements on the same multiplex (off by default: owner, 2026-09-28). Alarms always. */
+    val trafficAnnouncements: Boolean = false,
 )
 
 /** Countries that drive on the left, so the driver sits on the right and the controls belong on the right. */
@@ -39,7 +41,7 @@ class SettingsStore(context: Context) {
         prefs.edit().putString("display", s.display.name).putString("layout", s.layout.name)
             .putString("driverSide", s.driverSide.name).putBoolean("resumeOnStart", s.resumeOnStart)
             .putBoolean("downloadLogos", s.downloadLogos).putBoolean("followStation", s.followStation)
-            .putString("clock", s.clock.name).apply()
+            .putString("clock", s.clock.name).putBoolean("trafficAnnouncements", s.trafficAnnouncements).apply()
     }
 
     private fun load(): Settings {
@@ -53,6 +55,7 @@ class SettingsStore(context: Context) {
             downloadLogos = prefs.getBoolean("downloadLogos", d.downloadLogos),
             followStation = prefs.getBoolean("followStation", d.followStation),
             clock = e("clock", d.clock, ClockFormat::valueOf),
+            trafficAnnouncements = prefs.getBoolean("trafficAnnouncements", d.trafficAnnouncements),
         )
     }
 }

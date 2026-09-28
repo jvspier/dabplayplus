@@ -79,6 +79,7 @@ class MainActivity : ComponentActivity() {
                         clearRecents = app.store::clearRecents,
                         restoreRecents = app.store::restoreRecents,
                         updateSettings = app.settings::update,
+                        skipAnnouncement = e::skipAnnouncement,
                     )
                 }
                 val logos by app.logos.state.collectAsStateWithLifecycle()

@@ -91,3 +91,10 @@ design session.
   Our own ducking (setWillPauseWhenDucked), so it's the same on every head unit. [verified, emulator `gsm call`]
   silence and restore; the duck path is untested (no nav prompt in the emulator).
 - **Station logo as the media session's artwork** when there's no slide (head unit launchers' media widgets show it).
+- **Traffic announcements** (owner, 2026-09-28): Settings switch, **off by default**. On: while listening, the engine
+  follows FIG 0/18 (the station's announcement clusters) and FIG 0/19 (what a cluster announces now, on which
+  sub-channel) and switches to the announcing sub-channel on the same multiplex, back when it ends (ASw 0, or no
+  longer repeated for 3 s). Banner over any screen: "Traffic announcement · <station>" with Skip (amber); alarm
+  announcements always come through (red, no Skip). "TA" badge next to the signal bars when the setting is on: lit
+  when the station takes part, amber during an announcement. [verified] 11C and 5B signal traffic support (ASu 0x0002),
+  the badge lights live on 538; a real announcement switch is untested (none happened during testing).

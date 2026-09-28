@@ -59,6 +59,7 @@ import com.adamglin.phosphoricons.fill.Sidebar
 import com.adamglin.phosphoricons.fill.SignIn
 import com.adamglin.phosphoricons.fill.SteeringWheel
 import com.adamglin.phosphoricons.fill.Sun
+import com.adamglin.phosphoricons.fill.TrafficCone
 import com.adamglin.phosphoricons.fill.X
 import io.github.jvspier.dabplay.data.ClockFormat
 import io.github.jvspier.dabplay.data.DisplayMode
@@ -124,6 +125,10 @@ private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Bo
             }
             SettingRow(PhosphorIcons.Fill.ArrowsClockwise, Accent.orange, tile, "Follow station", "Switch to a stronger signal of the same station") {
                 DabSwitch(s.followStation) { v -> a.updateSettings { it.copy(followStation = v) } }
+            }
+            SettingRow(PhosphorIcons.Fill.TrafficCone, Accent.amber, tile, "Traffic announcements",
+                if (s.trafficAnnouncements) "On · switches to traffic news on the same multiplex" else "Off · alarm announcements still come through") {
+                DabSwitch(s.trafficAnnouncements) { v -> a.updateSettings { it.copy(trafficAnnouncements = v) } }
             }
             SettingRow(PhosphorIcons.Fill.Heart, Accent.pink, tile, "Edit favorites", "${db.favourites.size} of 24 · or long-press a tile on Home and drag it", onClick = onEditFavourites) {
                 Icon(PhosphorIcons.Fill.CaretRight, null, tint = LocalDabColors.current.neutral400, modifier = Modifier.size(30.dp))

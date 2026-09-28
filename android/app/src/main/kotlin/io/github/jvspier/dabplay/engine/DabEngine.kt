@@ -12,6 +12,8 @@ import io.github.jvspier.dabplay.core.mp2.DabMp2Pad
 import io.github.jvspier.dabplay.core.mp2.Mp2Framer
 import io.github.jvspier.dabplay.core.fic.FicDecoder
 import io.github.jvspier.dabplay.core.fic.dabAlternatives
+import io.github.jvspier.dabplay.core.Announcement
+import io.github.jvspier.dabplay.core.AnnouncementWatcher
 import io.github.jvspier.dabplay.core.Reception
 import io.github.jvspier.dabplay.core.ReceptionMonitor
 import io.github.jvspier.dabplay.core.pad.DlsParser
@@ -33,6 +35,9 @@ import kotlinx.coroutines.flow.update
 
 data class ScanProgress(val channel: String, val index: Int, val total: Int, val ensembles: Int, val services: Int)
 
+/** An announcement on air: its type ([Announcement] flags), who's announcing, and the station to return to. */
+data class AnnouncementInfo(val flags: Int, val station: String, val returnTo: ServiceKey)
+
 data class EngineState(
     val dongle: Boolean = false,
     val status: String = "Connect the DAB dongle",
@@ -45,6 +50,10 @@ data class EngineState(
     val tuning: Boolean = false,
     /** While playing: GOOD, WEAK (marginal) or LOST (no signal; audio silent, resumes by itself). */
     val reception: Reception = Reception.GOOD,
+    /** A traffic (or alarm) announcement being played instead of the listener's station, else null. */
+    val announcement: AnnouncementInfo? = null,
+    /** The listener's station takes part in traffic announcements (FIG 0/18): the TA badge is lit. */
+    val taSupported: Boolean = false,
     /** Service following: the channel being tried while the signal is gone (e.g. "7C"), else null. */
     val following: String? = null,
     val problem: String? = null,
@@ -61,6 +70,7 @@ class DabEngine(
     private val focus: AudioFocus,
     private val resumeOnStart: () -> Boolean = { true },
     private val followStation: () -> Boolean = { true },
+    private val trafficAnnouncements: () -> Boolean = { false },
 ) {
     // show the last-played station straight away (car start: the dongle takes a moment; or it isn't plugged in)
     private val _state = MutableStateFlow(EngineState(current = store.state.value.let { s -> s.lastPlayed?.let(s::station) }))
@@ -70,6 +80,7 @@ class DabEngine(
         data object Scan : Cmd
         data class Play(val key: ServiceKey) : Cmd
         data object Pause : Cmd
+        data object SkipAnnouncement : Cmd
     }
 
     private val commands = LinkedBlockingQueue<Cmd>()
@@ -86,7 +97,10 @@ class DabEngine(
     fun scan() = commands.offer(Cmd.Scan)
     fun play(key: ServiceKey) = commands.offer(Cmd.Play(key))
     fun pause() = commands.offer(Cmd.Pause)
-    fun resume() { state.value.current?.let { play(it.key) } ?: store.state.value.lastPlayed?.let(::play) }
+    fun resume() { (state.value.announcement?.returnTo ?: state.value.current?.key)?.let(::play) ?: store.state.value.lastPlayed?.let(::play) }
+
+    /** Back to the listener's station now; this announcement is ignored until its cluster goes quiet. */
+    fun skipAnnouncement() = commands.offer(Cmd.SkipAnnouncement)
 
     /** Next/previous favourite (steering-wheel buttons); falls back to all stations when there are no favourites. */
     fun skip(delta: Int) {
@@ -125,7 +139,7 @@ class DabEngine(
                 when (val c = commands.take()) {
                     Cmd.Scan -> radio.scan()
                     is Cmd.Play -> radio.play(c.key)
-                    Cmd.Pause -> Unit
+                    Cmd.Pause, Cmd.SkipAnnouncement -> Unit
                 }
             }
         } catch (e: InterruptedException) {
@@ -207,6 +221,13 @@ class DabEngine(
 
         private var playingKey: ServiceKey? = null
 
+        // FIC read while playing, kept across sub-channel switches on the same ensemble (announcements)
+        private var liveFic = FicDecoder()
+        private var liveFicKhz = 0
+        private val watcher = AnnouncementWatcher()
+        private var taReturn: Station? = null       // playing an announcement: the listener's station
+        private var taCluster = -1
+
         private fun stopAudio() {
             if (playingKey != null) { d.stopAudio(); playingKey = null }
             player.release()
@@ -235,6 +256,7 @@ class DabEngine(
                 }) return problem("Audio focus denied")
             player.setLevel(1f)
             store.played(key)
+            taReturn = null; _state.update { it.copy(announcement = null) }
             var cur: Station = st
             while (true) cur = stream(cur) ?: return             // following hands over to the same station elsewhere
         }
@@ -254,7 +276,7 @@ class DabEngine(
                 if (tune(st.ensemble.freqKhz, retries = false).locked) break
                 _state.update { it.copy(reception = Reception.LOST, signalBars = 0, playing = true) }
                 when (val c = commands.poll(RELOCK_EVERY_MS, TimeUnit.MILLISECONDS)) {
-                    null -> Unit
+                    null, Cmd.SkipAnnouncement -> Unit
                     Cmd.Pause -> { pauseStream(); focus.abandon(); _state.update { it.copy(playing = false) }; status("Paused"); return null }
                     else -> { commands.offer(c); return null }
                 }
@@ -287,11 +309,17 @@ class DabEngine(
             var nextFollowAt = 0L
             // FIC while playing (owner-approved test 2026-09-27: audio stays clean, FIBs valid, ~15 % of frames caught;
             // the vendor lib serialises its FIC and MSC reads with one mutex too): learns FIG 0/24 + 0/21 alternatives
-            val ficLive = FicDecoder(); var ficAt = 0L; var learnedKey = ""
+            if (st.ensemble.freqKhz != liveFicKhz) { liveFic = FicDecoder(); liveFicKhz = st.ensemble.freqKhz }
+            val ficLive = liveFic; var ficAt = 0L; var learnedKey = ""
+            val base = taReturn ?: st                        // the station the listener chose
             while (true) {
                 val next = commands.poll(0, TimeUnit.MILLISECONDS)
                 if (next != null) {
                     if (next is Cmd.Pause) { stopAudio(); focus.abandon(); status("Paused"); return null }
+                    if (next is Cmd.SkipAnnouncement) {
+                        if (taReturn != null) { watcher.skip(taCluster); return endAnnouncement("skipped") }
+                        continue
+                    }
                     commands.offer(next)          // play/scan: handled by the main loop after stopping here
                     return null
                 }
@@ -314,6 +342,19 @@ class DabEngine(
                         diag = intArrayOf(dec.superframes, dec.rsFail, good(), bad()); diagBytes = 0
                     }
                     // service following: the signal has been gone for a while, try the station on another ensemble
+                    // announcements (EN 300 401 §8.1.6): alarm always, traffic when the setting is on
+                    val wanted = Announcement.ALARM or (if (trafficAnnouncements()) Announcement.TRAFFIC else 0)
+                    val ta = watcher.supports(ficLive, base.key.sid, Announcement.TRAFFIC)
+                    if (ta != _state.value.taSupported) _state.update { it.copy(taSupported = ta) }
+                    val act = watcher.update(now, ficLive, base.key.sid, base.service.subchannel, wanted)
+                    if (taReturn == null && act != null) announcementStation(base, act.subchannel)?.let { src ->
+                        Log.i(TAG, "announcement (flags ${act.flags}) in cluster ${act.cluster}: ${base.label} -> ${src.label}")
+                        pauseStream()
+                        taReturn = base; taCluster = act.cluster
+                        _state.update { it.copy(announcement = AnnouncementInfo(act.flags, src.label, base.key)) }
+                        return src
+                    }
+                    if (taReturn != null && act?.cluster != taCluster) return endAnnouncement("over")
                     if (r == Reception.LOST && followStation() && monitor.lostSince >= 0 &&
                         now - monitor.lostSince >= FOLLOW_AFTER_MS && now >= nextFollowAt) {
                         nextFollowAt = now + FOLLOW_RETRY_MS
@@ -347,6 +388,26 @@ class DabEngine(
                     player.feedAac(au.asc, au.data, au.format.outputRate)
                 }
             }
+        }
+
+        /** The service carrying [subchannel] on [base]'s ensemble: from the scan, else from the live FIC. */
+        private fun announcementStation(base: Station, subchannel: Int): Station? {
+            base.ensemble.services.firstOrNull { it.subchannel == subchannel }?.let { return Station(it, base.ensemble) }
+            val (sid, comp) = liveFic.components.entries.firstNotNullOfOrNull { (sid, cs) ->
+                cs.firstOrNull { it.subchannel == subchannel }?.let { sid to it } } ?: return null
+            val br = liveFic.subchannels[subchannel]?.bitrateKbps ?: return null
+            val label = liveFic.services[sid] ?: "Announcement"
+            return Station(StoredService(ServiceKey(base.key.ecc, sid), label, subchannel, br, comp.ascty), base.ensemble)
+        }
+
+        /** Back from an announcement to the listener's station. */
+        private fun endAnnouncement(why: String): Station? {
+            val back = taReturn ?: return null
+            Log.i(TAG, "announcement $why: back to ${back.label}")
+            pauseStream()
+            taReturn = null; taCluster = -1
+            _state.update { it.copy(announcement = null) }
+            return back
         }
 
         /** Store what this ensemble announces about its services elsewhere (for all its services, not just [st]). */

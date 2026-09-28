@@ -2,6 +2,15 @@ package io.github.jvspier.dabplay.ui
 
 import android.graphics.BitmapFactory
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import com.adamglin.phosphoricons.fill.Siren
+import com.adamglin.phosphoricons.fill.TrafficCone
+import io.github.jvspier.dabplay.core.Announcement
+import io.github.jvspier.dabplay.engine.AnnouncementInfo
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -106,6 +115,7 @@ class RadioActions(
     val clearRecents: () -> List<Recent>,
     val restoreRecents: (List<Recent>) -> Unit,
     val updateSettings: ((Settings) -> Settings) -> Unit,
+    val skipAnnouncement: () -> Unit = {},
 )
 
 @Composable
@@ -137,7 +147,7 @@ fun AppShell(engine: EngineState, db: Snapshot, settings: Settings, actions: Rad
                                 when (t) {
                                     Tab.HOME -> HomeScreen(engine, db, actions, compactTitle = panelLayout, onBrowse = { tab = Tab.STATIONS })
                                     Tab.STATIONS -> StationsScreen(engine, db, actions, compactTitle = panelLayout)
-                                    Tab.PLAYING -> NowPlayingScreen(engine, db, actions, chipOnLeft = right)
+                                    Tab.PLAYING -> NowPlayingScreen(engine, db, actions, chipOnLeft = right, taOn = settings.trafficAnnouncements)
                                     Tab.RECENT -> RecentScreen(engine, db, actions, compactTitle = panelLayout)
                                     Tab.SETTINGS -> SettingsScreen(settings, db, actions, compactTitle = panelLayout, logoStatus = logoStatus)
                                 }
@@ -153,7 +163,37 @@ fun AppShell(engine: EngineState, db: Snapshot, settings: Settings, actions: Rad
             }
             (if (right) parts.reversed() else parts).forEach { it() }
         }
+        AnnouncementBanner(engine.announcement, actions.skipAnnouncement, Modifier.align(Alignment.TopCenter))
     }
+    }
+}
+
+/**
+ * A traffic (or alarm) announcement is playing instead of your station: say so, clearly, over any screen, with a big
+ * Skip for traffic (alarms can't be skipped). Back to your station happens by itself when it ends.
+ */
+@Composable
+private fun AnnouncementBanner(a: AnnouncementInfo?, onSkip: () -> Unit, modifier: Modifier) {
+    var last by remember { mutableStateOf(a) }
+    if (a != null) last = a
+    AnimatedVisibility(a != null, modifier.padding(top = 16.dp),
+        enter = fadeIn(tween(200)) + slideInVertically(tween(260)) { -it }, exit = fadeOut(tween(200)) + slideOutVertically(tween(260)) { -it }) {
+        val info = last ?: return@AnimatedVisibility
+        val alarm = info.flags and Announcement.ALARM != 0
+        val bg = if (alarm) Accent.liveRed else Accent.amber
+        val ink = if (alarm) Color.White else Color(0xFF2A1A00)
+        Row(Modifier.shadow(24.dp, RoundedCornerShape(18.dp), ambientColor = bg, spotColor = bg).clip(RoundedCornerShape(18.dp))
+            .background(bg).padding(start = 22.dp, end = if (alarm) 26.dp else 10.dp).height(84.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(if (alarm) PhosphorIcons.Fill.Siren else PhosphorIcons.Fill.TrafficCone, null, tint = ink, modifier = Modifier.size(36.dp))
+            Column(Modifier.padding(start = 16.dp, end = 24.dp)) {
+                Text(if (alarm) "Alarm announcement" else "Traffic announcement", color = ink, fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
+                Text(info.station, color = ink.copy(alpha = 0.8f), fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (!alarm) Box(Modifier.height(64.dp).clip(RoundedCornerShape(14.dp)).background(ink.copy(alpha = 0.12f))
+                .pressable(onSkip).padding(horizontal = 26.dp), contentAlignment = Alignment.Center) {
+                Text("Skip", color = ink, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
     }
 }
 
