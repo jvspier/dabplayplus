@@ -11,6 +11,9 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import io.github.jvspier.dabplay.engine.DabEngine
 import io.github.jvspier.dabplay.engine.EngineState
+import io.github.jvspier.dabplay.data.LogoStore
+import io.github.jvspier.dabplay.data.ServiceKey
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,12 +25,27 @@ import kotlinx.coroutines.launch
  * current station, "Artist – Title" and the slide as metadata. Live radio: one dynamic, non-seekable item.
  */
 @UnstableApi
-class DabPlayer(private val engine: DabEngine, looper: Looper = Looper.getMainLooper()) : SimpleBasePlayer(looper) {
+class DabPlayer(
+    private val engine: DabEngine,
+    private val logos: StateFlow<Map<ServiceKey, LogoStore.Entry>>,
+    private val logosOn: () -> Boolean,
+    looper: Looper = Looper.getMainLooper(),
+) : SimpleBasePlayer(looper) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var s: EngineState = engine.state.value
+    private var logoKey: ServiceKey? = null
+    private var logoBytes: ByteArray? = null
 
     init {
         scope.launch { engine.state.collect { s = it; invalidateState() } }
+        scope.launch { logos.collect { logoKey = null; invalidateState() } }       // a logo arrived: refresh the artwork
+    }
+
+    /** The station logo as artwork when there's no slide (head unit media widgets show it); read once per station. */
+    private fun logoFor(key: ServiceKey): ByteArray? {
+        if (!logosOn()) return null
+        if (key != logoKey) { logoKey = key; logoBytes = logos.value[key]?.file?.let { f -> runCatching { f.readBytes() }.getOrNull() } }
+        return logoBytes
     }
 
     override fun getState(): State {
@@ -54,7 +72,7 @@ class DabPlayer(private val engine: DabEngine, looper: Looper = Looper.getMainLo
                 .setArtist(if (np?.isSong == true) np.artist else np?.raw)
                 .setDisplayTitle(cur.label)
                 .setSubtitle(np?.display)
-                .apply { s.slide?.let { setArtworkData(it, MediaMetadata.PICTURE_TYPE_FRONT_COVER) } }
+                .apply { (s.slide ?: logoFor(cur.key))?.let { setArtworkData(it, MediaMetadata.PICTURE_TYPE_FRONT_COVER) } }
                 .build()
             val item = MediaItemData.Builder(cur.key.toString())
                 .setMediaItem(MediaItem.Builder().setMediaId(cur.key.toString()).setMediaMetadata(md).build())

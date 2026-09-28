@@ -224,7 +224,16 @@ class DabEngine(
                 status("Tuning ${st.ensemble.channel}…")
                 if (!tune(st.ensemble.freqKhz, retries = true).locked) return problem("Station unavailable (no signal)")
             }
-            if (!focus.request { pause() }) return problem("Audio focus denied")
+            if (!focus.request { c ->
+                    when (c) {
+                        FocusChange.LOST -> pause()                          // another media app took over
+                        FocusChange.SILENCE -> player.setLevel(0f)          // phone call, voice assistant
+                        FocusChange.DUCK -> player.setLevel(DUCK_LEVEL)      // navigation prompt
+                        FocusChange.RESTORE -> player.setLevel(1f)
+                    }
+                    Log.i(TAG, "audio focus: $c")
+                }) return problem("Audio focus denied")
+            player.setLevel(1f)
             store.played(key)
             var cur: Station = st
             while (true) cur = stream(cur) ?: return             // following hands over to the same station elsewhere
@@ -388,6 +397,7 @@ class DabEngine(
 
     private companion object {
         const val TAG = "DabEngine"
+        const val DUCK_LEVEL = 0.25f            // under a navigation prompt
         const val FOLLOW_AFTER_MS = 6_000L      // signal gone this long before trying another ensemble
         const val FOLLOW_RETRY_MS = 30_000L     // then again every 30 s while it stays gone
         const val RELOCK_EVERY_MS = 5_000L      // retune attempts on the station's own frequency while nothing locks

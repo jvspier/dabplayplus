@@ -41,6 +41,13 @@ class AudioPlayer {
         if (!queue.offer(item)) { queue.poll(); queue.offer(item) }     // full: drop the oldest, never block
     }
 
+    /**
+     * Output level 0..1 (a call: 0, a navigation prompt: ducked, else 1). Faded towards on the audio thread, in steps
+     * per written buffer (~20 ms each), so about 120 ms from full to silent. Keeps decoding: it's live again at once.
+     */
+    fun setLevel(level: Float) { targetLevel = level.coerceIn(0f, 1f) }
+    @Volatile private var targetLevel = 1f
+
     /** Stop now (station switch, pause): silences at once and frees the decoder and track. */
     fun release() {
         val w = worker ?: return
@@ -158,8 +165,15 @@ class AudioPlayer {
             afterWrite(t, n * 2)
         }
 
+        private var level = 1f
+
         private fun beforeWrite(): AudioTrack? {
             val t = track ?: return null
+            val target = targetLevel
+            if (level != target) {
+                level = if (level < target) minOf(target, level + LEVEL_STEP) else maxOf(target, level - LEVEL_STEP)
+                t.setVolume(level)
+            }
             if (t.playState == AudioTrack.PLAYSTATE_PLAYING && t.underrunCount != underruns) {
                 underruns = t.underrunCount
                 t.pause(); buffered = 0                      // ran dry: pre-roll again before resuming
@@ -190,7 +204,7 @@ class AudioPlayer {
                     .setEncoding(AudioFormat.ENCODING_PCM_16BIT).build())
                 .setBufferSizeInBytes(maxOf(min * 4, bytesPerSec * BUFFER_MS / 1000))
                 .setTransferMode(AudioTrack.MODE_STREAM)
-                .build()
+                .build().also { it.setVolume(level) }
             Log.i(TAG, "AudioTrack $rate Hz, $channels ch, pre-roll $PREROLL_MS ms")
         }
 
@@ -203,6 +217,7 @@ class AudioPlayer {
 
     private companion object {
         const val TAG = "AudioPlayer"
+        const val LEVEL_STEP = 0.2f     // per written buffer (~20 ms): a full fade in ~120 ms
         const val PREROLL_MS = 400      // > 3 superframes (120 ms each)
         const val BUFFER_MS = 1000
         const val QUEUE_AUS = 128       // ~2.5 s of AUs (20-60 ms each)

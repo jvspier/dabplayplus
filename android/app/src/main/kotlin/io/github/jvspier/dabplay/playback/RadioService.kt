@@ -18,7 +18,8 @@ class RadioService : MediaSessionService() {
         val app = application as DabApp
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        session = MediaSession.Builder(this, DabPlayer(app.engine)).setSessionActivity(open).build()
+        val player = DabPlayer(app.engine, app.logos.state, logosOn = { app.settings.state.value.downloadLogos })
+        session = MediaSession.Builder(this, player).setSessionActivity(open).build()
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = session

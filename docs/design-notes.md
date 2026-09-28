@@ -86,3 +86,8 @@ design session.
   they belong to their broadcasters); no slides with album covers or people, and no presenter names.
 - **Rail icons in their tab colours in both themes** (owner, 2026-09-28); by day 22 % darker, so amber and green read
   on white.
+- **Calls and navigation** (owner, 2026-09-28): a phone call / voice assistant (transient focus loss) silences the
+  radio, which keeps receiving so it's live again at once; a navigation prompt ducks it to 25 %; both fade (~120 ms).
+  Our own ducking (setWillPauseWhenDucked), so it's the same on every head unit. [verified, emulator `gsm call`]
+  silence and restore; the duck path is untested (no nav prompt in the emulator).
+- **Station logo as the media session's artwork** when there's no slide (head unit launchers' media widgets show it).
