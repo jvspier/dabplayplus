@@ -21,7 +21,7 @@ class DabApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        store = StationStore(File(filesDir, "stations.json"))
+        store = StationStore(File(filesDir, "stations.json"), onError = { android.util.Log.e("DabApp", "saving stations failed", it) })
         settings = SettingsStore(this)
         engine = DabEngine(getSystemService(UsbManager::class.java), store, AudioFocus(getSystemService(AudioManager::class.java)),
             resumeOnStart = { settings.state.value.resumeOnStart }, followStation = { settings.state.value.followStation },

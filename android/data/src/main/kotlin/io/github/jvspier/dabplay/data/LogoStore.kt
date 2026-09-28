@@ -28,7 +28,7 @@ class LogoStore(private val dir: File, private val now: () -> Long = System::cur
     @Synchronized fun save(key: ServiceKey, bytes: ByteArray, source: String, url: String) {
         val f = File(dir, "$key.img")
         val tmp = File(dir, "$key.img.tmp")
-        tmp.writeBytes(bytes); tmp.renameTo(f)
+        write(tmp, bytes); if (!tmp.renameTo(f)) throw java.io.IOException("cannot store $f")
         misses.remove(key)
         entries.update { it + (key to Entry(f, source, url, now())) }
         persist()
@@ -54,8 +54,13 @@ class LogoStore(private val dir: File, private val now: () -> Long = System::cur
         o.put("logos", JSONObject().also { j -> entries.value.forEach { (k, v) ->
             j.put(k.toString(), JSONObject().put("file", v.file.name).put("source", v.source).put("url", v.url).put("fetched", v.fetched)) } })
         o.put("misses", JSONObject().also { j -> misses.forEach { (k, t) -> j.put(k.toString(), t) } })
-        val tmp = File(dir, "index.json.tmp"); tmp.writeText(o.toString(1)); tmp.renameTo(index)
+        val tmp = File(dir, "index.json.tmp")
+        write(tmp, o.toString(1).toByteArray())
+        if (!tmp.renameTo(index)) { index.delete(); tmp.renameTo(index) }
     }
+
+    /** Whole or nothing: synced before the rename, so a power cut leaves the old file, not an empty one. */
+    private fun write(f: File, bytes: ByteArray) = java.io.FileOutputStream(f).use { it.write(bytes); it.fd.sync() }
 
     private fun key(s: String) = s.split(".").let { ServiceKey(it[0].toInt(16), it[1].toLong(16)) }
 

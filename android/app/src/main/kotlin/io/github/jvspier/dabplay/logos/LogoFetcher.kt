@@ -10,7 +10,9 @@ import io.github.jvspier.dabplay.data.ServiceKey
 import io.github.jvspier.dabplay.data.SettingsStore
 import io.github.jvspier.dabplay.data.StationStore
 import java.net.InetAddress
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.coroutineScope
@@ -77,14 +79,17 @@ class LogoFetcher(
         for (st in todo) launch {
             gate.withPermit {
                 val q = LogoQuery(st.key.ecc, st.ensemble.eid, st.key.sid.toInt(), st.label)
-                val found = runCatching { finder.find(q) }.getOrNull()
-                when {
-                    found != null -> {
-                        logos.save(st.key, found.bytes, found.source.name, found.url)
-                        Log.i(TAG, "${st.label}: ${found.source} ${found.info.width}x${found.info.height}")
+                val found = try { finder.find(q) } catch (e: CancellationException) { throw e } catch (e: Exception) { null }
+                ensureActive()                           // cancelled mid-lookup (scan, network change): that's not a miss
+                try {
+                    when {
+                        found != null -> {
+                            logos.save(st.key, found.bytes, found.source.name, found.url)
+                            Log.i(TAG, "${st.label}: ${found.source} ${found.info.width}x${found.info.height}")
+                        }
+                        online.value -> { logos.miss(st.key); Log.i(TAG, "${st.label}: no usable logo") }   // offline mid-pass: not a miss
                     }
-                    online.value -> { logos.miss(st.key); Log.i(TAG, "${st.label}: no usable logo") }   // offline mid-pass: not a miss
-                }
+                } catch (e: java.io.IOException) { Log.w(TAG, "logo cache: ${e.message}") }    // disk full: try again next time
             }
         }
     }

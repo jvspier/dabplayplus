@@ -15,4 +15,5 @@ android {
 dependencies {
     api(libs.kotlinx.coroutines.core)
     testImplementation(libs.kotlin.test)
+    testImplementation(libs.orgjson)          // the real org.json: android.jar's copy is only stubs in unit tests
 }

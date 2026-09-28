@@ -1,6 +1,10 @@
 package io.github.jvspier.dabplay.data
 
 import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -47,7 +51,16 @@ data class Snapshot(
  * Local station database (offline first): scan results per ensemble, favourites (ordered), recents, last played.
  * Stored as one JSON file; small enough that rewriting it on every change is fine.
  */
-class StationStore(private val file: File, private val now: () -> Long = System::currentTimeMillis) {
+class StationStore(
+    private val file: File,
+    private val now: () -> Long = System::currentTimeMillis,
+    private val onError: (Throwable) -> Unit = {},
+) {
+    private val lock = Any()
+    // one writer thread: callers (the USB thread among them) never wait for the disk, writes never overlap, and a
+    // burst of changes becomes one write of the latest state
+    private val writer = Executors.newSingleThreadExecutor { r -> Thread(r, "station-store").apply { isDaemon = true } }
+    private val dirty = AtomicBoolean(false)
     private val _state = MutableStateFlow(load())
     val state: StateFlow<Snapshot> = _state
 
@@ -83,14 +96,32 @@ class StationStore(private val file: File, private val now: () -> Long = System:
         change { it.copy(alternatives = it.alternatives + found) }
     }
 
-    fun clearRecents(): List<Recent> { val old = _state.value.recents; change { it.copy(recents = emptyList()) }; return old }
+    fun clearRecents(): List<Recent> = synchronized(lock) { _state.value.recents.also { change { s -> s.copy(recents = emptyList()) } } }
     fun restoreRecents(r: List<Recent>) = change { it.copy(recents = r) }
 
-    private fun change(f: (Snapshot) -> Snapshot) { _state.update(f); save(_state.value) }
+    private fun change(f: (Snapshot) -> Snapshot) {
+        synchronized(lock) { _state.update(f) }
+        if (dirty.compareAndSet(false, true)) writer.execute {
+            dirty.set(false)
+            try { save(_state.value) } catch (e: Exception) { onError(e) }
+        }
+    }
 
-    private fun load(): Snapshot = runCatching {
-        if (!file.exists()) return Snapshot()
-        val o = JSONObject(file.readText())
+    /** Waits for pending writes (tests; a clean shutdown). */
+    fun flush() { writer.submit {}.get() }
+
+    /**
+     * The stored stations. A file that won't parse is kept as `.bad` (never silently replaced by an empty list on the
+     * next save); a complete `.tmp` from a write that missed its rename is used instead if there is one.
+     */
+    private fun load(): Snapshot {
+        parse(file)?.let { return it }
+        if (file.exists()) file.renameTo(File(file.path + ".bad"))
+        return parse(File(file.path + ".tmp")) ?: Snapshot()
+    }
+
+    private fun parse(f: File): Snapshot? = if (!f.exists()) null else runCatching {
+        val o = JSONObject(f.readText())
         Snapshot(
             ensembles = o.optJSONArray("ensembles").objs().map { e ->
                 StoredEnsemble(e.getInt("eid"), e.getString("channel"), e.getInt("freqKhz"), e.getString("label"),
@@ -104,7 +135,7 @@ class StationStore(private val file: File, private val now: () -> Long = System:
             alternatives = o.optJSONObject("alternatives")?.let { a -> a.keys().asSequence().associate { k ->
                 key(k) to a.getJSONArray(k).objs().map { AltFreq(it.getInt("eid"), it.getInt("khz")) } } }.orEmpty(),
         )
-    }.getOrElse { Snapshot() }
+    }.getOrNull()
 
     private fun save(s: Snapshot) {
         val o = JSONObject()
@@ -120,8 +151,10 @@ class StationStore(private val file: File, private val now: () -> Long = System:
         s.lastPlayed?.let { o.put("lastPlayed", it.toString()) }
         o.put("alternatives", JSONObject().also { j -> s.alternatives.forEach { (k, v) ->
             j.put(k.toString(), JSONArray(v.map { JSONObject().put("eid", it.eid).put("khz", it.khz) })) } })
+        // whole or nothing: write, sync to the disk, then rename over the old file (power can go at any moment in a car)
         val tmp = File(file.path + ".tmp")
-        tmp.writeText(o.toString(1)); tmp.renameTo(file)
+        FileOutputStream(tmp).use { out -> out.write(o.toString(1).toByteArray()); out.fd.sync() }
+        if (!tmp.renameTo(file)) { file.delete(); if (!tmp.renameTo(file)) throw IOException("cannot replace $file") }
     }
 
     private fun JSONArray?.objs() = if (this == null) emptyList() else (0 until length()).map { getJSONObject(it) }
