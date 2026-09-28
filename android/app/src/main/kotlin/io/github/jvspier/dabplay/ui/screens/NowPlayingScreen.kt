@@ -88,10 +88,10 @@ fun NowPlayingScreen(e: EngineState, db: Snapshot, a: RadioActions, chipOnLeft: 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         // as big as fits (up to 640×480), leaving room for the controls below and the station chip beside it
         val cardH = minOf(CARD_MAX_H, maxHeight - 28.dp - CONTROLS_H - 56.dp, (maxWidth - 400.dp) * 3 / 4)
-        if (st != null) StationChip(st, e, Modifier.align(if (chipOnLeft) Alignment.TopStart else Alignment.TopEnd).padding(top = 24.dp))
+        if (st != null) StationChip(st, e, db, a, chipOnLeft, Modifier.align(if (chipOnLeft) Alignment.TopStart else Alignment.TopEnd).padding(top = 24.dp))
         Column(Modifier.fillMaxSize().padding(top = 28.dp, bottom = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             NowCard(e, st, cardH)
-            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Controls(e, db, a, st) }
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Controls(e, a) }
         }
     }
 }
@@ -181,27 +181,32 @@ private fun NowCard(e: EngineState, st: Station?, CARD_H: Dp) {
     }
 }
 
+/** Station logo, name and signal, with the favourite heart under it (owner, 2026-09-28: keeps the controls centred). */
 @Composable
-private fun StationChip(st: Station, e: EngineState, modifier: Modifier) {
+private fun StationChip(st: Station, e: EngineState, db: Snapshot, a: RadioActions, onLeft: Boolean, modifier: Modifier) {
     val c = LocalDabColors.current
-    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        StationLogo(st.label, st.key, 44.dp)
-        Column(Modifier.padding(start = 12.dp)) {
-            Text(st.label, color = c.text, fontSize = 20.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (e.playing) SignalBars(e.signalBars, 14.dp, Modifier.padding(top = 4.dp))
+    Column(modifier, horizontalAlignment = if (onLeft) Alignment.Start else Alignment.End) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            StationLogo(st.label, st.key, 44.dp)
+            Column(Modifier.padding(start = 12.dp)) {
+                Text(st.label, color = c.text, fontSize = 20.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (e.playing) SignalBars(e.signalBars, 14.dp, Modifier.padding(top = 4.dp))
+            }
         }
+        Spacer(Modifier.height(10.dp))
+        // 48 dp: the logo's scale, and still Android's minimum touch target
+        Box(Modifier.size(48.dp).background(Accent.pink.copy(alpha = 0.14f), RoundedCornerShape(12.dp))
+            .pressable({ a.toggleFavourite(st.key) }), contentAlignment = Alignment.Center) { HeartIcon(st.key in db.favourites, 24.dp) }
     }
 }
 
+/** Previous, play/pause, next: a symmetric group, centred. */
 @Composable
-private fun Controls(e: EngineState, db: Snapshot, a: RadioActions, st: Station?) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+private fun Controls(e: EngineState, a: RadioActions) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
         SkipButton(true) { a.skip(-1) }
         PlayButton(e.playing, 136.dp, a.togglePlay, busy = e.tuning)
         SkipButton(false) { a.skip(+1) }
-        if (st != null) Box(Modifier.size(104.dp).background(Accent.pink.copy(alpha = 0.14f), RoundedCornerShape(16.dp))
-            .pressable({ a.toggleFavourite(st.key) }), contentAlignment = Alignment.Center) { HeartIcon(st.key in db.favourites, 44.dp) }
-        else Spacer(Modifier.size(104.dp))
     }
 }
 

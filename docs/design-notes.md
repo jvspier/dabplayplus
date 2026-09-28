@@ -81,3 +81,5 @@ design session.
 - **Now playing, logo case** (owner, 2026-09-28): no card behind a logo; the logo stands on the page with a soft glow
   and a faint reflection below it, staying sharp. The card with the glass band only appears behind a slide (fades
   in with it). The "Artist – Title" line has a subtle shadow for readability (dark at night, light halo by day).
+- **Now playing controls** (owner, 2026-09-28): only previous / play / next, centred as a symmetric group; the favourite
+  heart moved under the station chip (48 dp, the logo's scale; mirrors with the driver side).
