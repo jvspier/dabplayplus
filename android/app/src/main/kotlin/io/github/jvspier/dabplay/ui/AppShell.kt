@@ -43,6 +43,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -187,7 +188,8 @@ private fun Rail(tab: Tab, right: Boolean, onSelect: (Tab) -> Unit) {
             Spacer(Modifier.height(12.dp))
             for (t in Tab.entries) {
                 val active = t == tab
-                val tint = when { active -> Accent.onAccent; night -> t.color.copy(alpha = 0.7f); else -> c.neutral500 }
+                // tab colours in both themes (owner, 2026-09-28); by day a bit darker, so amber and green read on white
+                val tint = when { active -> Accent.onAccent; night -> t.color.copy(alpha = 0.7f); else -> lerp(t.color, Color.Black, 0.22f) }
                 Box(
                     Modifier.size(92.dp)
                         .then(if (active) Modifier.shadow(18.dp, RoundedCornerShape(14.dp), ambientColor = t.color, spotColor = t.color) else Modifier)

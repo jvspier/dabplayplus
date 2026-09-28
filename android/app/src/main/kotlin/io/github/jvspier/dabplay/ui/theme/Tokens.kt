@@ -4,7 +4,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-/** Design tokens from design_handoff_radio_head_unit/README.md ("Nocturne"). Night is the default theme. */
+/** Design tokens from the Claude Design export (design_handoff_radio_head_unit/README.md, kept locally; "Nocturne"). Night is the default theme. */
 @Immutable
 data class DabColors(
     val bg: Color, val surface: Color, val text: Color, val rail: Color,

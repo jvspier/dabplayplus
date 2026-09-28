@@ -1,6 +1,6 @@
 # Design notes (input for the Android design session)
 
-Design reference: `design_handoff_radio_head_unit/` (Claude Design export: layouts 1a "tiles + mini player" and
+Design reference: the Claude Design export (`design_handoff_radio_head_unit/`, kept locally, not in the repo: layouts 1a "tiles + mini player" and
 1b "docked player panel", five screens, Night/Day themes; README has all tokens and sizes). It was generated
 from a *streaming radio* brief, so some parts need DAB equivalents. Collect decisions here; settle them in the
 design session.
@@ -84,3 +84,5 @@ design session.
   stay cached, so switching it back on shows them again at once.
 - **README screenshots** (owner, 2026-09-28): station logos may show (they only identify the stations; the README says
   they belong to their broadcasters); no slides with album covers or people, and no presenter names.
+- **Rail icons in their tab colours in both themes** (owner, 2026-09-28); by day 22 % darker, so amber and green read
+  on white.

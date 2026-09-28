@@ -12,7 +12,7 @@ Kotlin 2.4, Compose. Builds with the installed JDK 25 (no Android Studio needed)
 | `usb-android` | Android lib | `Transport` over `UsbDeviceConnection.bulkTransfer` |
 | `audio` | Android lib | MediaCodec AAC decoder choice (FDK by name); MP2 decoder to come |
 | `data` | Android lib | station model (`ServiceKey` = ECC + SId); Room/DataStore to come |
-| `app` | Android app | Compose UI (Home, Stations, Now playing, Recent, Settings) from `../design_handoff_radio_head_unit/`, engine, Media3 service |
+| `app` | Android app | Compose UI (Home, Stations, Now playing, Recent, Settings) from the Claude Design export (kept locally, not in the repo), engine, Media3 service |
 
 ```
 cd android
