@@ -8,7 +8,14 @@ import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.offset
+import android.os.SystemClock
+import io.github.jvspier.dabplay.data.StationStore
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -86,7 +93,8 @@ fun HomeScreen(e: EngineState, db: Snapshot, a: RadioActions, compactTitle: Bool
 
 /**
  * Favourites grid. Long-press a tile to pick it up, drag it over another slot (the others slide aside), release
- * to drop; the new order is saved. While dragging, the grid shows a local copy of the order.
+ * to drop; the new order is saved. While dragging, the grid shows a local copy of the order. Held against the top or
+ * bottom edge, the grid keeps scrolling (more than one page of favourites).
  */
 @Composable
 private fun FavouritesGrid(favs: List<Station>, favKeys: List<ServiceKey>, e: EngineState, a: RadioActions, listTiles: Boolean,
@@ -95,28 +103,61 @@ private fun FavouritesGrid(favs: List<Station>, favKeys: List<ServiceKey>, e: En
     val rows = if (listTiles) 3 else 2
     val gap = if (listTiles) 14.dp else 16.dp
     val pageSlots = cols * rows
-    val addTiles = if (favs.size < pageSlots) pageSlots - favs.size else if (favs.size < 24) 1 else 0
+    // the cap counts every favourite, also those Home can't show (not in the last scans)
+    val addTiles = if (favs.size < pageSlots) pageSlots - favs.size else if (favKeys.size < StationStore.MAX_FAVOURITES) 1 else 0
     val order = remember { mutableStateListOf<Station>() }
     var dragKey by remember { mutableStateOf<String?>(null) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    var edge by remember { mutableIntStateOf(0) }                // -1 / +1 while the finger is held at the top / bottom edge
+    var droppedAt by remember { mutableLongStateOf(0L) }
     var settling by remember { mutableStateOf(false) }          // dropped; waiting for the store to catch up
-    LaunchedEffect(favs) { settling = false }
+    LaunchedEffect(favs) {
+        settling = false
+        // favourites changed under the finger (a heart in the mini player, a scan): the local order is stale, drop it
+        if (dragKey != null && order.map { it.key }.toSet() != favs.map { it.key }.toSet()) { dragKey = null; edge = 0 }
+    }
     val shown = if (dragKey != null || (settling && order.map { it.key } != favs.map { it.key })) order else favs
-    val scope = rememberCoroutineScope()
     val latestFavs by rememberUpdatedState(favs)
-    val latestKeys by rememberUpdatedState(favKeys)
+    // a long-press that picked a tile up (and didn't move) must not also count as a tap on it or its heart
+    val tapOk = { dragKey == null && SystemClock.uptimeMillis() - droppedAt > 300 }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val tileH = (maxHeight - gap * (rows - 1)) / rows
         val state = rememberLazyGridState()
+        fun favAt(p: Offset) = state.layoutInfo.visibleItemsInfo.firstOrNull { i ->
+            i.contentType == "fav" && p.x >= i.offset.x && p.x < i.offset.x + i.size.width &&
+                p.y >= i.offset.y && p.y < i.offset.y + i.size.height
+        }
+        // the lifted tile's centre is over another tile: move it into that slot
+        fun reorder() {
+            val key = dragKey ?: return
+            val cur = state.layoutInfo.visibleItemsInfo.firstOrNull { it.key == key } ?: return
+            val center = Offset(cur.offset.x + cur.size.width / 2f, cur.offset.y + cur.size.height / 2f) + dragOffset
+            val target = favAt(center) ?: return
+            if (target.key == key) return
+            val from = order.indexOfFirst { it.key.toString() == key }
+            val to = order.indexOfFirst { it.key.toString() == target.key }
+            if (from < 0 || to < 0) return
+            order.add(to, order.removeAt(from))
+            // the tile now lives in the target's slot: keep it under the finger
+            dragOffset += Offset((cur.offset.x - target.offset.x).toFloat(), (cur.offset.y - target.offset.y).toFloat())
+        }
+        val step = with(LocalDensity.current) { 10.dp.toPx() }
+        LaunchedEffect(dragKey, edge) {
+            if (dragKey == null || edge == 0) return@LaunchedEffect
+            while (true) {
+                val used = state.scrollBy(edge * step)
+                if (used == 0f) break                               // at the end of the list
+                dragOffset += Offset(0f, used)                      // the content moved, the finger didn't
+                withFrameNanos { }
+                reorder()
+            }
+        }
         LazyVerticalGrid(
             columns = GridCells.Fixed(cols), state = state, flingBehavior = rememberSnapFlingBehavior(state),
             horizontalArrangement = Arrangement.spacedBy(gap), verticalArrangement = Arrangement.spacedBy(gap),
             modifier = Modifier.fillMaxSize().pointerInput(Unit) {
-                fun favAt(p: Offset) = state.layoutInfo.visibleItemsInfo.firstOrNull { i ->
-                    i.contentType == "fav" && p.x >= i.offset.x && p.x < i.offset.x + i.size.width &&
-                        p.y >= i.offset.y && p.y < i.offset.y + i.size.height
-                }
+                val edgePx = 48.dp.toPx()
                 detectDragGesturesAfterLongPress(
                     onDragStart = { p ->
                         val hit = favAt(p) ?: return@detectDragGesturesAfterLongPress
@@ -126,25 +167,12 @@ private fun FavouritesGrid(favs: List<Station>, favKeys: List<ServiceKey>, e: En
                         dragKey = hit.key as String
                     },
                     onDrag = { change, amount ->
-                        val key = dragKey ?: return@detectDragGesturesAfterLongPress
+                        if (dragKey == null) return@detectDragGesturesAfterLongPress
                         change.consume()
                         dragOffset += amount
-                        val cur = state.layoutInfo.visibleItemsInfo.firstOrNull { it.key == key } ?: return@detectDragGesturesAfterLongPress
-                        val center = Offset(cur.offset.x + cur.size.width / 2f, cur.offset.y + cur.size.height / 2f) + dragOffset
-                        val target = favAt(center)
-                        if (target != null && target.key != key) {
-                            val from = order.indexOfFirst { it.key.toString() == key }
-                            val to = order.indexOfFirst { it.key.toString() == target.key }
-                            if (from >= 0 && to >= 0) {
-                                order.add(to, order.removeAt(from))
-                                // the tile now lives in the target's slot: keep it under the finger
-                                dragOffset += Offset((cur.offset.x - target.offset.x).toFloat(), (cur.offset.y - target.offset.y).toFloat())
-                            }
-                        }
-                        // more than one page of favourites: scroll when dragging against the top/bottom edge
-                        val edge = 48.dp.toPx()
-                        if (center.y < edge) scope.launch { state.scrollBy(-12.dp.toPx()) }
-                        else if (center.y > size.height - edge) scope.launch { state.scrollBy(12.dp.toPx()) }
+                        reorder()
+                        val y = change.position.y
+                        edge = when { y < edgePx -> -1; y > size.height - edgePx -> 1; else -> 0 }
                     },
                     onDragEnd = {
                         val key = dragKey
@@ -153,12 +181,13 @@ private fun FavouritesGrid(favs: List<Station>, favKeys: List<ServiceKey>, e: En
                             val oldIdx = latestFavs.indexOfFirst { it.key.toString() == key }
                             if (newIdx >= 0 && oldIdx >= 0 && newIdx != oldIdx) {
                                 settling = true
-                                a.moveFavourite(latestKeys.indexOf(latestFavs[oldIdx].key), latestKeys.indexOf(latestFavs[newIdx].key))
+                                // by key: to where the station it displaced is (hidden favourites keep their places)
+                                a.moveFavourite(latestFavs[oldIdx].key, latestFavs[newIdx].key)
                             }
                         }
-                        dragKey = null
+                        dragKey = null; edge = 0; droppedAt = SystemClock.uptimeMillis()
                     },
-                    onDragCancel = { dragKey = null },
+                    onDragCancel = { dragKey = null; edge = 0; droppedAt = SystemClock.uptimeMillis() },
                 )
             },
         ) {
@@ -177,7 +206,9 @@ private fun FavouritesGrid(favs: List<Station>, favKeys: List<ServiceKey>, e: En
                 } else Modifier.animateItem().graphicsLayer { scaleX = scale.value; scaleY = scale.value; alpha = dim.value }
                 Box(m) {
                     val playing = st.key == e.current?.key
-                    if (listTiles) ListTile(st, playing, e.playing, tileH, a) else GridTile(st, playing, e.playing, tileH, a)
+                    val play = { if (tapOk()) a.play(st.key) }
+                    val heart = { if (tapOk()) a.toggleFavourite(st.key) }
+                    if (listTiles) ListTile(st, playing, e.playing, tileH, play, heart) else GridTile(st, playing, e.playing, tileH, play, heart)
                 }
             }
             items(addTiles, key = { "add$it" }, contentType = { "add" }) { AddTile(tileH, onBrowse) }
@@ -196,13 +227,14 @@ private fun Modifier.tileBackground(playing: Boolean): Modifier {
 
 /** 1a tile: logo top-left, heart (+ waveform when playing) top-right, name 26/500 at the bottom. */
 @Composable
-private fun GridTile(st: Station, isCurrent: Boolean, audio: Boolean, h: Dp, a: RadioActions) {
+private fun GridTile(st: Station, isCurrent: Boolean, audio: Boolean, h: Dp, onPlay: () -> Unit, onHeart: () -> Unit) {
     val c = LocalDabColors.current
-    Box(Modifier.fillMaxWidth().height(h).tileBackground(isCurrent).pressable({ a.play(st.key) }).padding(18.dp)) {
+    Box(Modifier.fillMaxWidth().height(h).tileBackground(isCurrent).pressable(onPlay).padding(18.dp)) {
         StationLogo(st.label, st.key, if (h > 220.dp) 104.dp else 80.dp)
-        Row(Modifier.align(Alignment.TopEnd), verticalAlignment = Alignment.CenterVertically) {
-            if (isCurrent) { Waveform(audio, 26.dp); Spacer(Modifier.width(10.dp)) }
-            Box(Modifier.pressable({ a.toggleFavourite(st.key) })) { HeartIcon(true, 30.dp) }
+        // the heart gets a 64 dp touch target, drawn where the 30 dp icon was (17 dp of it reaching into the padding)
+        Row(Modifier.align(Alignment.TopEnd).offset(x = 17.dp, y = (-17).dp), verticalAlignment = Alignment.CenterVertically) {
+            if (isCurrent) Waveform(audio, 26.dp)             // the heart box's own margin is the gap
+            Box(Modifier.size(64.dp).pressable(onHeart), contentAlignment = Alignment.Center) { HeartIcon(true, 30.dp) }
         }
         Text(st.label, color = if (isCurrent) c.liveSub else c.text, fontSize = 26.sp, fontWeight = FontWeight.Medium,
             maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 30.sp, modifier = Modifier.align(Alignment.BottomStart))
@@ -211,15 +243,15 @@ private fun GridTile(st: Station, isCurrent: Boolean, audio: Boolean, h: Dp, a: 
 
 /** 1b tile: logo 96, name 22/500, heart + waveform in a column on the right. */
 @Composable
-private fun ListTile(st: Station, isCurrent: Boolean, audio: Boolean, h: Dp, a: RadioActions) {
+private fun ListTile(st: Station, isCurrent: Boolean, audio: Boolean, h: Dp, onPlay: () -> Unit, onHeart: () -> Unit) {
     val c = LocalDabColors.current
-    Row(Modifier.fillMaxWidth().height(h).tileBackground(isCurrent).pressable({ a.play(st.key) }).padding(14.dp),
+    Row(Modifier.fillMaxWidth().height(h).tileBackground(isCurrent).pressable(onPlay).padding(14.dp),
         verticalAlignment = Alignment.CenterVertically) {
         StationLogo(st.label, st.key, minOf(96.dp, h - 28.dp))
         Text(st.label, color = if (isCurrent) c.liveSub else c.text, fontSize = 22.sp, fontWeight = FontWeight.Medium,
             maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(horizontal = 16.dp))
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Box(Modifier.pressable({ a.toggleFavourite(st.key) })) { HeartIcon(true, 26.dp) }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(Modifier.size(56.dp).pressable(onHeart), contentAlignment = Alignment.Center) { HeartIcon(true, 26.dp) }
             if (isCurrent) Waveform(audio, 24.dp)
         }
     }

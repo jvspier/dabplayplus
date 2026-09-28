@@ -103,13 +103,14 @@ private val LOGO_PAPER = Color(0xFFF4F4F7)
 
 @Composable
 private fun Initials(label: String, key: ServiceKey?, size: Dp, shape: RoundedCornerShape) {
-    val col = LOGO_PALETTE[abs((key?.sid ?: label.hashCode().toLong()).toInt()) % LOGO_PALETTE.size]
+    // floorMod: abs() of a negative hash can stay negative (Int.MIN_VALUE) and crash the index
+    val col = LOGO_PALETTE[Math.floorMod(key?.sid ?: label.hashCode().toLong(), LOGO_PALETTE.size.toLong()).toInt()]
     val initials = remember(label) {
-        val words = label.split(' ', '-', '.').filter { it.isNotBlank() }
+        val name = label.trim()                  // DAB labels are space-padded to 16 characters
+        val words = name.split(' ', '-', '.').filter { it.isNotBlank() }
         when {
             words.size >= 2 -> "${words[0].first()}${words[1].first()}"
-            label.length >= 2 -> label.take(2)
-            else -> label
+            else -> name.take(2)
         }.uppercase()
     }
     Box(Modifier.fillMaxSize().clip(shape).background(col.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
@@ -171,9 +172,13 @@ fun SignalBars(bars: Int, height: Dp = 16.dp, modifier: Modifier = Modifier) {
 /** The orange waveform on the station that's playing (animated while audio plays). */
 @Composable
 fun Waveform(animate: Boolean, size: Dp) {
-    val t = rememberInfiniteTransition(label = "wave")
-    val phase by t.animateFloat(0f, 1f, infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Restart), label = "phase")
+    // no infinite animation while paused: it would redraw every frame for nothing
+    val wave = if (animate) {
+        val t = rememberInfiniteTransition(label = "wave")
+        t.animateFloat(0f, 1f, infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Restart), label = "phase")
+    } else null
     Canvas(Modifier.size(size)) {
+        val phase = wave?.value ?: 0f
         val n = 5
         val w = this.size.width / (n * 2 - 1)
         for (i in 0 until n) {
@@ -211,7 +216,7 @@ fun <T> Segmented(options: List<Pair<T, String>>, selected: T, accent: Color, on
 fun DabSwitch(on: Boolean, onChange: (Boolean) -> Unit) {
     val c = LocalDabColors.current
     val x = animateFloatAsState(if (on) 1f else 0f, tween(160), label = "knob")
-    Box(Modifier.size(96.dp, 52.dp).clip(RoundedCornerShape(26.dp)).background(if (on) Accent.green else c.neutral800).pressable({ onChange(!on) })) {
+    Box(Modifier.size(96.dp, 52.dp).clip(RoundedCornerShape(26.dp)).background(if (on) Accent.green else c.switchOff).pressable({ onChange(!on) })) {
         Box(Modifier.padding(6.dp).offset { IntOffset((44.dp.toPx() * x.value).roundToInt(), 0) }.size(40.dp).background(Accent.playIcon, CircleShape))
     }
 }

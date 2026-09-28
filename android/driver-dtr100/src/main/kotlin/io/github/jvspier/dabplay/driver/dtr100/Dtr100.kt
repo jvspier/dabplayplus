@@ -465,10 +465,10 @@ class Dtr100(
         const val SIGNAL_NONE = 2000
 
         /**
-         * Bars from [mcuSignal] (0 = perfect, [SIGNAL_NONE] = nothing). [hypothesis] thresholds from the antenna test,
-         * where audio was clean from ~340 down: calibrate in the car.
+         * Bars from [mcuSignal], the chip's CER (0 = perfect, [SIGNAL_NONE] = nothing). Thresholds from RAON's own
+         * antenna-level table (CER 700/400/180, see findings.md); still worth a look in the car.
          */
-        fun signalBars(sig: Int) = when { sig >= SIGNAL_NONE -> 0; sig >= 700 -> 1; sig >= 300 -> 2; sig >= 100 -> 3; else -> 4 }
+        fun signalBars(sig: Int) = when { sig >= SIGNAL_NONE -> 0; sig >= 700 -> 1; sig >= 400 -> 2; sig >= 180 -> 3; else -> 4 }
         private val EMPTY = ByteArray(0)
         private val MODE_1A = intArrayOf(0xB4, 0x44, 0x04, 0x84)   // page 6 reg 0x1a by reg 0x27 bits 4..5
 

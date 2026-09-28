@@ -88,13 +88,14 @@ fun NowPlayingScreen(e: EngineState, db: Snapshot, a: RadioActions, chipOnLeft: 
     val st = e.current
     BoxWithConstraints(Modifier.fillMaxSize()) {
         // as big as fits (up to 640×480), leaving room for the controls below and the station chip beside it
-        val cardH = minOf(CARD_MAX_H, maxHeight - 28.dp - CONTROLS_H - 56.dp, (maxWidth - 400.dp) * 3 / 4)
+        val cardH = minOf(CARD_MAX_H, maxHeight - 28.dp - CONTROLS_H - 56.dp, (maxWidth - 400.dp) * 3 / 4).coerceAtLeast(0.dp)
         if (st != null) {
             // station chip in one top corner, the favourite heart in the other, level with it (owner, 2026-09-28):
             // symmetric, and on the driver's side (the rail's side) the heart is closest to hand
             StationChip(st, e, taOn, Modifier.align(if (chipOnLeft) Alignment.TopStart else Alignment.TopEnd).padding(top = 24.dp))
-            // the content has 8 dp next to the rail and 28 dp on the far side: +20 dp so both corners are inset alike
-            Box(Modifier.align(if (chipOnLeft) Alignment.TopEnd else Alignment.TopStart)
+            // the content has 8 dp next to the rail and 28 dp on the far side: +20 dp so both corners are inset alike.
+            // Not during an announcement: the station shown then is the traffic service, not yours.
+            if (e.announcement == null) Box(Modifier.align(if (chipOnLeft) Alignment.TopEnd else Alignment.TopStart)
                 .padding(top = 22.dp, start = if (chipOnLeft) 0.dp else 20.dp, end = if (chipOnLeft) 20.dp else 0.dp).size(48.dp)
                 .background(Accent.pink.copy(alpha = 0.14f), RoundedCornerShape(12.dp))
                 .pressable({ a.toggleFavourite(st.key) }), contentAlignment = Alignment.Center) { HeartIcon(st.key in db.favourites, 24.dp) }
@@ -134,8 +135,6 @@ private fun NowCard(e: EngineState, st: Station?, CARD_H: Dp) {
     val night = LocalNight.current
     val slide = rememberSlide(e.slide)
     val logo = rememberLogo(st?.key)
-    val blurredSlide = rememberBlurred(slide)
-    val blurredLogo = rememberBlurred(logo?.bitmap)
     val (line, lineColor) = nowLine(e, st)
     val floor = CARD_H * (1f - BAND) - LOGO_GAP          // where the picture stands, from the top
     val tile = CARD_H * LOGO
@@ -143,6 +142,8 @@ private fun NowCard(e: EngineState, st: Station?, CARD_H: Dp) {
     Box(Modifier.size(CARD_W, CARD_H).clipToBounds()) {             // the reflection never reaches the controls
         Crossfade(slide, Modifier.fillMaxSize(), animationSpec = tween(300), label = "art") { b ->
             Box(Modifier.fillMaxSize()) {
+                // each crossfade child reflects its own picture: the outgoing slide keeps its reflection while fading
+                val reflection = rememberBlurred(b ?: logo?.bitmap)
                 val w = if (b != null) floor * 4 / 3 else tile
                 val h = if (b != null) floor else tile
                 val radius = if (b != null) 18.dp else 22.dp
@@ -156,7 +157,7 @@ private fun NowCard(e: EngineState, st: Station?, CARD_H: Dp) {
                     .clip(RoundedCornerShape(topStart = radius, topEnd = radius))
                     .background(Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.07f), 1f to Color.Transparent)))
                 // the reflection: mirrored right under the picture, blurred, fading out; soft, the text sits on it
-                (if (b != null) blurredSlide else blurredLogo)?.let { r ->
+                reflection?.let { r ->
                     Image(r, null, contentScale = ContentScale.Fit, filterQuality = FilterQuality.High,
                         modifier = Modifier.align(Alignment.TopCenter).offset(y = floor).requiredSize(w, h)
                             // fainter by day, where a dark picture's reflection would show as a grey block

@@ -29,6 +29,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
+import io.github.jvspier.dabplay.data.ServiceKey
+import io.github.jvspier.dabplay.ui.LocalNow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,10 +64,16 @@ import io.github.jvspier.dabplay.ui.theme.LocalDabColors
 import kotlinx.coroutines.delay
 import java.util.Calendar
 
+private val UNDO_SAVER = Saver<List<Recent>?, LongArray>(
+    save = { l -> l?.flatMap { listOf(it.key.ecc.toLong(), it.key.sid, it.time) }?.toLongArray() },
+    restore = { a -> a.toList().chunked(3).map { (ecc, sid, t) -> Recent(ServiceKey(ecc.toInt(), sid), t) } },
+)
+
 @Composable
 fun RecentScreen(e: EngineState, db: Snapshot, a: RadioActions, compactTitle: Boolean) {
     val c = LocalDabColors.current
-    var undo by remember { mutableStateOf<List<Recent>?>(null) }
+    // survives a tab switch or rotation within the 6 s (as flat numbers: Recent isn't Parcelable)
+    var undo by rememberSaveable(stateSaver = UNDO_SAVER) { mutableStateOf<List<Recent>?>(null) }
     LaunchedEffect(undo) { if (undo != null) { delay(6_000); undo = null } }
     val rows = remember(db.recents, db.ensembles) { db.recents.mapNotNull { r -> db.station(r.key)?.let { r to it } } }
     val favSet = remember(db.favourites) { db.favourites.toSet() }
@@ -109,8 +119,8 @@ fun RecentScreen(e: EngineState, db: Snapshot, a: RadioActions, compactTitle: Bo
                     Row(Modifier.padding(start = 24.dp).height(56.dp).clip(RoundedCornerShape(12.dp))
                         .pressable({ undo?.let(a.restoreRecents); undo = null }).padding(horizontal = 18.dp),
                         verticalAlignment = Alignment.CenterVertically) {
-                        Icon(PhosphorIcons.Fill.ArrowCounterClockwise, null, tint = Accent.orange, modifier = Modifier.size(24.dp))
-                        Text("Undo", color = Accent.orange, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 8.dp))
+                        Icon(PhosphorIcons.Fill.ArrowCounterClockwise, null, tint = c.orangeInk, modifier = Modifier.size(24.dp))
+                        Text("Undo", color = c.orangeInk, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 8.dp))
                     }
                 }
             }
@@ -118,16 +128,24 @@ fun RecentScreen(e: EngineState, db: Snapshot, a: RadioActions, compactTitle: Bo
     }
 }
 
+private fun startOfDay(t: Long) = Calendar.getInstance().apply {
+    timeInMillis = t; set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+}.timeInMillis
+
 /** "Today, 08:14", "Yesterday, 17:40", "Monday, 12:03", else a short date. Follows the system 12/24h setting. */
 @Composable
 private fun whenText(t: Long): String {
     val ctx = LocalContext.current
     val format = rememberTimeFormatter()
-    return remember(t, format) {
+    val now = LocalNow.current
+    val today = remember(now / 60_000) { startOfDay(now) }        // "Today" becomes "Yesterday" at midnight
+    return remember(t, format, today) {
         val time = format(t)
+        // in the future (the clock was set back since): no "Today", just the date
+        if (t > now + 60_000) return@remember "${DateFormat.getMediumDateFormat(ctx).format(t)}, $time"
         val then = Calendar.getInstance().apply { timeInMillis = t }
         // midnight today, stepped back a day at a time (DST-safe, unlike dividing by 24h)
-        val day = Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
+        val day = Calendar.getInstance().apply { timeInMillis = today }
         var d = 0
         while (t < day.timeInMillis && d < 7) { day.add(Calendar.DAY_OF_YEAR, -1); d++ }
         if (t < day.timeInMillis) d = 7

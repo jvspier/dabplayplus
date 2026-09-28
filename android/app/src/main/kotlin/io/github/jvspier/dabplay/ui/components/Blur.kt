@@ -4,7 +4,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -42,17 +44,33 @@ private fun boxBlur(src: IntArray, dst: IntArray, w: Int, h: Int, horizontal: Bo
 /** [img] blurred, computed off the main thread; null until ready (or when [img] is null). */
 @Composable
 fun rememberBlurred(img: ImageBitmap?): ImageBitmap? {
-    val out by produceState<ImageBitmap?>(null, img) {
-        value = img?.let { i -> withContext(Dispatchers.Default) { runCatching { blurredCopy(i.asAndroidBitmap()).asImageBitmap() }.getOrNull() } }
+    // state per image: a new image starts from null, never from the previous image's blur
+    val out = remember(img) { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(img) {
+        out.value = img?.let { i -> withContext(Dispatchers.Default) { runCatching { blurredCopy(i.asAndroidBitmap()).asImageBitmap() }.getOrNull() } }
     }
-    return out
+    return out.value
 }
 
 /** A broadcast slide (JPEG/PNG bytes), decoded off the main thread; null until ready. */
 @Composable
 fun rememberSlide(slide: ByteArray?): ImageBitmap? {
-    val out by produceState<ImageBitmap?>(null, slide) {
-        value = slide?.let { b -> withContext(Dispatchers.Default) { runCatching { BitmapFactory.decodeByteArray(b, 0, b.size)?.asImageBitmap() }.getOrNull() } }
-    }
-    return out
+    val out = remember(slide) { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(slide) { out.value = slide?.let { b -> withContext(Dispatchers.Default) { decodeSlide(b) } } }
+    return out.value
 }
+
+/**
+ * Decodes a slide at most [MAX_SLIDE_SIDE] px on its longest side (the engine already rejects bigger ones; this keeps
+ * the UI safe on its own): DAB slides are 320×240, a stage is at most 640×480 dp.
+ */
+private fun decodeSlide(b: ByteArray): ImageBitmap? = runCatching {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeByteArray(b, 0, b.size, bounds)
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+    var sample = 1
+    while (maxOf(bounds.outWidth, bounds.outHeight) / sample > MAX_SLIDE_SIDE) sample *= 2
+    BitmapFactory.decodeByteArray(b, 0, b.size, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
+}.getOrNull()
+
+private const val MAX_SLIDE_SIDE = 1280

@@ -77,12 +77,23 @@ class StationStore(
         s.copy(ensembles = found.map { it.copy(lastSeen = now(), missedScans = 0) } + kept)
     }
 
-    fun toggleFavourite(key: ServiceKey) = change { s ->
-        s.copy(favourites = if (key in s.favourites) s.favourites - key else (s.favourites + key).take(MAX_FAVOURITES))
+    /** False (and nothing changes) when adding would go past [MAX_FAVOURITES]. */
+    fun toggleFavourite(key: ServiceKey): Boolean = synchronized(lock) {
+        val favs = _state.value.favourites
+        if (key !in favs && favs.size >= MAX_FAVOURITES) return false
+        change { s -> s.copy(favourites = if (key in s.favourites) s.favourites - key else s.favourites + key) }
+        true
     }
 
-    fun moveFavourite(from: Int, to: Int) = change { s ->
-        val l = s.favourites.toMutableList(); if (from in l.indices && to in l.indices) l.add(to, l.removeAt(from)); s.copy(favourites = l)
+    /**
+     * Moves [key] to where [to] is (before it when moving up, after it when moving down). By key, not index: the UI
+     * shows only favourites that are in the station list, and the list may have changed since it was drawn.
+     */
+    fun moveFavourite(key: ServiceKey, to: ServiceKey) = change { s ->
+        val l = s.favourites.toMutableList()
+        val from = l.indexOf(key); val at = l.indexOf(to)
+        if (from >= 0 && at >= 0) l.add(at, l.removeAt(from))
+        s.copy(favourites = l)
     }
 
     fun played(key: ServiceKey) = change { s ->
@@ -97,7 +108,10 @@ class StationStore(
     }
 
     fun clearRecents(): List<Recent> = synchronized(lock) { _state.value.recents.also { change { s -> s.copy(recents = emptyList()) } } }
-    fun restoreRecents(r: List<Recent>) = change { it.copy(recents = r) }
+    /** Undo of [clearRecents]: merged, so stations played since the clear stay (newest first). */
+    fun restoreRecents(r: List<Recent>) = change { s ->
+        s.copy(recents = (s.recents + r.filter { o -> s.recents.none { it.key == o.key } }).sortedByDescending { it.time }.take(MAX_RECENTS))
+    }
 
     private fun change(f: (Snapshot) -> Snapshot) {
         synchronized(lock) { _state.update(f) }

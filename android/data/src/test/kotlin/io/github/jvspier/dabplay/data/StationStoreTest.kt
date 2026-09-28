@@ -48,4 +48,21 @@ class StationStoreTest {
         s.restoreRecents(old)
         assertEquals(listOf(svc.key), s.state.value.recents.map { it.key })
     }
+
+    @Test fun moveByKeySkipsFavouritesNotShown() {
+        val s = StationStore(file)
+        val k = (1..4).map { ServiceKey(0xE3, 0x8000L + it) }
+        k.forEach { s.toggleFavourite(it) }                       // none of these are in the station list
+        s.moveFavourite(k[0], k[2])
+        assertEquals(listOf(k[1], k[2], k[0], k[3]), s.state.value.favourites)
+        s.moveFavourite(k[3], k[1])
+        assertEquals(listOf(k[3], k[1], k[2], k[0]), s.state.value.favourites)
+    }
+
+    @Test fun theCapIsReported() {
+        val s = StationStore(file)
+        repeat(24) { assertTrue(s.toggleFavourite(ServiceKey(0xE3, 0x8000L + it))) }
+        assertEquals(false, s.toggleFavourite(svc.key))
+        assertTrue(s.toggleFavourite(ServiceKey(0xE3, 0x8000L)))  // removing still works
+    }
 }

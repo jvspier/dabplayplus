@@ -1,5 +1,7 @@
 package io.github.jvspier.dabplay.ui.screens
 
+import androidx.activity.compose.BackHandler
+import io.github.jvspier.dabplay.data.StationStore
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -130,7 +132,7 @@ private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Bo
                 if (s.trafficAnnouncements) "On · switches to traffic news on the same multiplex" else "Off · alarm announcements still come through") {
                 DabSwitch(s.trafficAnnouncements) { v -> a.updateSettings { it.copy(trafficAnnouncements = v) } }
             }
-            SettingRow(PhosphorIcons.Fill.Heart, Accent.pink, tile, "Edit favorites", "${db.favourites.size} of 24 · or long-press a tile on Home and drag it", onClick = onEditFavourites) {
+            SettingRow(PhosphorIcons.Fill.Heart, Accent.pink, tile, "Edit favorites", "${db.favourites.size} of ${StationStore.MAX_FAVOURITES} · or long-press a tile on Home and drag it", onClick = onEditFavourites) {
                 Icon(PhosphorIcons.Fill.CaretRight, null, tint = LocalDabColors.current.neutral400, modifier = Modifier.size(30.dp))
             }
         }
@@ -168,39 +170,45 @@ private fun SettingRow(icon: ImageVector, color: Color, tile: Dp, title: String,
     }
 }
 
-/** Reorder with up/down, remove with ×. Big buttons instead of drag handles: easier with one hand in a moving car. */
+/**
+ * Reorder with up/down, remove with ×. Big buttons instead of drag handles: easier with one hand in a moving car.
+ * Lists every favourite, also those whose station wasn't found in the last scans (Home can't show them, but they
+ * still take a place of the 24; here they can be removed).
+ */
 @Composable
 private fun EditFavourites(db: Snapshot, a: RadioActions, compact: Boolean, onBack: () -> Unit) {
     val c = LocalDabColors.current
-    val favs = db.favouriteStations
-    // indices into db.favourites (favourites whose station is gone from the list are skipped in favs)
-    fun move(key: io.github.jvspier.dabplay.data.ServiceKey, to: io.github.jvspier.dabplay.data.ServiceKey) =
-        a.moveFavourite(db.favourites.indexOf(key), db.favourites.indexOf(to))
+    val favs = db.favourites
+    BackHandler(onBack = onBack)
     Column(Modifier.fillMaxSize()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             SquareButton(PhosphorIcons.Fill.ArrowLeft, "Back", 64.dp, onBack)
             Spacer(Modifier.width(18.dp))
-            Box(Modifier.weight(1f)) { ScreenTitle("Edit favorites", compact, extra = "${favs.size} of 24") }
+            Box(Modifier.weight(1f)) { ScreenTitle("Edit favorites", compact, extra = "${favs.size} of ${StationStore.MAX_FAVOURITES}") }
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (favs.isEmpty()) EmptyHint("No favorites yet: tap a heart on the Stations tab")
             LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 12.dp)) {
-                itemsIndexed(favs, key = { _, st -> st.key.toString() }) { i, st ->
+                itemsIndexed(favs, key = { _, k -> k.toString() }) { i, key ->
+                    val st = db.station(key)
                     Row(Modifier.animateItem().fillMaxWidth().height(88.dp).clip(RoundedCornerShape(14.dp)).background(c.surface).padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically) {
                         Text("${i + 1}", color = c.neutral500, fontSize = 20.sp, modifier = Modifier.width(36.dp).padding(start = 6.dp))
-                        StationLogo(st.label, st.key, 60.dp)
-                        Text(st.label, color = c.text, fontSize = 24.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f).padding(horizontal = 18.dp))
+                        StationLogo(st?.label ?: "?", key, 60.dp)
+                        Column(Modifier.weight(1f).padding(horizontal = 18.dp)) {
+                            Text(st?.label ?: "Unknown station", color = if (st != null) c.text else c.neutral400, fontSize = 24.sp,
+                                fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            if (st == null) Text("Not found in the last scans", color = c.neutral500, fontSize = 17.sp, maxLines = 1)
+                        }
                         val dim = c.neutral700
-                        SquareButton(PhosphorIcons.Fill.CaretUp, "Move up", 64.dp, { if (i > 0) move(st.key, favs[i - 1].key) },
+                        SquareButton(PhosphorIcons.Fill.CaretUp, "Move up", 64.dp, { if (i > 0) a.moveFavourite(key, favs[i - 1]) },
                             background = c.bg, tint = if (i > 0) c.neutral200 else dim)
                         Spacer(Modifier.width(10.dp))
-                        SquareButton(PhosphorIcons.Fill.CaretDown, "Move down", 64.dp, { if (i < favs.lastIndex) move(st.key, favs[i + 1].key) },
+                        SquareButton(PhosphorIcons.Fill.CaretDown, "Move down", 64.dp, { if (i < favs.lastIndex) a.moveFavourite(key, favs[i + 1]) },
                             background = c.bg, tint = if (i < favs.lastIndex) c.neutral200 else dim)
                         Spacer(Modifier.width(10.dp))
-                        SquareButton(PhosphorIcons.Fill.X, "Remove", 64.dp, { a.toggleFavourite(st.key) },
-                            background = Accent.pink.copy(alpha = 0.14f), tint = Accent.pink)
+                        SquareButton(PhosphorIcons.Fill.X, "Remove", 64.dp, { a.toggleFavourite(key) },
+                            background = Accent.pink.copy(alpha = 0.14f), tint = c.pinkInk)
                     }
                 }
             }

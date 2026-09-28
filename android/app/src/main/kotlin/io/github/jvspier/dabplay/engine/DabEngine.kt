@@ -400,7 +400,10 @@ class DabEngine(
                     checkAt = now
                     val sig = d.mcuSignal ?: 0
                     val r = monitor.update(now, good(), bad(), noSignal = sig >= Dtr100.SIGNAL_NONE, weakSignal = sig >= 700)
-                    val bars = if (r == Reception.LOST) 0 else Dtr100.signalBars(sig)
+                    // one bar per update, like RAON's own level meter: CER jitters, the bars shouldn't (lost is at once)
+                    val want = if (r == Reception.LOST) 0 else Dtr100.signalBars(sig)
+                    val have = _state.value.signalBars
+                    val bars = if (want == 0) 0 else have + (want - have).coerceIn(-1, 1)
                     val prev = _state.value
                     if (r != prev.reception || bars != prev.signalBars) {
                         if (r != prev.reception) Log.i(TAG, "reception ${prev.reception} -> $r (sig $sig)")

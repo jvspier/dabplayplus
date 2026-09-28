@@ -10,6 +10,8 @@ import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
+import io.github.jvspier.dabplay.data.StationStore
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -77,7 +79,10 @@ class MainActivity : ComponentActivity() {
                         play = e::play,
                         togglePlay = { if (e.state.value.playing) e.pause() else e.resume() },
                         skip = e::skip,
-                        toggleFavourite = app.store::toggleFavourite,
+                        toggleFavourite = { k ->
+                            if (!app.store.toggleFavourite(k))
+                                Toast.makeText(this, "${StationStore.MAX_FAVOURITES} favorites is the maximum: remove one first", Toast.LENGTH_LONG).show()
+                        },
                         moveFavourite = app.store::moveFavourite,
                         scan = e::scan,
                         clearRecents = app.store::clearRecents,

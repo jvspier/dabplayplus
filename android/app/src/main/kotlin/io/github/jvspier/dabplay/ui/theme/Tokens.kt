@@ -15,6 +15,10 @@ data class DabColors(
     val panelFrom: Color, val panelMid: Color, val panelTo: Color,
     /** Status text: "No signal", "DAB dongle not connected" (warn) and real problems (error). Day needs darker ones. */
     val warn: Color = Color(0xFFFFB547), val error: Color = Color(0xFFFF3B4E),
+    /** Orange / pink as text (Undo, the swipe strip): the accents themselves are too light on white. */
+    val orangeInk: Color = Color(0xFFFF6A3D), val pinkInk: Color = Color(0xFFFF4D8A),
+    /** Switch track when off: by day neutral800 is nearly the white row it sits on. */
+    val switchOff: Color = Color(0xFF3F424D),
 )
 
 object Accent {
@@ -50,6 +54,7 @@ val DayColors = DabColors(
     liveTileFrom = Color(0xFFFFE7DC), liveTileTo = Color(0xFFFFF6F1), sticky = Color(0xDBF3F2F7), neutral700 = Color(0xFFB9BCC9),
     panelFrom = Color(0xFFFFE3D5), panelMid = Color(0xFFF7E8F3), panelTo = Color(0xFFFFFFFF),
     warn = Color(0xFFA35A00), error = Color(0xFFC81E32),   // ≥ 4.5:1 on the light backgrounds
+    orangeInk = Color(0xFFC8431A), pinkInk = Color(0xFFC2185B), switchOff = Color(0xFFB9BCC9),
 )
 
 val LocalDabColors = staticCompositionLocalOf { NightColors }

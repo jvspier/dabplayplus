@@ -77,7 +77,8 @@ this file as work progresses.
     - The `0x42` status bytes 4..5 are RAON's **CER** (channel error rate): `cer ≤ 4000 counts → 0`, else
       `err·1000/period·10`, `> 1200 → 2000`; no lock → 2000. Exactly the 0…2000 scale we measured.
     - RAON's antenna-level table (CER thresholds 810/700/490/400/250/180/0 → levels 0..6, moving one step per update)
-      gives grounded signal-bar thresholds: 4 bars = CER < 180, 3 < 400, 2 < 700, 1 < 2000 (to adopt).
+      gives grounded signal-bar thresholds: 4 bars = CER < 180, 3 < 400, 2 < 700, 1 < 2000 (adopted 2026-09-28, one bar
+      per update like RAON's meter; lost signal drops to 0 at once).
     - Page 9 reg 0x33 bits: 0 FIC ready, 1..3 MSC0 int/underflow/overflow, 4..6 MSC1 int/underflow/overflow, 7 OFDM lock.
     - OMRI-USB wires only this RAON stick; its device filter also lists 1d19:110d, 0fd9:004c, 0416:b003 without code
       (a "Found Siano device" log line hints Siano support was removed). No help for other dongle families.

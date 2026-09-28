@@ -186,8 +186,8 @@ private fun StationRow(st: Station, isCurrent: Boolean, audio: Boolean, fav: Boo
             val armed = with(LocalDensity.current) { dx.value >= 120.dp.toPx() }
             Row(Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)).background(Accent.pink.copy(alpha = 0.22f)).padding(start = 24.dp),
                 verticalAlignment = Alignment.CenterVertically) {
-                Icon(if (fav) PhosphorIcons.Fill.HeartBreak else PhosphorIcons.Fill.Heart, null, tint = Accent.pink, modifier = Modifier.size(30.dp))
-                Text(if (fav) "Remove" else "Favorite", color = Accent.pink, fontSize = 20.sp, fontWeight = if (armed) FontWeight.SemiBold else FontWeight.Medium,
+                Icon(if (fav) PhosphorIcons.Fill.HeartBreak else PhosphorIcons.Fill.Heart, null, tint = c.pinkInk, modifier = Modifier.size(30.dp))
+                Text(if (fav) "Remove" else "Favorite", color = c.pinkInk, fontSize = 20.sp, fontWeight = if (armed) FontWeight.SemiBold else FontWeight.Medium,
                     modifier = Modifier.padding(start = 10.dp))
             }
         }

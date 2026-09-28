@@ -110,7 +110,7 @@ class RadioActions(
     val togglePlay: () -> Unit,
     val skip: (Int) -> Unit,
     val toggleFavourite: (ServiceKey) -> Unit,
-    val moveFavourite: (Int, Int) -> Unit,
+    val moveFavourite: (key: ServiceKey, to: ServiceKey) -> Unit,
     val scan: () -> Unit,
     val clearRecents: () -> List<Recent>,
     val restoreRecents: (List<Recent>) -> Unit,
@@ -130,7 +130,7 @@ fun AppShell(engine: EngineState, db: Snapshot, settings: Settings, actions: Rad
 
     // the Now-playing glow fades in over the whole screen (not just the content column), 300ms
     val npGlow by animateFloatAsState(if (tab == Tab.PLAYING) 1f else 0f, tween(300), label = "npGlow")
-    CompositionLocalProvider(LocalClockFormat provides settings.clock) {
+    CompositionLocalProvider(LocalClockFormat provides settings.clock, LocalNow provides rememberNow()) {
     Box(Modifier.fillMaxSize().background(c.bg).pageGlow().drawBehind {
         if (npGlow > 0f) drawRect(Brush.radialGradient(listOf(c.npGlow, Color.Transparent), center = Offset(size.width * 0.45f, size.height * 0.5f),
             radius = size.width * 0.6f), alpha = npGlow)
@@ -163,7 +163,7 @@ fun AppShell(engine: EngineState, db: Snapshot, settings: Settings, actions: Rad
             }
             (if (right) parts.reversed() else parts).forEach { it() }
         }
-        AnnouncementBanner(engine.announcement, actions.skipAnnouncement, Modifier.align(Alignment.TopCenter))
+        AnnouncementBanner(engine.announcement.takeIf { engine.dongle }, actions.skipAnnouncement, Modifier.align(Alignment.TopCenter))
     }
     }
 }
@@ -201,16 +201,18 @@ private fun AnnouncementBanner(a: AnnouncementInfo?, onSkip: () -> Unit, modifie
 @Composable
 private fun Modifier.pageGlow(): Modifier {
     val c = LocalDabColors.current
-    return this.then(Modifier.background(Brush.radialGradient(listOf(c.glow2, Color.Transparent), center = Offset(250f, -70f), radius = 900f)))
-        .then(Modifier.background(Brush.radialGradient(listOf(c.glow1, Color.Transparent), center = Offset(1150f, 830f), radius = 700f)))
+    // positions from the 1280×720 design, scaled to the actual screen
+    return this.drawBehind {
+        val sx = size.width / 1280f; val sy = size.height / 720f
+        drawRect(Brush.radialGradient(listOf(c.glow2, Color.Transparent), center = Offset(250f * sx, -70f * sy), radius = 900f * sx))
+        drawRect(Brush.radialGradient(listOf(c.glow1, Color.Transparent), center = Offset(1150f * sx, 830f * sy), radius = 700f * sx))
+    }
 }
 
 @Composable
 private fun Clock(size: Int) {
     val format = rememberTimeFormatter()
-    var now by remember { mutableStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(5_000) } }
-    Text(format(now), color = LocalDabColors.current.text, fontSize = size.sp, fontWeight = FontWeight.Medium)
+    Text(format(LocalNow.current), color = LocalDabColors.current.text, fontSize = size.sp, fontWeight = FontWeight.Medium)
 }
 
 /**
@@ -343,9 +345,9 @@ private fun PlayerPanel(e: EngineState, db: Snapshot, a: RadioActions, open: () 
 fun Artwork(slide: ByteArray?, label: String, key: ServiceKey?, width: Dp, height: Dp, radius: Dp = 18.dp, preferLogo: Boolean = false,
             modifier: Modifier = Modifier) {
     val c = LocalDabColors.current
-    val bmp = rememberSlide(slide)                  // decoded off the UI thread: a new slide never costs a frame
+    val bmp = if (preferLogo) null else rememberSlide(slide)    // decoded off the UI thread: a new slide never costs a frame
     Box(modifier.size(width, height).clip(RoundedCornerShape(radius)).background(c.surface), contentAlignment = Alignment.Center) {
-        Crossfade(if (preferLogo) null else bmp, animationSpec = tween(300), label = "art") { b ->
+        Crossfade(bmp, animationSpec = tween(300), label = "art") { b ->
             if (b != null) Image(b, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
             else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 if (label.isNotEmpty()) StationLogo(label, key, minOf(width, height) * if (preferLogo) 1f else 0.62f,
