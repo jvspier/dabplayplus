@@ -27,7 +27,7 @@ import io.github.jvspier.dabplay.data.StoredEnsemble
 import io.github.jvspier.dabplay.data.StoredService
 import io.github.jvspier.dabplay.driver.dtr100.Dtr100
 import io.github.jvspier.dabplay.usb.AndroidUsbTransport
-import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -83,21 +83,31 @@ class DabEngine(
         data object SkipAnnouncement : Cmd
     }
 
-    private val commands = LinkedBlockingQueue<Cmd>()
+    private val commands = LinkedBlockingDeque<Cmd>()
     private var thread: Thread? = null
     @Volatile private var device: UsbDevice? = null
 
     fun attach(dev: UsbDevice) {
         if (thread?.isAlive == true && device?.deviceName == dev.deviceName) return
+        val old = thread
         device = dev
-        thread = Thread({ run(dev) }, "dab-usb").apply { isDaemon = true; start() }
+        old?.interrupt()
+        // a quick re-plug: let the old session finish its cleanup first, so it can't undo the new one's state
+        thread = Thread({ runCatching { old?.join(3000) }; run(dev) }, "dab-usb").apply { isDaemon = true; start() }
     }
 
-    fun detached() { device = null; thread?.interrupt() }
+    /** A USB device went away ([deviceName]); only our dongle leaving stops the engine (a USB stick or phone doesn't). */
+    fun detached(deviceName: String?) {
+        if (deviceName != null && deviceName != device?.deviceName) return
+        device = null; thread?.interrupt()
+    }
     fun scan() = commands.offer(Cmd.Scan)
     fun play(key: ServiceKey) = commands.offer(Cmd.Play(key))
     fun pause() = commands.offer(Cmd.Pause)
-    fun resume() { (state.value.announcement?.returnTo ?: state.value.current?.key)?.let(::play) ?: store.state.value.lastPlayed?.let(::play) }
+    fun resume() { listenerKey()?.let(::play) ?: store.state.value.lastPlayed?.let(::play) }
+
+    /** The listener's station: during an announcement the one to return to, not the announcing one. */
+    private fun listenerKey() = state.value.announcement?.returnTo ?: state.value.current?.key
 
     /** Back to the listener's station now; this announcement is ignored until its cluster goes quiet. */
     fun skipAnnouncement() = commands.offer(Cmd.SkipAnnouncement)
@@ -107,22 +117,47 @@ class DabEngine(
         val s = store.state.value
         val list = s.favouriteStations.ifEmpty { s.stations }
         if (list.isEmpty()) return
-        val i = list.indexOfFirst { it.key == state.value.current?.key }
+        val cur = listenerKey()
+        val i = list.indexOfFirst { it.key == cur }
         play(list[Math.floorMod((if (i < 0) -1 else i) + delta, list.size)].key)
     }
 
     private fun status(s: String) { Log.i(TAG, s); _state.update { it.copy(status = s) } }
 
+    /**
+     * The USB thread. A USB or driver error (a timeout on a voltage dip while cranking, a stale reply) doesn't end it:
+     * it reconnects with the same init sequence as at startup, backing off 0.5 s → 8 s, and carries on with the
+     * station that was playing. It ends only when the dongle is detached (or another attach replaces it).
+     */
     private fun run(dev: UsbDevice) {
         // the MSC reader must never fall behind the dongle (its buffer overflows: audible skips)
         runCatching { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO) }
+        commands.clear()                                     // buttons pressed while there was no dongle: don't replay
+        var failures = 0
+        var resume: ServiceKey? = null
+        while (device?.deviceName == dev.deviceName && !Thread.currentThread().isInterrupted) {
+            val failed = session(dev, resume) ?: break          // null: stopped on purpose
+            resume = failed.resume
+            failures++
+            val wait = minOf(8000L, 500L shl minOf(failures - 1, 4))
+            status("Dongle error, reconnecting in ${"%.1f".format(wait / 1000.0)} s")
+            try { Thread.sleep(wait) } catch (_: InterruptedException) { break }
+        }
+        runCatching { focus.abandon() }
+    }
+
+    private class Failure(val resume: ServiceKey?)
+
+    /** One connection: open, init, serve commands. Null when stopped on purpose, else what to resume after reconnecting. */
+    private fun session(dev: UsbDevice, resume: ServiceKey?): Failure? {
         var conn: UsbDeviceConnection? = null
         val player = AudioPlayer()
         try {
+            // check before claiming: 16c0:05dc is a shared V-USB id, don't grab someone else's device
+            check(dev.manufacturerName == Dtr100.MANUFACTURER) { "unsupported dongle (manufacturer '${dev.manufacturerName}')" }
             conn = usb.openDevice(dev) ?: error("cannot open the USB device")
             val intf = dev.getInterface(0)
             check(conn.claimInterface(intf, true)) { "cannot claim interface 0" }
-            check(dev.manufacturerName == Dtr100.MANUFACTURER) { "unsupported dongle (manufacturer '${dev.manufacturerName}')" }
             val eps = (0 until intf.endpointCount).map { intf.getEndpoint(it) }
                 .filter { it.type == UsbConstants.USB_ENDPOINT_XFER_BULK }.associateBy { it.address }
             val d = Dtr100(AndroidUsbTransport(conn, eps))
@@ -133,8 +168,11 @@ class DabEngine(
             _state.update { it.copy(dongle = true, error = null) }
             status("Dongle ready (firmware level $fw)")
             val radio = Session(d, player)
-            if (store.state.value.ensembles.isEmpty()) commands.offer(Cmd.Scan)
-            else if (resumeOnStart()) store.state.value.lastPlayed?.let { commands.offer(Cmd.Play(it)) }
+            when {
+                resume != null -> commands.offerFirst(Cmd.Play(resume))
+                store.state.value.ensembles.isEmpty() -> commands.offer(Cmd.Scan)
+                resumeOnStart() -> store.state.value.lastPlayed?.let { commands.offer(Cmd.Play(it)) }
+            }
             while (!Thread.currentThread().isInterrupted) {
                 when (val c = commands.take()) {
                     Cmd.Scan -> radio.scan()
@@ -142,16 +180,26 @@ class DabEngine(
                     Cmd.Pause, Cmd.SkipAnnouncement -> Unit
                 }
             }
+            return null
         } catch (e: InterruptedException) {
             Log.i(TAG, "engine stopped")
+            return null
         } catch (e: Exception) {
             Log.e(TAG, "engine error", e)
+            val s = _state.value
             _state.update { it.copy(error = e.message) }
-            status("Dongle error: ${e.message}")
+            return Failure(if (s.playing || s.tuning) (s.announcement?.returnTo ?: s.current?.key) else null)
         } finally {
-            player.release(); focus.abandon()
+            // a detach interrupts this thread; the flag would make the cleanup's join throw, so park it meanwhile
+            val interrupted = Thread.interrupted()
+            runCatching { player.release() }
             runCatching { conn?.close() }
-            _state.update { it.copy(dongle = false, playing = false, scan = null) }
+            _state.update {
+                it.copy(dongle = false, playing = false, scan = null, tuning = false, following = null, reception = Reception.GOOD,
+                    announcement = null, taSupported = false, signalBars = 0,
+                    current = it.announcement?.returnTo?.let(store.state.value::station) ?: it.current)
+            }
+            if (interrupted) Thread.currentThread().interrupt()
         }
     }
 
@@ -180,7 +228,7 @@ class DabEngine(
             while (System.currentTimeMillis() - t0 < 3000) {
                 val data = d.ficRead()
                 if (data == null) { Thread.sleep(5); continue }
-                f.feed(data)
+                guarded("FIC") { f.feed(data) }
                 val k = "${f.ensembleLabel}/${f.services.size}/${f.components.size}/${f.subchannels.size}"
                 if (k != lastKey) { lastKey = k; lastChange = System.currentTimeMillis() }
                 val complete = f.ensembleLabel != null && f.components.isNotEmpty() && f.components.keys.all { it in f.services } &&
@@ -191,19 +239,21 @@ class DabEngine(
         }
 
         fun scan() {
-            stopAudio()
+            stopAudio(); focus.abandon(); dropAnnouncement()
             val found = ArrayList<StoredEnsemble>()
+            val tried = HashSet<String>()                            // an aborted scan only counts channels it reached
             val total = Band3.CHANNELS.size
             for ((i, ch) in Band3.CHANNELS.withIndex()) {
                 if (commands.peek() is Cmd.Play) break                  // the user picked a station: stop scanning
                 val (name, khz) = ch
+                tried += name
                 _state.update { it.copy(scan = ScanProgress(name, i + 1, total, found.size, found.sumOf { e -> e.services.size })) }
                 if (!tune(khz, retries = true).locked) continue
                 var fic = readFic()
                 if (fic.fibsOk == 0 && tune(khz, retries = false).locked) fic = readFic()   // lock without valid FIC: retry once
                 ensembleFrom(fic, name, khz)?.let { found += it }
             }
-            store.applyScan(found, Band3.CHANNELS.map { it.first }.toSet())
+            store.applyScan(found, tried)
             _state.update { it.copy(scan = null) }
             status("Scan done: ${found.size} ensembles, ${found.sumOf { it.services.size }} stations")
         }
@@ -227,6 +277,15 @@ class DabEngine(
         private val watcher = AnnouncementWatcher()
         private var taReturn: Station? = null       // playing an announcement: the listener's station
         private var taCluster = -1
+        private var nextFollowAt = 0L               // across stream() restarts, so rounds stay 30 s apart
+        @Volatile private var focusLevel = 1f        // what audio focus allows now (a call: 0, navigation: ducked)
+
+        /** Leaving an announcement without switching back (pause, scan, a new station): the listener's station shows again. */
+        private fun dropAnnouncement() {
+            val back = taReturn ?: return
+            taReturn = null; taCluster = -1
+            _state.update { it.copy(announcement = null, current = back) }
+        }
 
         private fun stopAudio() {
             if (playingKey != null) { d.stopAudio(); playingKey = null }
@@ -243,20 +302,22 @@ class DabEngine(
             if (st.service.ascty != 0 && st.service.ascty != 63) return problem("This station's audio format is not supported")
             if (tunedKhz != st.ensemble.freqKhz) {
                 status("Tuning ${st.ensemble.channel}…")
-                if (!tune(st.ensemble.freqKhz, retries = true).locked) return problem("Station unavailable (no signal)")
+                // no lock (an underground car park at start-up): don't give up, stream() keeps retrying and following
+                tune(st.ensemble.freqKhz, retries = true)
             }
             if (!focus.request { c ->
-                    when (c) {
-                        FocusChange.LOST -> pause()                          // another media app took over
-                        FocusChange.SILENCE -> player.setLevel(0f)          // phone call, voice assistant
-                        FocusChange.DUCK -> player.setLevel(DUCK_LEVEL)      // navigation prompt
-                        FocusChange.RESTORE -> player.setLevel(1f)
+                    focusLevel = when (c) {
+                        FocusChange.LOST -> { pause(); 1f }                  // another media app took over
+                        FocusChange.SILENCE -> 0f                            // phone call, voice assistant
+                        FocusChange.DUCK -> DUCK_LEVEL                       // navigation prompt
+                        FocusChange.RESTORE -> 1f
                     }
+                    player.setLevel(focusLevel)
                     Log.i(TAG, "audio focus: $c")
                 }) return problem("Audio focus denied")
-            player.setLevel(1f)
+            player.setLevel(focusLevel)                                      // e.g. a station change during a call stays silent
             store.played(key)
-            taReturn = null; _state.update { it.copy(announcement = null) }
+            taReturn = null; taCluster = -1; _state.update { it.copy(announcement = null) }
             var cur: Station = st
             while (true) cur = stream(cur) ?: return             // following hands over to the same station elsewhere
         }
@@ -271,23 +332,26 @@ class DabEngine(
         private fun stream(st: Station): Station? {
             val key = st.key
             // back from a failed follow attempt, the original may not lock yet: keep trying, showing "No signal"
-            var waitFollowAt = System.currentTimeMillis() + FOLLOW_RETRY_MS
+            if (nextFollowAt == 0L) nextFollowAt = System.currentTimeMillis() + FOLLOW_AFTER_MS
             while (tunedKhz != st.ensemble.freqKhz) {
                 if (tune(st.ensemble.freqKhz, retries = false).locked) break
-                _state.update { it.copy(reception = Reception.LOST, signalBars = 0, playing = true) }
+                _state.update { it.copy(current = if (taReturn == null) st else it.current, reception = Reception.LOST,
+                    signalBars = 0, playing = true, tuning = false) }
                 when (val c = commands.poll(RELOCK_EVERY_MS, TimeUnit.MILLISECONDS)) {
                     null, Cmd.SkipAnnouncement -> Unit
-                    Cmd.Pause -> { pauseStream(); focus.abandon(); _state.update { it.copy(playing = false) }; status("Paused"); return null }
-                    else -> { commands.offer(c); return null }
+                    Cmd.Pause -> { pauseStream(); focus.abandon(); dropAnnouncement(); _state.update { it.copy(playing = false) }; status("Paused"); return null }
+                    else -> { commands.offerFirst(c); return null }            // keep the order: it's next
                 }
-                if (followStation() && System.currentTimeMillis() >= waitFollowAt) {
-                    waitFollowAt = System.currentTimeMillis() + FOLLOW_RETRY_MS
+                if (followStation() && System.currentTimeMillis() >= nextFollowAt) {
+                    nextFollowAt = System.currentTimeMillis() + FOLLOW_RETRY_MS
                     follow(st)?.let { if (it !== st) return it }
                 }
             }
             d.startAudio(st.service.subchannel, st.service.bitrateKbps * 3)
             playingKey = key
-            _state.update { it.copy(current = st, playing = true, tuning = false, following = null) }
+            // a different station than shown (an announcement, following): its predecessor's text and slide must go
+            _state.update { it.copy(current = st, playing = true, tuning = false, following = null,
+                nowPlaying = if (it.current?.key == st.key) it.nowPlaying else null, slide = if (it.current?.key == st.key) it.slide else null) }
             status("Playing ${st.label} (${st.ensemble.channel})")
             val dec = SuperframeDecoder(st.service.bitrateKbps)
             // DAB (MP2): Layer II frames straight in the sub-channel, PAD at each frame's end (untested on air: none in NL)
@@ -306,7 +370,6 @@ class DabEngine(
             )
             val monitor = ReceptionMonitor().apply { start(System.currentTimeMillis()) }
             var checkAt = 0L; var diagAt = 0L; var diag = IntArray(4); var diagBytes = 0
-            var nextFollowAt = 0L
             // FIC while playing (owner-approved test 2026-09-27: audio stays clean, FIBs valid, ~15 % of frames caught;
             // the vendor lib serialises its FIC and MSC reads with one mutex too): learns FIG 0/24 + 0/21 alternatives
             if (st.ensemble.freqKhz != liveFicKhz) { liveFic = FicDecoder(); liveFicKhz = st.ensemble.freqKhz }
@@ -315,12 +378,12 @@ class DabEngine(
             while (true) {
                 val next = commands.poll(0, TimeUnit.MILLISECONDS)
                 if (next != null) {
-                    if (next is Cmd.Pause) { stopAudio(); focus.abandon(); status("Paused"); return null }
+                    if (next is Cmd.Pause) { stopAudio(); focus.abandon(); dropAnnouncement(); status("Paused"); return null }
                     if (next is Cmd.SkipAnnouncement) {
                         if (taReturn != null) { watcher.skip(taCluster); return endAnnouncement("skipped") }
                         continue
                     }
-                    commands.offer(next)          // play/scan: handled by the main loop after stopping here
+                    commands.offerFirst(next)     // play/scan: handled by the main loop after stopping here, still first
                     return null
                 }
                 val now = System.currentTimeMillis()
@@ -364,7 +427,7 @@ class DabEngine(
                 if (now - ficAt >= 50 && monitor.state != Reception.LOST) {
                     ficAt = now
                     d.ficRead()?.let { f ->
-                        ficLive.feed(f)
+                        guarded("FIC") { ficLive.feed(f) }
                         val k = "${ficLive.otherEnsembleServices.values.sumOf { it.size }}/${ficLive.frequencyInfo.size}"
                         if (k != learnedKey) { learnedKey = k; learnAlternatives(ficLive, st) }
                     }
@@ -376,17 +439,19 @@ class DabEngine(
                 if (ms > 150) Log.w(TAG, "slow MSC read: $ms ms")
                 if (data.isEmpty()) { Thread.sleep(5); continue }
                 if (framer != null) {
-                    framer.feed(data) { frame, h ->
-                        mp2Frames++
-                        DabMp2Pad.split(frame, h)?.let { (x, f) -> pad.feedPad(x, f) }
-                        player.feedMp2(frame)
+                    guarded("MP2") {
+                        framer.feed(data) { frame, h ->
+                            mp2Frames++
+                            guarded("PAD") { DabMp2Pad.split(frame, h)?.let { (x, f) -> pad.feedPad(x, f) } }
+                            player.feedMp2(frame)
+                        }
                     }
                     continue
                 }
-                dec.feed(data) { au ->
+                guarded("DAB+") { dec.feed(data) { au ->
                     pad.feedAu(au.data)
                     player.feedAac(au.asc, au.data, au.format.outputRate)
-                }
+                } }
             }
         }
 
@@ -408,6 +473,19 @@ class DabEngine(
             taReturn = null; taCluster = -1
             _state.update { it.copy(announcement = null) }
             return back
+        }
+
+        private var decodeErrors = 0
+
+        /**
+         * Broadcast bytes are untrusted (a corrupt FIB passes its CRC about once in 65536): a parser exception must cost
+         * one packet, not the radio. Logged sparingly.
+         */
+        private inline fun guarded(what: String, block: () -> Unit) {
+            try { block() } catch (e: RuntimeException) {
+                decodeErrors++
+                if (decodeErrors <= 5 || decodeErrors % 100 == 0) Log.w(TAG, "$what decode error #$decodeErrors", e)
+            }
         }
 
         /** Store what this ensemble announces about its services elsewhere (for all its services, not just [st]). */
@@ -432,7 +510,7 @@ class DabEngine(
             val own = st.ensemble.freqKhz
             val cands = (snap.alternatives[st.key].orEmpty().map { it.khz } +
                 snap.ensembles.filter { e -> e.services.any { it.key == st.key } }.sortedByDescending { it.lastSeen }.map { it.freqKhz })
-                .distinct().filter { it != own }
+                .distinct().filter { it != own && Band3.CHANNELS.any { c -> c.second == it } }   // band III only: L-band etc. can't be tuned
             if (cands.isEmpty()) return null
             pauseStream()
             for (khz in cands) {
@@ -440,8 +518,10 @@ class DabEngine(
                 val ch = channelName(khz)
                 _state.update { it.copy(following = ch) }
                 Log.i(TAG, "following ${st.label}: trying $ch")
-                if (!tune(khz, retries = false).locked) continue
-                val ens = ensembleFrom(readFic(), ch, khz) ?: continue
+                val ens = try {
+                    if (!tune(khz, retries = false).locked) continue
+                    ensembleFrom(readFic(), ch, khz) ?: continue
+                } catch (e: Dtr100.DriverException) { Log.w(TAG, "following: $ch failed: ${e.message}"); continue }
                 val svc = ens.services.firstOrNull { it.key == st.key } ?: continue
                 Log.i(TAG, "following ${st.label}: continuing on $ch (${ens.label})")
                 _state.update { it.copy(following = null) }
@@ -449,7 +529,7 @@ class DabEngine(
             }
             _state.update { it.copy(following = null) }
             Log.i(TAG, "following ${st.label}: no alternative receivable, back to ${st.ensemble.channel}")
-            tune(own, retries = false)
+            runCatching { tune(own, retries = false) }
             return st
         }
 

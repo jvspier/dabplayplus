@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- wRadio C100 / DTR-100 family (vendor-specific bulk). 16c0:05dc is a shared ID; the driver checks the
-         manufacturer string after opening. -->
-    <usb-device vendor-id="5824" product-id="1500" />
+    <!-- wRadio C100 / DTR-100 family (vendor-specific bulk). 16c0:05dc is a shared V-USB ID, so match the
+         manufacturer string too (the engine checks it again before claiming the interface). -->
+    <usb-device vendor-id="5824" product-id="1500" manufacturer-name="dabusb@126.com" />
 </resources>

@@ -37,7 +37,7 @@ class AudioPlayer {
     fun feedMp2(frame: ByteArray) = offer(Mp2(frame))
 
     private fun offer(item: Item) {
-        if (worker == null) worker = Thread({ loop() }, "dab-audio").apply { isDaemon = true; start() }
+        if (worker?.isAlive != true) worker = Thread({ loop() }, "dab-audio").apply { isDaemon = true; start() }
         if (!queue.offer(item)) { queue.poll(); queue.offer(item) }     // full: drop the oldest, never block
     }
 
@@ -54,24 +54,36 @@ class AudioPlayer {
         worker = null
         w.interrupt()
         track?.let { t -> runCatching { t.pause(); t.flush() } }       // unblocks a pending write
-        w.join(1000)
+        try { w.join(1000) } catch (_: InterruptedException) { Thread.currentThread().interrupt() }
         queue.clear()
     }
 
     private fun loop() {
         runCatching { Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO) }
             .onFailure { runCatching { Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO) } }
-        val s = Stream()
+        var s = Stream()
+        var errors = 0
         try {
-            while (!Thread.currentThread().isInterrupted) when (val i = queue.take()) {
-                is Au -> s.decode(i)
-                is Mp2 -> s.decodeMp2(i.frame)
+            while (!Thread.currentThread().isInterrupted) {
+                val item = queue.take()
+                try {
+                    when (item) {
+                        is Au -> s.decode(item)
+                        is Mp2 -> s.decodeMp2(item.frame)
+                    }
+                } catch (e: InterruptedException) {
+                    throw e
+                } catch (e: Exception) {
+                    // a bad AU, a codec that won't configure, an audio HAL not ready at boot: start over with the next item
+                    errors++
+                    if (errors <= 5 || errors % 100 == 0) Log.e(TAG, "audio error #$errors, resetting the decoder", e)
+                    runCatching { s.release() }
+                    s = Stream()
+                }
             }
         } catch (_: InterruptedException) {
-        } catch (e: Exception) {
-            Log.e(TAG, "audio thread", e)
         } finally {
-            s.release()
+            runCatching { s.release() }
         }
     }
 
@@ -99,7 +111,7 @@ class AudioPlayer {
             val rate = p?.sampleRate ?: trackRate
             val ch = p?.channels ?: trackChannels
             if (rate == 0) return                                  // no good frame yet: nothing to be silent at
-            if (track == null || rate != trackRate || ch != trackChannels) openTrack(rate, ch)
+            if (ownTrack == null || rate != trackRate || ch != trackChannels) openTrack(rate, ch)
             val n = 1152 * ch
             if (shorts.size < n) shorts = ShortArray(n)
             if (p != null) p.samples.copyInto(shorts) else shorts.fill(0, 0, n)
@@ -168,7 +180,7 @@ class AudioPlayer {
         private var level = 1f
 
         private fun beforeWrite(): AudioTrack? {
-            val t = track ?: return null
+            val t = ownTrack ?: return null
             val target = targetLevel
             if (level != target) {
                 level = if (level < target) minOf(target, level + LEVEL_STEP) else maxOf(target, level - LEVEL_STEP)
@@ -189,8 +201,11 @@ class AudioPlayer {
             }
         }
 
+        /** This stream's track; [track] (shared, for release() from another thread) may already be a newer stream's. */
+        private var ownTrack: AudioTrack? = null
+
         private fun openTrack(rate: Int, channels: Int) {
-            track?.release()
+            ownTrack?.let { runCatching { it.release() } }
             val mask = if (channels == 1) AudioFormat.CHANNEL_OUT_MONO else AudioFormat.CHANNEL_OUT_STEREO
             val bytesPerSec = rate * channels * 2
             val min = AudioTrack.getMinBufferSize(rate, mask, AudioFormat.ENCODING_PCM_16BIT)
@@ -204,14 +219,16 @@ class AudioPlayer {
                     .setEncoding(AudioFormat.ENCODING_PCM_16BIT).build())
                 .setBufferSizeInBytes(maxOf(min * 4, bytesPerSec * BUFFER_MS / 1000))
                 .setTransferMode(AudioTrack.MODE_STREAM)
-                .build().also { it.setVolume(level) }
+                .build().also { it.setVolume(level); ownTrack = it }
             Log.i(TAG, "AudioTrack $rate Hz, $channels ch, pre-roll $PREROLL_MS ms")
         }
 
         fun release() {
             runCatching { codec?.stop() }; runCatching { codec?.release() }
             codec = null; asc = null
-            track?.let { runCatching { it.stop() }; it.release() }; track = null
+            val t = track
+            if (t != null && t === ownTrack) { runCatching { t.stop() }; runCatching { t.release() }; track = null }
+            ownTrack = null
         }
     }
 

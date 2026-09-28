@@ -6,6 +6,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.Build
 import android.os.Bundle
@@ -20,6 +21,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.IntentCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
@@ -39,9 +41,11 @@ class MainActivity : ComponentActivity() {
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
+            val dev = IntentCompat.getParcelableExtra(intent, UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
             when (intent.action) {
-                ACTION_PERMISSION -> findDongle()
-                UsbManager.ACTION_USB_DEVICE_DETACHED -> app.engine.detached()
+                // granted: attach; denied: don't ask again straight away (that looped the dialog)
+                ACTION_PERMISSION -> if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) findDongle(ask = false)
+                UsbManager.ACTION_USB_DEVICE_DETACHED -> app.engine.detached(dev?.deviceName)   // only ours stops the radio
             }
         }
     }
@@ -53,7 +57,7 @@ class MainActivity : ComponentActivity() {
         usb = getSystemService(UsbManager::class.java)
         ContextCompat.registerReceiver(this, receiver, IntentFilter(ACTION_PERMISSION).apply {
             addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
-        }, ContextCompat.RECEIVER_EXPORTED)
+        }, ContextCompat.RECEIVER_NOT_EXPORTED)       // our PendingIntent and the system's detach still arrive
         // Connect to the media service so it runs (and becomes the active MediaSession for the steering-wheel keys)
         controller = MediaController.Builder(this, SessionToken(this, ComponentName(this, RadioService::class.java))).buildAsync()
         // head unit: the whole 1280×720 is ours; the system bars come back with a swipe from the edge
@@ -99,9 +103,15 @@ class MainActivity : ComponentActivity() {
         if (intent.action == UsbManager.ACTION_USB_DEVICE_ATTACHED) findDongle()
     }
 
-    private fun findDongle() {
+    override fun onResume() {
+        super.onResume()
+        findDongle(ask = false)                              // back in front: attach if it's there and allowed
+    }
+
+    private fun findDongle(ask: Boolean = true) {
         val dev = usb.deviceList.values.firstOrNull { it.vendorId == Dtr100.VID && it.productId == Dtr100.PID } ?: return
         if (usb.hasPermission(dev)) { app.engine.attach(dev); return }
+        if (!ask) return
         val flags = if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0
         usb.requestPermission(dev, PendingIntent.getBroadcast(this, 0, Intent(ACTION_PERMISSION).setPackage(packageName), flags))
     }
