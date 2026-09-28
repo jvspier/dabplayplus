@@ -8,29 +8,36 @@ import android.media.MediaFormat
 import android.os.Process
 import android.util.Log
 import java.nio.ByteBuffer
+import io.github.jvspier.dabplay.core.mp2.Mp2Decoder
 import java.util.concurrent.ArrayBlockingQueue
 
 /**
- * Decodes DAB+ access units with MediaCodec (platform FDK decoder, verified on API 26/29) and plays the PCM
- * through an AudioTrack, on its own high-priority audio thread.
+ * Plays a DAB service on its own high-priority audio thread: DAB+ access units through MediaCodec (platform FDK
+ * decoder, verified on API 26/29), DAB (MP2) frames through our Kotlin Layer II decoder, both into an AudioTrack.
  *
- * [feed] never blocks, so the USB thread always keeps up with the dongle (a stalled reader lets the MCU buffer
+ * Feeding never blocks, so the USB thread always keeps up with the dongle (a stalled reader lets the MCU buffer
  * overflow: audible skips). DAB+ audio arrives in 120 ms superframe bursts, so playback starts after a
  * [PREROLL_MS] pre-roll into a ~1 s AudioTrack buffer; after an underrun it pauses and pre-rolls again
  * (one clean gap instead of stuttering).
  */
-class AacPlayer {
-    private class Au(val asc: ByteArray, val data: ByteArray, val rate: Int)
+class AudioPlayer {
+    private sealed interface Item
+    private class Au(val asc: ByteArray, val data: ByteArray, val rate: Int) : Item
+    private class Mp2(val frame: ByteArray) : Item
 
-    private val queue = ArrayBlockingQueue<Au>(QUEUE_AUS)
+    private val queue = ArrayBlockingQueue<Item>(QUEUE_AUS)
     @Volatile private var worker: Thread? = null
     @Volatile private var track: AudioTrack? = null
     @Volatile var decoderName: String? = null; private set
 
-    /** Queue one AU ([asc] = its AudioSpecificConfig, [outputRate] = e.g. 32000/48000). Call from one thread. */
-    fun feed(asc: ByteArray, au: ByteArray, outputRate: Int) {
+    /** Queue one DAB+ AU ([asc] = its AudioSpecificConfig, [outputRate] = e.g. 32000/48000). Call from one thread. */
+    fun feedAac(asc: ByteArray, au: ByteArray, outputRate: Int) = offer(Au(asc, au, outputRate))
+
+    /** Queue one DAB (MP2) Layer II frame. Call from one thread. */
+    fun feedMp2(frame: ByteArray) = offer(Mp2(frame))
+
+    private fun offer(item: Item) {
         if (worker == null) worker = Thread({ loop() }, "dab-audio").apply { isDaemon = true; start() }
-        val item = Au(asc, au, outputRate)
         if (!queue.offer(item)) { queue.poll(); queue.offer(item) }     // full: drop the oldest, never block
     }
 
@@ -49,7 +56,10 @@ class AacPlayer {
             .onFailure { runCatching { Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO) } }
         val s = Stream()
         try {
-            while (!Thread.currentThread().isInterrupted) s.decode(queue.take())
+            while (!Thread.currentThread().isInterrupted) when (val i = queue.take()) {
+                is Au -> s.decode(i)
+                is Mp2 -> s.decodeMp2(i.frame)
+            }
         } catch (_: InterruptedException) {
         } catch (e: Exception) {
             Log.e(TAG, "audio thread", e)
@@ -69,7 +79,28 @@ class AacPlayer {
         private var buffered = 0          // bytes written since the last (re)start, until playback starts
         private var underruns = 0
 
+        private var mp2: Mp2Decoder? = null
+        private var trackRate = 0
+        private var trackChannels = 0
+        private var shorts = ShortArray(0)
+
+        /** DAB (MP2): our decoder; a frame that fails its CRC becomes 24 ms of silence, so the timing holds. */
+        fun decodeMp2(frame: ByteArray) {
+            if (codec != null) { runCatching { codec?.stop() }; runCatching { codec?.release() }; codec = null; asc = null }
+            val d = mp2 ?: Mp2Decoder().also { mp2 = it; decoderName = "DABplay+ MP2 (Layer II)" }
+            val p = d.decode(frame)
+            val rate = p?.sampleRate ?: trackRate
+            val ch = p?.channels ?: trackChannels
+            if (rate == 0) return                                  // no good frame yet: nothing to be silent at
+            if (track == null || rate != trackRate || ch != trackChannels) openTrack(rate, ch)
+            val n = 1152 * ch
+            if (shorts.size < n) shorts = ShortArray(n)
+            if (p != null) p.samples.copyInto(shorts) else shorts.fill(0, 0, n)
+            writeShorts(n)
+        }
+
         fun decode(au: Au) {
+            mp2 = null
             if (!au.asc.contentEquals(asc)) configure(au.asc, au.rate)
             val c = codec ?: return
             val i = c.dequeueInputBuffer(20_000)
@@ -116,15 +147,30 @@ class AacPlayer {
         }
 
         private fun write(n: Int) {
-            val t = track ?: return
+            val t = beforeWrite() ?: return
+            t.write(pcm, 0, n)                               // blocking: paces this thread in real time
+            afterWrite(t, n)
+        }
+
+        private fun writeShorts(n: Int) {
+            val t = beforeWrite() ?: return
+            t.write(shorts, 0, n)
+            afterWrite(t, n * 2)
+        }
+
+        private fun beforeWrite(): AudioTrack? {
+            val t = track ?: return null
             if (t.playState == AudioTrack.PLAYSTATE_PLAYING && t.underrunCount != underruns) {
                 underruns = t.underrunCount
                 t.pause(); buffered = 0                      // ran dry: pre-roll again before resuming
                 Log.i(TAG, "underrun (queue ${queue.size} AUs), re-buffering")
             }
-            t.write(pcm, 0, n)                               // blocking: paces this thread in real time
+            return t
+        }
+
+        private fun afterWrite(t: AudioTrack, bytes: Int) {
             if (t.playState != AudioTrack.PLAYSTATE_PLAYING) {
-                buffered += n
+                buffered += bytes
                 if (buffered >= prerollBytes) { t.play(); underruns = t.underrunCount }
             }
         }
@@ -136,6 +182,7 @@ class AacPlayer {
             val min = AudioTrack.getMinBufferSize(rate, mask, AudioFormat.ENCODING_PCM_16BIT)
             prerollBytes = bytesPerSec * PREROLL_MS / 1000
             buffered = 0
+            trackRate = rate; trackChannels = channels
             track = AudioTrack.Builder()
                 .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
@@ -155,7 +202,7 @@ class AacPlayer {
     }
 
     private companion object {
-        const val TAG = "AacPlayer"
+        const val TAG = "AudioPlayer"
         const val PREROLL_MS = 400      // > 3 superframes (120 ms each)
         const val BUFFER_MS = 1000
         const val QUEUE_AUS = 128       // ~2.5 s of AUs (20-60 ms each)

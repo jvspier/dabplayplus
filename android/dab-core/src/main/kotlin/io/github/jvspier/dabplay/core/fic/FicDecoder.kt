@@ -116,8 +116,9 @@ class FicDecoder {
                 val prot = "EEP ${lvl + 1}-${if (opt < 2) "AB"[opt] else '?'}"
                 subchannels[id] = Subchannel(id, start, size, br, prot)
                 i += 4
-            } else {                                               // short form (UEP): no bitrate yet
-                subchannels.getOrPut(id) { Subchannel(id, start, null, null, "UEP #${b.u8(i + 2) and 0x3F}") }
+            } else {                                               // short form (UEP): size and bitrate from Table 8
+                val t = b.u8(i + 2) and 0x3F
+                subchannels[id] = Subchannel(id, start, Uep.SIZE_CU[t], Uep.BITRATE[t], "UEP #$t (PL${Uep.LEVEL[t]})")
                 i += 3
             }
         }

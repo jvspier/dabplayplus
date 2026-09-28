@@ -56,6 +56,18 @@ this file as work progresses.
     confirm the service), about 0.2 s per unreceivable candidate; none → back to the own frequency (retuned every
     5 s until it locks) and another round every 30 s. Antenna test on RADIONL: 3 rounds, then back on 5B by itself.
     A real switch to another ensemble is untested here (no second ensemble carries the same service locally).
+  - **DAB (MP2) support** (2026-09-28): own Kotlin MPEG-1/2 Layer II decoder (dab-core `mp2/`): all DAB variants
+    (48 kHz tables B.2a/B.2c, 24 kHz half rate, mono/stereo/joint, header CRC). [verified] Golden tests against ffmpeg
+    on synthetic vectors (`tools/gen_mp2_vectors.sh`): 7 variants, max 1 LSB difference, 88–90 dB SNR; CRC errors
+    detected. The synthesis window's 257 coefficients come from a system ffmpeg build (ISO sign convention; the vendor
+    lib's mpg123 copy has the same magnitudes). DAB framing (sync + lock on frame length) and PAD extraction
+    (`[X-PAD reversed][ScF-CRC][F-PAD]`) tested on the vectors; the ScF-CRC length rule is [hypothesis].
+    - [verified in decompiled code] The dongle side needs nothing new: the vendor starts every audio sub-channel with
+      type 2 (`FUN_00072160(…, 2, n)`; type 4 = packet data; type 1, which would set bit 6 of reg 0x3A, is never
+      used), so MP2 plays through the same `startAudio` as DAB+.
+    - [verified] FIG 0/1 short form (UEP, typical for MP2) had no bitrate, so scans dropped MP2 stations. Added EN 300
+      401 Table 8, checked entry by entry against the vendor lib's copy (u16 records size/level/bitrate at 0xd7180).
+    - Untested on air: no DAB (MP2) services in NL. Needs a listener in the UK or elsewhere.
 - Next session (owner, 2026-09-27): **MP2 decoder** (v1 feature), **extra dongle drivers** (docs/dongles.md; the
   best candidates need their vendor APKs: C100 Dual Antenna/Dual Tuner, Si4684 "Eonon" 1a86:5537), and a
   **bug + security review** of the app. When the head unit is in the car: first run on the Dudu3 (Android 10) over

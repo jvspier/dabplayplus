@@ -5,9 +5,11 @@ import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbManager
 import android.util.Log
-import io.github.jvspier.dabplay.audio.AacPlayer
+import io.github.jvspier.dabplay.audio.AudioPlayer
 import io.github.jvspier.dabplay.core.Band3
 import io.github.jvspier.dabplay.core.dabplus.SuperframeDecoder
+import io.github.jvspier.dabplay.core.mp2.DabMp2Pad
+import io.github.jvspier.dabplay.core.mp2.Mp2Framer
 import io.github.jvspier.dabplay.core.fic.FicDecoder
 import io.github.jvspier.dabplay.core.fic.dabAlternatives
 import io.github.jvspier.dabplay.core.Reception
@@ -101,7 +103,7 @@ class DabEngine(
         // the MSC reader must never fall behind the dongle (its buffer overflows: audible skips)
         runCatching { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO) }
         var conn: UsbDeviceConnection? = null
-        val player = AacPlayer()
+        val player = AudioPlayer()
         try {
             conn = usb.openDevice(dev) ?: error("cannot open the USB device")
             val intf = dev.getInterface(0)
@@ -140,7 +142,7 @@ class DabEngine(
     }
 
     /** Everything that runs on the USB thread. */
-    private inner class Session(private val d: Dtr100, private val player: AacPlayer) {
+    private inner class Session(private val d: Dtr100, private val player: AudioPlayer) {
         private var tunedKhz: Int? = null
         private var ficEnabled = false
 
@@ -216,7 +218,8 @@ class DabEngine(
             stopAudio()
             _state.update { it.copy(current = st, nowPlaying = null, slide = null, problem = null, tuning = true, reception = Reception.GOOD, following = null) }
             fun problem(msg: String) { status(msg); _state.update { it.copy(tuning = false, problem = msg) } }
-            if (st.service.ascty != 63) return problem("DAB (MP2) stations are not supported yet")
+            // ASCTy (FIG 0/2): 0 = DAB, MPEG Layer II; 63 = DAB+, HE-AAC. Anything else isn't audio we know.
+            if (st.service.ascty != 0 && st.service.ascty != 63) return problem("This station's audio format is not supported")
             if (tunedKhz != st.ensemble.freqKhz) {
                 status("Tuning ${st.ensemble.channel}…")
                 if (!tune(st.ensemble.freqKhz, retries = true).locked) return problem("Station unavailable (no signal)")
@@ -256,6 +259,11 @@ class DabEngine(
             _state.update { it.copy(current = st, playing = true, tuning = false, following = null) }
             status("Playing ${st.label} (${st.ensemble.channel})")
             val dec = SuperframeDecoder(st.service.bitrateKbps)
+            // DAB (MP2): Layer II frames straight in the sub-channel, PAD at each frame's end (untested on air: none in NL)
+            val framer = if (st.service.ascty == 0) Mp2Framer() else null
+            var mp2Frames = 0
+            fun good() = if (framer != null) mp2Frames else dec.ausOk
+            fun bad() = framer?.resyncs ?: dec.ausBad
             val pad = PadDecoder(
                 onDls = { t ->
                     // DLS may carry control codes (line breaks, end-of-headline); blank after that = nothing to show
@@ -282,7 +290,7 @@ class DabEngine(
                 if (now - checkAt >= 500) {                                // reception, twice a second
                     checkAt = now
                     val sig = d.mcuSignal ?: 0
-                    val r = monitor.update(now, dec.ausOk, dec.ausBad, noSignal = sig >= Dtr100.SIGNAL_NONE, weakSignal = sig >= 700)
+                    val r = monitor.update(now, good(), bad(), noSignal = sig >= Dtr100.SIGNAL_NONE, weakSignal = sig >= 700)
                     val bars = if (r == Reception.LOST) 0 else Dtr100.signalBars(sig)
                     val prev = _state.value
                     if (r != prev.reception || bars != prev.signalBars) {
@@ -293,8 +301,8 @@ class DabEngine(
                     if (r != Reception.GOOD && now - diagAt >= 1000) {     // field diagnostics, only when it matters
                         diagAt = now
                         Log.i(TAG, "rx sig=$sig bytes=$diagBytes sf=${dec.superframes - diag[0]} rsFail=${dec.rsFail - diag[1]} " +
-                            "au=${dec.ausOk - diag[2]}/${dec.ausBad - diag[3]}")
-                        diag = intArrayOf(dec.superframes, dec.rsFail, dec.ausOk, dec.ausBad); diagBytes = 0
+                            "${if (framer != null) "frames" else "au"}=${good() - diag[2]}/${bad() - diag[3]}")
+                        diag = intArrayOf(dec.superframes, dec.rsFail, good(), bad()); diagBytes = 0
                     }
                     // service following: the signal has been gone for a while, try the station on another ensemble
                     if (r == Reception.LOST && followStation() && monitor.lostSince >= 0 &&
@@ -317,9 +325,17 @@ class DabEngine(
                 val ms = (System.nanoTime() - t0) / 1_000_000
                 if (ms > 150) Log.w(TAG, "slow MSC read: $ms ms")
                 if (data.isEmpty()) { Thread.sleep(5); continue }
+                if (framer != null) {
+                    framer.feed(data) { frame, h ->
+                        mp2Frames++
+                        DabMp2Pad.split(frame, h)?.let { (x, f) -> pad.feedPad(x, f) }
+                        player.feedMp2(frame)
+                    }
+                    continue
+                }
                 dec.feed(data) { au ->
                     pad.feedAu(au.data)
-                    player.feed(au.asc, au.data, au.format.outputRate)
+                    player.feedAac(au.asc, au.data, au.format.outputRate)
                 }
             }
         }

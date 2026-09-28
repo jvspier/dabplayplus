@@ -118,4 +118,4 @@ Fallbacks:
   → radio-browser.info favicon → a generated tile (initials). No slideshow-logo step (a logo can't be told from a news
   card) and no manual logo override (owner, 2026-09-27: not needed).
 - **MP2 (DAB classic) is a v1 feature** (owner, 2026-09-27): not needed in NL, but users elsewhere (UK etc.) need it
-  for distribution. Own Kotlin Layer II decoder.
+  for distribution. Own Kotlin Layer II decoder: done 2026-09-28 (golden-tested vs ffmpeg), untested on air (no MP2 in NL).
