@@ -83,7 +83,11 @@ class MainActivity : ComponentActivity() {
                 }
                 val logos by app.logos.state.collectAsStateWithLifecycle()
                 val logoStatus by app.logoFetcher.status.collectAsStateWithLifecycle()
-                CompositionLocalProvider(LocalLogos provides logos) { AppShell(s, db, settings, actions, logoStatus) }
+                // "Download station logos" off = initials everywhere, as its Settings line says; the cache stays for when
+                // it's switched back on
+                CompositionLocalProvider(LocalLogos provides if (settings.downloadLogos) logos else emptyMap()) {
+                    AppShell(s, db, settings, actions, logoStatus)
+                }
             }
         }
         findDongle()

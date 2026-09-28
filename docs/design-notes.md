@@ -80,3 +80,7 @@ design session.
 - **Now playing controls** (owner, 2026-09-28): only previous / play / next, centred as a symmetric group; the favourite
   heart (48 dp) sits in the opposite top corner, level with the station chip and inset alike: symmetric, and on the
   rail's (= driver's) side, closest to hand. Mirrors with the driver side.
+- **"Download station logos" off = initials everywhere** (2026-09-28): matches its Settings line; the downloaded logos
+  stay cached, so switching it back on shows them again at once.
+- **README screenshots** (owner, 2026-09-28): station logos may show (they only identify the stations; the README says
+  they belong to their broadcasters); no slides with album covers or people, and no presenter names.

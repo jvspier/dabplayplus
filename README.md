@@ -5,15 +5,17 @@ Big tiles, big text, few taps: made to be used while driving.
 
 ![Favourites](docs/screenshots/home.png)
 
-| Now playing | Stations (day theme) | Side-panel layout |
-|---|---|---|
-| ![Now playing](docs/screenshots/now-playing.png) | ![Stations](docs/screenshots/stations-day.png) | ![Panel layout](docs/screenshots/panel-settings-day.png) |
+| Now playing (night) | Now playing (day) |
+|---|---|
+| ![Now playing, night theme](docs/screenshots/now-playing.png) | ![Now playing, day theme](docs/screenshots/now-playing-day.png) |
+| **Stations (day)** | **Side-panel layout (day)** |
+| ![Station list, day theme](docs/screenshots/stations-day.png) | ![Side-panel layout with settings, day theme](docs/screenshots/panel-settings-day.png) |
 
 ## Features
 
 - **Favourites grid**: eight large tiles on one screen, up to 24, reorder by long-press and drag.
 - **Now playing**: "Artist – Title" from the broadcast (DLS / DL Plus), and the station's slideshow (cover cards,
-  shown whole, never cropped).
+  shown whole, never cropped) or its logo, standing on a soft reflection.
 - **Station logos**, downloaded automatically when online (RadioDNS, then the station's website, then
   radio-browser.info) and cached. Offline, everything else still works.
 - **Reception handling**: live signal bars, "No signal" while in a tunnel, resumes by itself.
