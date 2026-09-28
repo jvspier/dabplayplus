@@ -78,3 +78,6 @@ design session.
   of NPO's song cards (their show name sits in the bottom strip); alternative: band under the image.
 - **Startup shows the last-played station** (2026-09-28): logo and name at once, "DAB dongle not connected" (amber)
   until the dongle is ready, instead of an empty player.
+- **Now playing, logo case** (owner, 2026-09-28): no card behind a logo; the logo stands on the page with a soft glow
+  and a faint reflection below it, staying sharp. The card with the glass band only appears behind a slide (fades
+  in with it). The "Artist – Title" line has a subtle shadow for readability (dark at night, light halo by day).

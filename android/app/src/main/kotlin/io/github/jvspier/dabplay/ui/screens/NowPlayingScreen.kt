@@ -1,6 +1,7 @@
 package io.github.jvspier.dabplay.ui.screens
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -20,8 +21,10 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,7 +33,9 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.FilterQuality
@@ -118,14 +123,19 @@ private fun NowCard(e: EngineState, st: Station?) {
     val frost = band + FADE                              // frosted area: the text band plus the ramp above it
     val tile = CARD_H * LOGO
     val tileTop = CARD_H * (1f - BAND) - LOGO_GAP - tile  // in card coordinates
-    Box(Modifier.size(CARD_W, CARD_H)
+    // a card only behind a slide (the slide fills it); a logo stands on the page by itself (owner, 2026-09-28)
+    val card by animateFloatAsState(if (slide != null) 1f else 0f, tween(300), label = "card")
+    Box(Modifier.size(CARD_W, CARD_H)) {
+    Box(Modifier.matchParentSize().graphicsLayer { alpha = card }
         .shadow(40.dp, shape, ambientColor = Accent.orange.copy(alpha = 0.35f), spotColor = Accent.orange.copy(alpha = 0.35f))
-        .clip(shape).background(c.surface)) {
+        .clip(shape).background(c.surface))
+    Box(Modifier.matchParentSize().clip(shape)) {
         // the picture, sharp: the slide, whole (4:3 in 4:3), or the station logo standing just above the text band
         Crossfade(slide, animationSpec = tween(300), label = "art") { b ->
             if (b != null) Image(b, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
             else Box(Modifier.fillMaxWidth().fillMaxHeight(1f - BAND).padding(bottom = LOGO_GAP), contentAlignment = Alignment.BottomCenter) {
-                if (st != null) StationLogo(st.label, st.key, tile, radius = 22.dp)
+                if (st != null) StationLogo(st.label, st.key, tile, radius = 22.dp, modifier = Modifier.shadow(28.dp, RoundedCornerShape(22.dp),
+                    ambientColor = Accent.orange.copy(alpha = 0.3f), spotColor = Accent.orange.copy(alpha = 0.3f)))
             }
         }
         // the glass: the blurred copy plus a tint, faded in over [FADE] so sharp turns frosted with no edge
@@ -140,9 +150,7 @@ private fun NowCard(e: EngineState, st: Station?) {
                 if (slide != null) Image(blurred, null, contentScale = ContentScale.Fit, filterQuality = FilterQuality.High,
                     modifier = Modifier.requiredSize(CARD_W, CARD_H).align(Alignment.BottomCenter))
                 else {
-                    // the logo's bottom goes soft, and its reflection smears on into the glass below it
-                    Image(blurred, null, contentScale = ContentScale.Fit, filterQuality = FilterQuality.High,
-                        modifier = Modifier.align(Alignment.TopCenter).offset(y = tileTop - top).requiredSize(tile))
+                    // the logo stays sharp; only its reflection smears on below it
                     Image(blurred, null, contentScale = ContentScale.Fit, filterQuality = FilterQuality.High,
                         modifier = Modifier.align(Alignment.TopCenter).offset(y = tileTop + tile - top).requiredSize(tile)
                             .graphicsLayer { scaleY = -1f; alpha = 0.4f; compositingStrategy = CompositingStrategy.Offscreen }   // soft: the text sits on it
@@ -153,12 +161,17 @@ private fun NowCard(e: EngineState, st: Station?) {
                             })
                 }
             }
-            Box(Modifier.fillMaxSize().background(tint))
+            Box(Modifier.fillMaxSize().graphicsLayer { alpha = card }.background(tint))      // glass tint: only on a slide
         }
+        // a subtle shadow keeps the line readable over any slide (owner, 2026-09-28): dark at night, a light halo by day
+        val shadow = if (night) Shadow(Color.Black.copy(alpha = 0.55f), Offset(0f, 2f), blurRadius = 10f)
+                     else Shadow(Color.White.copy(alpha = 0.7f), Offset(0f, 1f), blurRadius = 8f)
         Text(line, color = lineColor, fontSize = 30.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Clip,
+            style = LocalTextStyle.current.copy(shadow = shadow),
             modifier = Modifier.align(Alignment.BottomCenter).height(band).wrapContentHeight(Alignment.CenterVertically)
                 .padding(horizontal = 28.dp)
                 .basicMarquee(iterations = Int.MAX_VALUE, initialDelayMillis = 2500, repeatDelayMillis = 3000))
+    }
     }
 }
 
