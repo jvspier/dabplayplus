@@ -14,6 +14,13 @@ class AccessUnit(val asc: ByteArray, val data: ByteArray, val format: AudioForma
  * AU split with CRC check. Input is the raw sub-channel stream; output is AUs with their ASC.
  */
 class SuperframeDecoder(bitrateKbps: Int) {
+    init { require(bitrateKbps in MIN_KBPS..MAX_KBPS) { "bitrate $bitrateKbps kbit/s out of range" } }
+
+    companion object {
+        /** Sub-channel bitrates the dongle can stream (bytes per CIF 24..3384). */
+        const val MIN_KBPS = 8
+        const val MAX_KBPS = 1128
+    }
     private val s = bitrateKbps / 8                  // RS columns
     private val sfLen = 120 * s                      // superframe = 5 logical frames of 24*s bytes
     private val rs = ReedSolomon()
@@ -122,4 +129,5 @@ object Asc {
         fun put(v: Int, n: Int) { for (i in n - 1 downTo 0) bits += (v shr i) and 1 }
         fun bytes() = ByteArray((bits.size + 7) / 8) { i -> var b = 0; for (k in 0 until 8) b = (b shl 1) or (bits.getOrNull(i * 8 + k) ?: 0); b.toByte() }
     }
+
 }

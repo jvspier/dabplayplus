@@ -440,6 +440,7 @@ class Dtr100(
         if (m < mscSize) return EMPTY
         val r = xfer(0x40, 0, m and 0xFF, m shr 8, replyLen = m + 4)
         expect(r, 0xC0, "msc read")
+        if (r.size < 4) throw DriverException("msc read: short reply ${r.hex()}")
         val got = minOf(r.u(2) or (r.u(3) shl 8), r.size - 4)
         return r.copyOfRange(4, 4 + got)
     }

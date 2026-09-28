@@ -57,24 +57,9 @@ class Mp2Decoder {
         val h = Mp2Header.parse(frame) ?: return null
         if (frame.size < h.frameBytes) return null
         val nch = h.channels
-        val t = Tables.select(h)
-        val bound = if (h.mode == Mp2Header.JOINT) minOf((h.modeExt + 1) * 4, t.sblimit) else t.sblimit
-        val r = Bits(frame, 32)
-        val crcRead = if (h.crc) r.read(16) else -1
-
-        val alloc = Array(2) { IntArray(32) }
-        for (sb in 0 until t.sblimit) {
-            val nb = t.nbal[sb]
-            if (sb < bound) for (ch in 0 until nch) alloc[ch][sb] = r.read(nb)
-            else { val a = r.read(nb); alloc[0][sb] = a; alloc[1][sb] = a }
-        }
-        val scfsi = Array(2) { IntArray(32) }
-        for (sb in 0 until t.sblimit) for (ch in 0 until nch) if (alloc[ch][sb] != 0) scfsi[ch][sb] = r.read(2)
-        if (h.crc) {
-            // CRC-16 (0x8005, init 0xFFFF) over header bits 16..31 plus allocation and scfsi (§2.4.3.1)
-            val c = Crc16().apply { update(frame, 16, 16); update(frame, 48, r.pos - 48) }.value
-            if (c != crcRead) { crcErrors++; return null }
-        }
+        val side = side(frame, h)
+        if (!side.crcOk) { crcErrors++; return null }
+        val t = side.t; val bound = side.bound; val alloc = side.alloc; val scfsi = side.scfsi; val r = side.r
         val scf = Array(2) { Array(32) { IntArray(3) } }
         for (sb in 0 until t.sblimit) for (ch in 0 until nch) if (alloc[ch][sb] != 0) {
             val s = scf[ch][sb]
@@ -178,15 +163,47 @@ class Mp2Decoder {
         }
     }
 
-    private companion object {
+    /** Bit allocation and scfsi read, the reader positioned after them, and whether the header CRC holds. */
+    private class Side(val t: Tables, val bound: Int, val alloc: Array<IntArray>, val scfsi: Array<IntArray>, val r: Bits, val crcOk: Boolean)
+
+    companion object {
+        /**
+         * The header CRC alone, without decoding (the USB thread uses it to judge reception; decoding happens on the
+         * audio thread). True for frames without CRC.
+         */
+        fun crcOk(frame: ByteArray): Boolean {
+            val h = Mp2Header.parse(frame) ?: return false
+            if (frame.size < h.frameBytes) return false
+            return side(frame, h).crcOk
+        }
+
+        private fun side(frame: ByteArray, h: Mp2Header): Side {
+            val nch = h.channels
+            val t = Tables.select(h)
+            val bound = if (h.mode == Mp2Header.JOINT) minOf((h.modeExt + 1) * 4, t.sblimit) else t.sblimit
+            val r = Bits(frame, 32)
+            val crcRead = if (h.crc) r.read(16) else -1
+            val alloc = Array(2) { IntArray(32) }
+            for (sb in 0 until t.sblimit) {
+                val nb = t.nbal[sb]
+                if (sb < bound) for (ch in 0 until nch) alloc[ch][sb] = r.read(nb)
+                else { val a = r.read(nb); alloc[0][sb] = a; alloc[1][sb] = a }
+            }
+            val scfsi = Array(2) { IntArray(32) }
+            for (sb in 0 until t.sblimit) for (ch in 0 until nch) if (alloc[ch][sb] != 0) scfsi[ch][sb] = r.read(2)
+            // CRC-16 (0x8005, init 0xFFFF) over header bits 16..31 plus allocation and scfsi (§2.4.3.1)
+            val ok = !h.crc || Crc16().apply { update(frame, 16, 16); update(frame, 48, r.pos - 48) }.value == crcRead
+            return Side(t, bound, alloc, scfsi, r, ok)
+        }
+
         /** Scalefactors 2^(1 − i/3), i = 0..62 (Table B.1); index 63 is invalid, treated as silence. */
-        val SCALE = FloatArray(64) { if (it == 63) 0f else 2.0.pow(1.0 - it / 3.0).toFloat() }
+        private val SCALE = FloatArray(64) { if (it == 63) 0f else 2.0.pow(1.0 - it / 3.0).toFloat() }
 
         /** Matrixing coefficients N[i][k] = cos((16 + i)(2k + 1)π / 64). */
-        val N = FloatArray(64 * 32) { val i = it / 32; val k = it % 32; cos((16 + i) * (2 * k + 1) * PI / 64).toFloat() }
+        private val N = FloatArray(64 * 32) { val i = it / 32; val k = it % 32; cos((16 + i) * (2 * k + 1) * PI / 64).toFloat() }
 
         /** The synthesis window D[0..511] (Table B.3), built from its first 257 values and the window's symmetry. */
-        val D = FloatArray(512).also { d ->
+        private val D = FloatArray(512).also { d ->
             for (i in 0..256) {
                 val w = Mp2Tables.WINDOW[i] / 65536f
                 d[i] = w

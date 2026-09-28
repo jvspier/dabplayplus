@@ -15,6 +15,10 @@ object SpiParser {
      * another ensemble (a station that moved multiplexes). Null if the file doesn't list it.
      */
     fun service(xml: ByteArray, gcc: String, eid: Int, sid: Int, scids: Int = 0): SpiService? {
+        // no DTDs or entities, ever: Android's parser ignores the "disallow-doctype-decl" feature below, so an entity
+        // expansion bomb from a hostile (or cleartext-intercepted) SI.xml would get through; SI.xml never needs them
+        val text = String(xml, Charsets.ISO_8859_1)              // the whole file (≤ 4 MB): a DTD could hide behind comments
+        if (text.contains("<!DOCTYPE", ignoreCase = true) || text.contains("<!ENTITY", ignoreCase = true)) return null
         val doc = runCatching {
             DocumentBuilderFactory.newInstance().apply {
                 isNamespaceAware = false

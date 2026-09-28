@@ -29,7 +29,11 @@ class PadDecoder(
     private var dlCharset = 0
     var label: String? = null; private set
     private var labelToggle: Int? = null
-    private val mot = HashMap<Int, MotObject>()
+    /** Slides being received, by TransportId: at most [MOT_IN_FLIGHT], the least recently touched dropped first. */
+    private var lastXpadLen = 0
+    private val mot = object : LinkedHashMap<Int, MotObject>(8, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Int, MotObject>) = size > MOT_IN_FLIGHT
+    }
 
     var pads = 0; private set
     var dlGroups = 0; private set
@@ -53,25 +57,31 @@ class PadDecoder(
      * [label] stays (it's still what the station last said).
      */
     fun resetPartial() {
-        dlAsm.reset(); motAsm.reset(); dlSegs.clear(); dlToggle = null
+        dlAsm.reset(); motAsm.reset(); dlSegs.clear(); dlToggle = null; mot.clear(); lastXpadLen = 0
     }
 
     private class MotObject {
         val parts = mapOf(3 to HashMap<Int, ByteArray>(), 4 to HashMap<Int, ByteArray>())
         val last = HashMap<Int, Int>()
+        var bytes = 0
     }
 
     /** Extract the PAD from a DAB+ AU (data_stream_element first) and process it. */
     fun feedAu(au: ByteArray) {
-        if (au.isEmpty() || au.u8(0) shr 5 != 4) return
+        if (au.size < 2 || au.u8(0) shr 5 != 4) return
         var n = au.u8(1)
         var st = 2
-        if (n == 255) { n = 255 + au.u8(2); st = 3 }
+        if (n == 255) { if (au.size < 3) return; n = 255 + au.u8(2); st = 3 }
         val end = minOf(st + n, au.size)
         if (end - st >= 2) feedPad(au.copyOfRange(st, end - 2), au.copyOfRange(end - 2, end))
     }
 
-    fun feedPad(xpadReversed: ByteArray, fpad: ByteArray) {
+    /**
+     * One frame's PAD. [exact]: [xpadReversed] is exactly the X-PAD (DAB+: the DSE); for DAB (MP2) it's the end of the
+     * frame, and a frame without CI list continues the previous subfield with a length implied by the previous frame
+     * (4 bytes for short X-PAD, else the previous X-PAD's data length; EN 300 401 §7.4.2).
+     */
+    fun feedPad(xpadReversed: ByteArray, fpad: ByteArray, exact: Boolean = true) {
         pads++
         val ind = (fpad.u8(0) shr 4) and 3
         val ci = (fpad.u8(1) shr 1) and 1 == 1
@@ -89,11 +99,16 @@ class PadDecoder(
                 if (app == 0) break
                 cis += app to len
             }
+            var total = 0
             for ((app, len) in cis) {
                 subfields += app to x.copyOfRange(minOf(i, x.size), minOf(i + len, x.size))
-                i += len
+                i += len; total += len
             }
-        } else lastApp?.let { subfields += contType(it) to x }
+            lastXpadLen = if (ind == 1) 3 else total
+        } else lastApp?.let {
+            val n = when { exact -> x.size; ind == 1 -> 4; else -> lastXpadLen }
+            if (n > 0) subfields += contType(it) to x.copyOfRange(0, minOf(n, x.size))
+        }
         for ((app, data) in subfields) { subfield(app, data); lastApp = app }
     }
 
@@ -187,9 +202,12 @@ class PadDecoder(
             i += 1 + li
         }
         val end = dg.size - if (crcf) 2 else 0
-        if (tid == null || (type != 3 && type != 4) || i + 2 > end) return
+        if (tid == null || (type != 3 && type != 4) || i + 2 > end || segNo >= MOT_MAX_SEGMENTS) return
         val o = mot.getOrPut(tid) { MotObject() }
-        o.parts.getValue(type)[segNo] = dg.copyOfRange(i + 2, end)   // skip the segmentation header
+        val seg = dg.copyOfRange(i + 2, end)                            // skip the segmentation header
+        o.bytes += seg.size - (o.parts.getValue(type)[segNo]?.size ?: 0)
+        if (o.bytes > MOT_MAX_BYTES) { mot.remove(tid); return }         // no slide is that big: drop it
+        o.parts.getValue(type)[segNo] = seg
         if (last) o.last[type] = segNo
         motTry(tid, o)
     }
@@ -199,7 +217,8 @@ class PadDecoder(
             val l = o.last[t] ?: return
             if ((0..l).any { it !in o.parts.getValue(t) }) return
         }
-        fun join(t: Int) = (0..o.last.getValue(t)).map { o.parts.getValue(t).getValue(it) }.reduce { a, b -> a + b }
+        fun join(t: Int) = java.io.ByteArrayOutputStream(o.bytes).also { out ->
+            for (k in 0..o.last.getValue(t)) out.write(o.parts.getValue(t).getValue(k)) }.toByteArray()
         val hdr = join(3)
         val body = join(4)
         if (hdr.size < 7) return
@@ -243,6 +262,10 @@ class PadDecoder(
     }
 
     companion object {
+        /** Bounds on slideshow reassembly (a corrupt or hostile stream must not fill the memory). */
+        const val MOT_IN_FLIGHT = 4
+        const val MOT_MAX_SEGMENTS = 1024
+        const val MOT_MAX_BYTES = 512 * 1024
         private val XPAD_LEN = intArrayOf(4, 6, 8, 12, 16, 24, 32, 48)
         val DLP_TYPES = mapOf(
             1 to "ITEM.TITLE", 2 to "ITEM.ALBUM", 3 to "ITEM.TRACKNUMBER", 4 to "ITEM.ARTIST", 5 to "ITEM.COMPOSITION",

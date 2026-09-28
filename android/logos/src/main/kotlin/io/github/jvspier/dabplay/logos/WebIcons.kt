@@ -49,7 +49,7 @@ object WebIcons {
     /** "192x192" → (192, 192); "any" or garbage → nulls. */
     private fun size(s: String?): Pair<Int?, Int?> {
         val m = s?.let { Regex("(\\d+)[xX](\\d+)").find(it) } ?: return null to null
-        return m.groupValues[1].toInt() to m.groupValues[2].toInt()
+        return m.groupValues[1].toIntOrNull() to m.groupValues[2].toIntOrNull()     // "99999999999x1": no crash
     }
 
     private fun decode(s: String) = s.replace("&amp;", "&").trim()

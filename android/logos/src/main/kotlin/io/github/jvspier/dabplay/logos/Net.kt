@@ -45,7 +45,7 @@ class OkHttpGet(private val client: OkHttpClient = defaultClient()) : Http {
     companion object {
         /** radio-browser.info asks clients for a descriptive User-Agent. */
         const val USER_AGENT = "DABplay+/0.1 (+https://github.com/jvspier/dabplayplus)"
-        fun defaultClient(): OkHttpClient = OkHttpClient.Builder()
+        fun defaultClient(): OkHttpClient = OkHttpClient.Builder().dns(PublicOnlyDns)
             .connectTimeout(8, TimeUnit.SECONDS).readTimeout(10, TimeUnit.SECONDS).callTimeout(20, TimeUnit.SECONDS).build()
     }
 }
@@ -77,4 +77,23 @@ class DnsJavaLookup(private val servers: () -> List<InetAddress>) : DnsLookup {
         .map { SrvTarget(it.target.toString().trimEnd('.'), it.port, it.priority, it.weight) }
 
     private fun fqdn(n: String) = if (n.endsWith(".")) n else "$n."
+}
+
+/**
+ * DNS that only returns public addresses: a logo URL, a redirect or an SPI host pointing at the car's hotspot router, a
+ * LAN device or localhost gets nothing (the logo chain only ever needs the public internet).
+ */
+object PublicOnlyDns : okhttp3.Dns {
+    override fun lookup(hostname: String): List<InetAddress> {
+        val all = okhttp3.Dns.SYSTEM.lookup(hostname)
+        return all.filter(::isPublic).ifEmpty { throw java.net.UnknownHostException("$hostname: no public address") }
+    }
+
+    fun isPublic(a: InetAddress): Boolean {
+        if (a.isAnyLocalAddress || a.isLoopbackAddress || a.isLinkLocalAddress || a.isSiteLocalAddress || a.isMulticastAddress) return false
+        val b = a.address
+        if (a is java.net.Inet6Address && (b[0].toInt() and 0xFE) == 0xFC) return false          // fc00::/7 unique local
+        if (a is java.net.Inet4Address && (b[0].toInt() and 0xFF) == 100 && (b[1].toInt() and 0xC0) == 64) return false  // 100.64/10 CGNAT
+        return true
+    }
 }

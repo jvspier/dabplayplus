@@ -65,4 +65,21 @@ class ParsersTest {
         assertEquals(RadioBrowser.loose("538"), RadioBrowser.loose("Radio 538"))
         assertEquals("", RadioBrowser.loose("Radio FM"))
     }
+
+    @Test fun refusesDoctypesAndEntities() {
+        val bomb = """<?xml version="1.0"?><!DOCTYPE lolz [<!ENTITY lol "lol"><!ENTITY lol2 "&lol;&lol;">]>
+            <serviceInformation><services><service><bearer id="dab:8e3.8008.83c7.0"/></service></services></serviceInformation>"""
+        assertNull(SpiParser.service(bomb.toByteArray(), "8e3", 0x8008, 0x83C7))
+    }
+
+    @Test fun onlyPublicAddresses() {
+        fun ip(s: String) = java.net.InetAddress.getByName(s)
+        assertFalse(PublicOnlyDns.isPublic(ip("192.168.1.1")))
+        assertFalse(PublicOnlyDns.isPublic(ip("10.0.0.5")))
+        assertFalse(PublicOnlyDns.isPublic(ip("127.0.0.1")))
+        assertFalse(PublicOnlyDns.isPublic(ip("169.254.10.1")))
+        assertFalse(PublicOnlyDns.isPublic(ip("fd00::1")))
+        assertTrue(PublicOnlyDns.isPublic(ip("91.98.4.78")))
+        assertFalse(ImageSniff.usable(ImageInfo("image/png", 16000, 16000)))
+    }
 }

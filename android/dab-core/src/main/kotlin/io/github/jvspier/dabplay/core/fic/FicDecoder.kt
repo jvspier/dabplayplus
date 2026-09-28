@@ -103,7 +103,8 @@ class FicDecoder {
             val n = b.u8(i + 4) and 0x1F
             i += 5
             if (i + n > b.size) return
-            announcementSupport[sid] = AnnouncementSupport(asu, (0 until n).map { b.u8(i + it) }.toSet())
+            if (announcementSupport.size < CAP || sid in announcementSupport)
+                announcementSupport[sid] = AnnouncementSupport(asu, (0 until n).map { b.u8(i + it) }.toSet())
             i += n
         }
     }
@@ -130,7 +131,7 @@ class FicDecoder {
         val label = DabText.decode(b, 3, 19, charset).trimEnd()
         when (ext) {
             0 -> { eid = (b.u8(1) shl 8) or b.u8(2); ensembleLabel = label }
-            1 -> services[((b.u8(1) shl 8) or b.u8(2)).toLong()] = label
+            1 -> ((b.u8(1) shl 8) or b.u8(2)).toLong().let { sid -> if (services.size < CAP || sid in services) services[sid] = label }
         }
     }
 
@@ -177,7 +178,7 @@ class FicDecoder {
                 if (b.u8(i) shr 6 == 0) comps += AudioComponent(b.u8(i) and 0x3F, b.u8(i + 1) shr 2, b.u8(i + 1) and 2 != 0)
                 i += 2
             }
-            if (comps.isNotEmpty()) components[sid] = comps
+            if (comps.isNotEmpty() && (components.size < CAP || sid in components)) components[sid] = comps
         }
     }
 
@@ -192,6 +193,7 @@ class FicDecoder {
             val ils = (b.u8(i) shr 4) and 1 == 1
             val lsn = ((b.u8(i) and 0x0F) shl 8) or b.u8(i + 1)
             i += 2
+            if (links.size >= CAP && (ils to lsn) !in links) return
             val ls = links.getOrPut(ils to lsn) { LinkageSet(ils, lsn, sh, la, oe) }
             ls.active = la; ls.hard = sh
             if (!idlf) continue
@@ -205,7 +207,7 @@ class FicDecoder {
                 if (i + w > b.size) break
                 var v = 0L
                 for (x in 0 until w) v = (v shl 8) or b.u8(i + x).toLong()
-                ls.ids += LinkId(type, v)
+                if (ls.ids.size < CAP_SET) ls.ids += LinkId(type, v)
                 i += w
             }
         }
@@ -215,6 +217,7 @@ class FicDecoder {
         val pd = (b.u8(0) shr 5) and 1 == 1
         var i = 1
         while (i < b.size) {
+            if (i + (if (pd) 4 else 2) > b.size) break            // a truncated entry (corrupt FIB that passed its CRC)
             val sid = sid(b, i, pd); i += if (pd) 4 else 2
             if (i >= b.size) break
             val n = b.u8(i) and 0x0F
@@ -223,7 +226,7 @@ class FicDecoder {
                 if (i + 2 > b.size) return
                 val type = (b.u8(i) shl 3) or (b.u8(i + 1) shr 5)
                 val len = b.u8(i + 1) and 0x1F
-                userApps.getOrPut(sid) { LinkedHashSet() } += USER_APPS[type] ?: "UA0x%x".format(type)
+                if (userApps.size < CAP || sid in userApps) userApps.getOrPut(sid) { LinkedHashSet() }.let { if (it.size < CAP_SET) it += USER_APPS[type] ?: "UA0x%x".format(type) }
                 i += 2 + len
             }
         }
@@ -245,7 +248,10 @@ class FicDecoder {
                 val fStart = j + 3
                 val fEnd = minOf(fStart + flen, lstEnd)
                 j += 3 + flen
-                val fs = frequencyInfo.getOrPut(FiKey(oe, rm, id)) { LinkedHashSet() }
+                val key = FiKey(oe, rm, id)
+                if (frequencyInfo.size >= 2 * CAP && key !in frequencyInfo) continue
+                val fs = frequencyInfo.getOrPut(key) { LinkedHashSet() }
+                if (fs.size >= CAP_SET) continue
                 when (rm) {
                     0 -> { var k = fStart; while (k + 3 <= fEnd) {
                         fs += FiFrequency.Khz((((b.u8(k) and 7) shl 16) or (b.u8(k + 1) shl 8) or b.u8(k + 2)) * 16); k += 3 } }
@@ -260,19 +266,24 @@ class FicDecoder {
         val pd = (b.u8(0) shr 5) and 1 == 1
         var i = 1
         while (i < b.size) {
+            if (i + (if (pd) 4 else 2) > b.size) break            // a truncated entry (corrupt FIB that passed its CRC)
             val sid = sid(b, i, pd); i += if (pd) 4 else 2
             if (i >= b.size) break
             val n = b.u8(i) and 0x0F
             i += 1
             for (k in 0 until n) {
                 if (i + 2 > b.size) return
-                otherEnsembleServices.getOrPut(sid) { LinkedHashSet() } += (b.u8(i) shl 8) or b.u8(i + 1)
+                if (otherEnsembleServices.size < CAP || sid in otherEnsembleServices)
+                    otherEnsembleServices.getOrPut(sid) { LinkedHashSet() }.let { if (it.size < CAP_SET) it += (b.u8(i) shl 8) or b.u8(i + 1) }
                 i += 2
             }
         }
     }
 
     companion object {
+        /** Bounds on what a (hostile or corrupt) FIC can make us keep: entries per map, and ids per set. */
+        const val CAP = 256
+        const val CAP_SET = 32
         private val EEP_A = intArrayOf(12, 8, 6, 4)     // CU per 8 kbit/s, protection 1-A..4-A
         private val EEP_B = intArrayOf(27, 21, 18, 15)  // CU per 32 kbit/s, protection 1-B..4-B
         val USER_APPS = mapOf(

@@ -10,10 +10,12 @@ object ImageSniff {
     fun info(b: ByteArray): ImageInfo? = png(b) ?: jpeg(b) ?: webp(b)
 
     /** Big enough for a tile, and not a banner: the tile fits it inside a square. */
-    fun usable(i: ImageInfo?) = i != null && minOf(i.width, i.height) >= MIN_SIDE &&
+    fun usable(i: ImageInfo?) = i != null && minOf(i.width, i.height) >= MIN_SIDE && maxOf(i.width, i.height) <= MAX_SIDE &&
         maxOf(i.width, i.height).toFloat() / minOf(i.width, i.height) <= 2.5f
 
     const val MIN_SIDE = 96
+    /** Also passed on as media-session artwork, decoded by other apps: nothing huge. */
+    const val MAX_SIDE = 2048
 
     private fun u8(b: ByteArray, i: Int) = b[i].toInt() and 0xFF
     private fun be16(b: ByteArray, i: Int) = (u8(b, i) shl 8) or u8(b, i + 1)

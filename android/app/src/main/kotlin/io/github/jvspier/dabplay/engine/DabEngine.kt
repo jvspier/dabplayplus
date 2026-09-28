@@ -9,6 +9,7 @@ import io.github.jvspier.dabplay.audio.AudioPlayer
 import io.github.jvspier.dabplay.core.Band3
 import io.github.jvspier.dabplay.core.dabplus.SuperframeDecoder
 import io.github.jvspier.dabplay.core.mp2.DabMp2Pad
+import io.github.jvspier.dabplay.core.mp2.Mp2Decoder
 import io.github.jvspier.dabplay.core.mp2.Mp2Framer
 import io.github.jvspier.dabplay.core.fic.FicDecoder
 import io.github.jvspier.dabplay.core.fic.dabAlternatives
@@ -19,6 +20,7 @@ import io.github.jvspier.dabplay.core.ReceptionMonitor
 import io.github.jvspier.dabplay.core.pad.DlsParser
 import io.github.jvspier.dabplay.core.pad.NowPlaying
 import io.github.jvspier.dabplay.core.pad.PadDecoder
+import io.github.jvspier.dabplay.logos.ImageSniff
 import io.github.jvspier.dabplay.data.AltFreq
 import io.github.jvspier.dabplay.data.ServiceKey
 import io.github.jvspier.dabplay.data.Station
@@ -264,7 +266,8 @@ class DabEngine(
             val services = fic.services.mapNotNull { (sid, label) ->
                 val c = fic.components[sid]?.let { cs -> cs.firstOrNull { it.primary } ?: cs.first() } ?: return@mapNotNull null
                 val sc = fic.subchannels[c.subchannel] ?: return@mapNotNull null
-                StoredService(ServiceKey(ecc, sid), label, c.subchannel, sc.bitrateKbps ?: return@mapNotNull null, c.ascty)
+                val br = sc.bitrateKbps?.takeIf { it in SuperframeDecoder.MIN_KBPS..SuperframeDecoder.MAX_KBPS } ?: return@mapNotNull null
+                StoredService(ServiceKey(ecc, sid), label, c.subchannel, br, c.ascty)
             }
             return if (services.isEmpty()) null else StoredEnsemble(fic.eid ?: 0, name, khz, fic.ensembleLabel ?: name, 0, 0, services)
         }
@@ -300,6 +303,7 @@ class DabEngine(
             fun problem(msg: String) { status(msg); _state.update { it.copy(tuning = false, problem = msg) } }
             // ASCTy (FIG 0/2): 0 = DAB, MPEG Layer II; 63 = DAB+, HE-AAC. Anything else isn't audio we know.
             if (st.service.ascty != 0 && st.service.ascty != 63) return problem("This station's audio format is not supported")
+            if (st.service.bitrateKbps !in SuperframeDecoder.MIN_KBPS..SuperframeDecoder.MAX_KBPS) return problem("This station can't be played")
             if (tunedKhz != st.ensemble.freqKhz) {
                 status("Tuning ${st.ensemble.channel}…")
                 // no lock (an underground car park at start-up): don't give up, stream() keeps retrying and following
@@ -356,9 +360,9 @@ class DabEngine(
             val dec = SuperframeDecoder(st.service.bitrateKbps)
             // DAB (MP2): Layer II frames straight in the sub-channel, PAD at each frame's end (untested on air: none in NL)
             val framer = if (st.service.ascty == 0) Mp2Framer() else null
-            var mp2Frames = 0
+            var mp2Frames = 0; var mp2Bad = 0
             fun good() = if (framer != null) mp2Frames else dec.ausOk
-            fun bad() = framer?.resyncs ?: dec.ausBad
+            fun bad() = if (framer != null) framer.resyncs + mp2Bad else dec.ausBad
             val pad = PadDecoder(
                 onDls = { t ->
                     // DLS may carry control codes (line breaks, end-of-headline); blank after that = nothing to show
@@ -366,14 +370,19 @@ class DabEngine(
                     if (text.isNotEmpty()) Log.i(TAG, "DLS: $text")
                     _state.update { it.copy(nowPlaying = if (text.isEmpty()) null else DlsParser.parse(text, key.ecc, key.sid, st.label)) }
                 },
-                onSlide = { s -> _state.update { it.copy(slide = s.body) } },
+                onSlide = { s ->
+                    // checked from the header before anything decodes it: a small file can declare 16000x16000 (1 GB)
+                    val info = ImageSniff.info(s.body)
+                    if (info != null && info.width <= MAX_SLIDE_PX && info.height <= MAX_SLIDE_PX) _state.update { it.copy(slide = s.body) }
+                    else Log.w(TAG, "slide dropped: ${info?.let { "${it.width}x${it.height} ${it.mime}" } ?: "not a JPEG/PNG"}")
+                },
             )
             val monitor = ReceptionMonitor().apply { start(System.currentTimeMillis()) }
             var checkAt = 0L; var diagAt = 0L; var diag = IntArray(4); var diagBytes = 0
             // FIC while playing (owner-approved test 2026-09-27: audio stays clean, FIBs valid, ~15 % of frames caught;
             // the vendor lib serialises its FIC and MSC reads with one mutex too): learns FIG 0/24 + 0/21 alternatives
             if (st.ensemble.freqKhz != liveFicKhz) { liveFic = FicDecoder(); liveFicKhz = st.ensemble.freqKhz }
-            val ficLive = liveFic; var ficAt = 0L; var learnedKey = ""
+            val ficLive = liveFic; var ficAt = 0L; var learnedKey = ""; var learnedAt = 0L
             val base = taReturn ?: st                        // the station the listener chose
             while (true) {
                 val next = commands.poll(0, TimeUnit.MILLISECONDS)
@@ -429,7 +438,7 @@ class DabEngine(
                     d.ficRead()?.let { f ->
                         guarded("FIC") { ficLive.feed(f) }
                         val k = "${ficLive.otherEnsembleServices.values.sumOf { it.size }}/${ficLive.frequencyInfo.size}"
-                        if (k != learnedKey) { learnedKey = k; learnAlternatives(ficLive, st) }
+                        if (k != learnedKey && now - learnedAt >= LEARN_EVERY_MS) { learnedKey = k; learnedAt = now; learnAlternatives(ficLive, st) }
                     }
                 }
                 val t0 = System.nanoTime()
@@ -441,8 +450,8 @@ class DabEngine(
                 if (framer != null) {
                     guarded("MP2") {
                         framer.feed(data) { frame, h ->
-                            mp2Frames++
-                            guarded("PAD") { DabMp2Pad.split(frame, h)?.let { (x, f) -> pad.feedPad(x, f) } }
+                            if (Mp2Decoder.crcOk(frame)) mp2Frames++ else mp2Bad++      // a CRC-failed frame plays as silence
+                            guarded("PAD") { DabMp2Pad.split(frame, h)?.let { (x, f) -> pad.feedPad(x, f, exact = false) } }
                             player.feedMp2(frame)
                         }
                     }
@@ -457,10 +466,13 @@ class DabEngine(
 
         /** The service carrying [subchannel] on [base]'s ensemble: from the scan, else from the live FIC. */
         private fun announcementStation(base: Station, subchannel: Int): Station? {
-            base.ensemble.services.firstOrNull { it.subchannel == subchannel }?.let { return Station(it, base.ensemble) }
+            fun playable(ascty: Int, br: Int) = (ascty == 0 || ascty == 63) && br in SuperframeDecoder.MIN_KBPS..SuperframeDecoder.MAX_KBPS
+            base.ensemble.services.firstOrNull { it.subchannel == subchannel }?.let {
+                return if (playable(it.ascty, it.bitrateKbps)) Station(it, base.ensemble) else null }
             val (sid, comp) = liveFic.components.entries.firstNotNullOfOrNull { (sid, cs) ->
                 cs.firstOrNull { it.subchannel == subchannel }?.let { sid to it } } ?: return null
             val br = liveFic.subchannels[subchannel]?.bitrateKbps ?: return null
+            if (!playable(comp.ascty, br)) return null
             val label = liveFic.services[sid] ?: "Announcement"
             return Station(StoredService(ServiceKey(base.key.ecc, sid), label, subchannel, br, comp.ascty), base.ensemble)
         }
@@ -492,6 +504,7 @@ class DabEngine(
         private fun learnAlternatives(f: FicDecoder, st: Station) {
             val found = f.otherEnsembleServices.keys.associate { sid ->
                 ServiceKey(st.key.ecc, sid) to dabAlternatives(f.otherEnsembleServices, f.frequencyInfo, sid, st.ensemble.eid)
+                    .filter { a -> Band3.CHANNELS.any { it.second == a.khz } }     // L-band etc.: the tuner can't go there
                     .map { AltFreq(it.eid, it.khz) }
             }.filterValues { it.isNotEmpty() }
             if (found.isEmpty()) return
@@ -538,6 +551,8 @@ class DabEngine(
 
     private companion object {
         const val TAG = "DabEngine"
+        const val LEARN_EVERY_MS = 10_000L       // store learned alternatives at most this often
+        const val MAX_SLIDE_PX = 1280            // DAB slides are 320x240 (up to 640x480); anything bigger is dropped
         const val DUCK_LEVEL = 0.25f            // under a navigation prompt
         const val FOLLOW_AFTER_MS = 6_000L      // signal gone this long before trying another ensemble
         const val FOLLOW_RETRY_MS = 30_000L     // then again every 30 s while it stays gone
