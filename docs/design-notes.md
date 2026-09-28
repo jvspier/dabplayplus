@@ -69,18 +69,14 @@ design session.
   areas) and a working "Follow station"; Dudu3 run + boot auto-start once the head unit is installed.
 - **Rail: icons only, in both layouts** (owner, 2026-09-28): the handoff's labelled, filled rail for 1b is dropped;
   1b uses the same 120 dp icon rail as 1a.
-- **Now playing, v2** (owner's mockup, 2026-09-28): the slide/logo card centred up top (4:3, up to 640×480 = slides at exactly 2×, shrinks to fit smaller screens; logo 62 % of its height); a frosted-glass
-  band over its bottom quarter carrying one line, "Artist – Title" (same font and size, scrolls when long); controls
-  centred below; station logo/name/signal in the top corner away from the rail. The blur is our own (a shrunk,
-  box-blurred copy drawn with bilinear filtering) because Compose's blur needs Android 12 and the Dudu3 runs 10.
-  No hard edge (owner, 2026-09-28): the blur and tint fade in over a 90 dp ramp above the text, so sharp turns frosted.
-  Over a logo, the band shows the logo's blurred reflection. **To check with the dongle:** how much the band hides
-  of NPO's song cards (their show name sits in the bottom strip); alternative: band under the image.
+- **Now playing, v2** (owner's mockup and iterations, 2026-09-28): the slide or logo stands centred up top, sharp and
+  whole, with a soft orange glow; its blurred reflection fades out below it (over 110 dp; fainter under slides than
+  under logos, fainter by day); the "Artist – Title" line (one font and size, scrolls when long, subtle shadow) sits
+  under it. No card and no glass over the picture: slides keep their own text strips visible. A slide stands ≈1.45×
+  its native 320×240 (464×348 at 720p; 2× looked soft), a logo at 62 % of the stage height; both on the same floor.
+  The blur is our own (a shrunk, box-blurred copy drawn with bilinear filtering): Compose's blur needs Android 12.
 - **Startup shows the last-played station** (2026-09-28): logo and name at once, "DAB dongle not connected" (amber)
   until the dongle is ready, instead of an empty player.
-- **Now playing, logo case** (owner, 2026-09-28): no card behind a logo; the logo stands on the page with a soft glow
-  and a faint reflection below it, staying sharp. The card with the glass band only appears behind a slide (fades
-  in with it). The "Artist – Title" line has a subtle shadow for readability (dark at night, light halo by day).
 - **Now playing controls** (owner, 2026-09-28): only previous / play / next, centred as a symmetric group; the favourite
   heart (48 dp) sits in the opposite top corner, level with the station chip and inset alike: symmetric, and on the
   rail's (= driver's) side, closest to hand. Mirrors with the driver side.

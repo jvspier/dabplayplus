@@ -74,7 +74,7 @@ private val CARD_MAX_H = 480.dp      // 4:3, 640×480 = DAB's 320×240 slides at
 private val CONTROLS_H = 136.dp
 private const val BAND = 0.25f       // the glass band: bottom quarter of the card
 private const val LOGO = 0.62f       // logo tile size (of the card height) when there's no slide
-private val FADE = 90.dp             // the ramp above the text band over which sharp turns frosted
+private val REFLECTION = 110.dp       // how far below the picture its reflection fades out
 private val LOGO_GAP = 12.dp         // the logo "stands" this far above the glass, its reflection smearing into it
 
 /**
@@ -122,71 +122,62 @@ private fun nowLine(e: EngineState, st: Station?): Pair<String, Color> {
     return text to statusColor(e, c.text)
 }
 
+/**
+ * The artwork "stage" (owner, 2026-09-28): slide or logo, sharp and whole, standing on a floor above the text line,
+ * with its blurred reflection fading out below; the "Artist – Title" line under it. Same treatment for both: no card,
+ * no glass over the picture. A slide stands as tall as the floor allows (≈1.45× its 320×240), a logo at [LOGO].
+ */
 @Composable
 private fun NowCard(e: EngineState, st: Station?, CARD_H: Dp) {
     val CARD_W = CARD_H * 4 / 3
-    val c = LocalDabColors.current
     val night = LocalNight.current
-    val shape = RoundedCornerShape(18.dp)
     val slide = rememberSlide(e.slide)
     val logo = rememberLogo(st?.key)
-    val blurred = rememberBlurred(slide ?: logo?.bitmap)
+    val blurredSlide = rememberBlurred(slide)
+    val blurredLogo = rememberBlurred(logo?.bitmap)
     val (line, lineColor) = nowLine(e, st)
-    val tint = if (night) Color(0x8C12131F) else Color(0xA6FFFFFF)
-    val band = CARD_H * BAND
-    val frost = band + FADE                              // frosted area: the text band plus the ramp above it
+    val floor = CARD_H * (1f - BAND) - LOGO_GAP          // where the picture stands, from the top
     val tile = CARD_H * LOGO
-    val tileTop = CARD_H * (1f - BAND) - LOGO_GAP - tile  // in card coordinates
-    // a card only behind a slide (the slide fills it); a logo stands on the page by itself (owner, 2026-09-28)
-    val card by animateFloatAsState(if (slide != null) 1f else 0f, tween(300), label = "card")
-    Box(Modifier.size(CARD_W, CARD_H)) {
-    Box(Modifier.matchParentSize().graphicsLayer { alpha = card }
-        .shadow(40.dp, shape, ambientColor = Accent.orange.copy(alpha = 0.35f), spotColor = Accent.orange.copy(alpha = 0.35f))
-        .clip(shape).background(c.surface))
-    Box(Modifier.matchParentSize().clip(shape)) {
-        // the picture, sharp: the slide, whole (4:3 in 4:3), or the station logo standing just above the text band
-        Crossfade(slide, animationSpec = tween(300), label = "art") { b ->
-            if (b != null) Image(b, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
-            else Box(Modifier.fillMaxWidth().fillMaxHeight(1f - BAND).padding(bottom = LOGO_GAP), contentAlignment = Alignment.BottomCenter) {
-                if (st != null) StationLogo(st.label, st.key, tile, radius = 22.dp, modifier = Modifier.shadow(28.dp, RoundedCornerShape(22.dp),
-                    ambientColor = Accent.orange.copy(alpha = 0.3f), spotColor = Accent.orange.copy(alpha = 0.3f)))
-            }
-        }
-        // the glass: the blurred copy plus a tint, faded in over [FADE] so sharp turns frosted with no edge
-        Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(frost).clipToBounds()
-            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-            .drawWithContent {
-                drawContent()
-                drawRect(Brush.verticalGradient(0f to Color.Transparent, FADE / frost to Color.Black), blendMode = BlendMode.DstIn)
-            }) {
-            val top = CARD_H - frost                          // this box's top, in card coordinates
-            if (blurred != null) {
-                if (slide != null) Image(blurred, null, contentScale = ContentScale.Fit, filterQuality = FilterQuality.High,
-                    modifier = Modifier.requiredSize(CARD_W, CARD_H).align(Alignment.BottomCenter))
-                else {
-                    // the logo stays sharp; only its reflection smears on below it
-                    Image(blurred, null, contentScale = ContentScale.Fit, filterQuality = FilterQuality.High,
-                        modifier = Modifier.align(Alignment.TopCenter).offset(y = tileTop + tile - top).requiredSize(tile)
-                            // soft, the text sits on it; fainter by day, where a dark logo tile's reflection would show as a grey block
-                            .graphicsLayer { scaleY = -1f; alpha = if (night) 0.4f else 0.25f; compositingStrategy = CompositingStrategy.Offscreen }
+    val glow = Accent.orange.copy(alpha = 0.3f)
+    Box(Modifier.size(CARD_W, CARD_H).clipToBounds()) {             // the reflection never reaches the controls
+        Crossfade(slide, Modifier.fillMaxSize(), animationSpec = tween(300), label = "art") { b ->
+            Box(Modifier.fillMaxSize()) {
+                val w = if (b != null) floor * 4 / 3 else tile
+                val h = if (b != null) floor else tile
+                val radius = if (b != null) 18.dp else 22.dp
+                val at = Modifier.align(Alignment.TopCenter).offset(y = floor - h).size(w, h)
+                    .shadow(28.dp, RoundedCornerShape(radius), ambientColor = glow, spotColor = glow)
+                if (b != null) Image(b, contentDescription = null, contentScale = ContentScale.Fit, modifier = at.clip(RoundedCornerShape(radius)))
+                else if (st != null) StationLogo(st.label, st.key, tile, radius = radius, modifier = at)
+                // the reflection: mirrored right under the picture, blurred, fading out; soft, the text sits on it
+                (if (b != null) blurredSlide else blurredLogo)?.let { r ->
+                    Image(r, null, contentScale = ContentScale.Fit, filterQuality = FilterQuality.High,
+                        modifier = Modifier.align(Alignment.TopCenter).offset(y = floor).requiredSize(w, h)
+                            // fainter by day, where a dark picture's reflection would show as a grey block
+                            // (slides a bit fainter than logos: a bright slide would reflect as a second card)
+                            .graphicsLayer {
+                                scaleY = -1f; compositingStrategy = CompositingStrategy.Offscreen
+                                alpha = when { b != null && night -> 0.22f; b != null -> 0.15f; night -> 0.4f; else -> 0.25f }
+                            }
+                            .clip(RoundedCornerShape(radius))
                             .drawWithContent {
                                 drawContent()
-                                // drawn before the mirroring: the logo's bottom edge (opaque) is this box's bottom
-                                drawRect(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color.Black), blendMode = BlendMode.DstIn)
+                                // drawn before the mirroring: the picture's bottom edge (opaque) is this box's bottom;
+                                // fades out over REFLECTION, whatever the picture's height
+                                val fade = (REFLECTION.toPx() / size.height).coerceAtMost(1f)
+                                drawRect(Brush.verticalGradient(1f - fade to Color.Transparent, 1f to Color.Black), blendMode = BlendMode.DstIn)
                             })
                 }
             }
-            Box(Modifier.fillMaxSize().graphicsLayer { alpha = card }.background(tint))      // glass tint: only on a slide
         }
-        // a subtle shadow keeps the line readable over any slide (owner, 2026-09-28): dark at night, a light halo by day
+        // a subtle shadow keeps the line readable over any reflection (owner, 2026-09-28): dark at night, a light halo by day
         val shadow = if (night) Shadow(Color.Black.copy(alpha = 0.55f), Offset(0f, 2f), blurRadius = 10f)
                      else Shadow(Color.White.copy(alpha = 0.7f), Offset(0f, 1f), blurRadius = 8f)
         Text(line, color = lineColor, fontSize = 30.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Clip,
             style = LocalTextStyle.current.copy(shadow = shadow),
-            modifier = Modifier.align(Alignment.BottomCenter).height(band).wrapContentHeight(Alignment.CenterVertically)
+            modifier = Modifier.align(Alignment.BottomCenter).height(CARD_H * BAND).wrapContentHeight(Alignment.CenterVertically)
                 .padding(horizontal = 28.dp)
                 .basicMarquee(iterations = Int.MAX_VALUE, initialDelayMillis = 2500, repeatDelayMillis = 3000))
-    }
     }
 }
 
