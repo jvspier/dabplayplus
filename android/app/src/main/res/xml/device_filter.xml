@@ -3,4 +3,6 @@
     <!-- wRadio C100 / DTR-100 family (vendor-specific bulk). 16c0:05dc is a shared V-USB ID, so match the
          manufacturer string too (the engine checks it again before claiming the interface). -->
     <usb-device vendor-id="5824" product-id="1500" manufacturer-name="dabusb@126.com" />
+    <!-- Si4684 modules (Eonon A503, XFA-DAB220): 1a86:5537, untested -->
+    <usb-device vendor-id="6790" product-id="21815" />
 </resources>

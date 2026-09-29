@@ -30,6 +30,14 @@ import io.github.jvspier.dabplay.data.StoredService
 import io.github.jvspier.dabplay.driver.dtr100.C100
 import io.github.jvspier.dabplay.driver.dtr100.Dtr100
 import io.github.jvspier.dabplay.tuner.RawTuner
+import io.github.jvspier.dabplay.core.EccGuess
+import io.github.jvspier.dabplay.driver.si4684.Frames
+import io.github.jvspier.dabplay.driver.si4684.Si4684
+import io.github.jvspier.dabplay.tuner.ModuleListener
+import io.github.jvspier.dabplay.tuner.ModuleService
+import io.github.jvspier.dabplay.tuner.Transport
+import java.io.IOException
+import java.util.Locale
 import io.github.jvspier.dabplay.tuner.Tuned
 import io.github.jvspier.dabplay.usb.AndroidUsbTransport
 import java.util.concurrent.LinkedBlockingDeque
@@ -156,19 +164,25 @@ class DabEngine(
     /** One connection: open, init, serve commands. Null when stopped on purpose, else what to resume after reconnecting. */
     private fun session(dev: UsbDevice, resume: ServiceKey?): Failure? {
         var conn: UsbDeviceConnection? = null
+        var radio: RadioSession? = null
         val player = AudioPlayer()
         try {
+            val kind = DongleKind.of(dev) ?: error("unsupported dongle %04x:%04x".format(dev.vendorId, dev.productId))
             // check before claiming: 16c0:05dc is a shared V-USB id, don't grab someone else's device
-            check(dev.manufacturerName == Dtr100.MANUFACTURER) { "unsupported dongle (manufacturer '${dev.manufacturerName}')" }
+            if (kind == DongleKind.C100) check(dev.manufacturerName == Dtr100.MANUFACTURER) { "unsupported dongle (manufacturer '${dev.manufacturerName}')" }
             conn = usb.openDevice(dev) ?: error("cannot open the USB device")
             val intf = dev.getInterface(0)
             check(conn.claimInterface(intf, true)) { "cannot claim interface 0" }
             val eps = (0 until intf.endpointCount).map { intf.getEndpoint(it) }
                 .filter { it.type == UsbConstants.USB_ENDPOINT_XFER_BULK }.associateBy { it.address }
-            val d = C100.open(AndroidUsbTransport(conn, eps), log = { Log.i(TAG, it) })
+            val transport = AndroidUsbTransport(conn, eps)
+            val r: RadioSession = when (kind) {
+                DongleKind.C100 -> Session(C100.open(transport, log = { Log.i(TAG, it) }), player)
+                DongleKind.SI4684 -> ModuleSession(transport, player)
+            }
+            radio = r
             _state.update { it.copy(dongle = true, error = null) }
-            status("Dongle ready (${d.description})")
-            val radio = Session(d, player)
+            status("Dongle ready (${r.description})")
             when {
                 resume != null -> commands.offerFirst(Cmd.Play(resume))
                 store.state.value.ensembles.isEmpty() -> commands.offer(Cmd.Scan)
@@ -176,8 +190,8 @@ class DabEngine(
             }
             while (!Thread.currentThread().isInterrupted) {
                 when (val c = commands.take()) {
-                    Cmd.Scan -> radio.scan()
-                    is Cmd.Play -> radio.play(c.key)
+                    Cmd.Scan -> r.scan()
+                    is Cmd.Play -> r.play(c.key)
                     Cmd.Pause, Cmd.SkipAnnouncement -> Unit
                 }
             }
@@ -193,6 +207,7 @@ class DabEngine(
         } finally {
             // a detach interrupts this thread; the flag would make the cleanup's join throw, so park it meanwhile
             val interrupted = Thread.interrupted()
+            runCatching { radio?.close() }
             runCatching { player.release() }
             runCatching { conn?.close() }
             _state.update {
@@ -205,7 +220,130 @@ class DabEngine(
     }
 
     /** Everything that runs on the USB thread. */
-    private inner class Session(private val d: RawTuner, private val player: AudioPlayer) {
+    /** Dynamic label text for [st]: control codes (line breaks, end-of-headline) become spaces; blank = nothing to show. */
+    private fun showText(t: String, st: Station) {
+        val text = t.map { if (it < ' ') ' ' else it }.joinToString("").replace(Regex("\\s+"), " ").trim()
+        if (text.isNotEmpty()) Log.i(TAG, "DLS: $text")
+        _state.update { it.copy(nowPlaying = if (text.isEmpty()) null else DlsParser.parse(text, st.key.ecc, st.key.sid, st.label)) }
+    }
+
+    /** A slide, checked from its header before anything decodes it: a small file can declare 16000x16000 (1 GB). */
+    private fun showSlide(body: ByteArray) {
+        val info = ImageSniff.info(body)
+        if (info != null && info.width <= MAX_SLIDE_PX && info.height <= MAX_SLIDE_PX) _state.update { it.copy(slide = body) }
+        else Log.w(TAG, "slide dropped: ${info?.let { "${it.width}x${it.height} ${it.mime}" } ?: "not a JPEG/PNG"}")
+    }
+
+    /** Show [st] with a problem instead of playing it. */
+    private fun problemOnly(st: Station, msg: String) {
+        status(msg)
+        _state.update { it.copy(current = st, playing = false, tuning = false, problem = msg, nowPlaying = null, slide = null) }
+    }
+
+    /**
+     * A dongle that decodes by itself (Si4684 module): it scans, keeps its list, follows the service and delivers
+     * finished audio, text and slides; we store its stations and show and play what it sends. No FIC here, so no
+     * announcements, no learned alternatives and no ECC (guessed from the country, see [EccGuess]).
+     */
+    private inner class ModuleSession(t: Transport, private val player: AudioPlayer) : RadioSession, ModuleListener {
+        private val m = Si4684.open(t, this) { Log.i(TAG, it) }
+        override val description get() = m.description
+        @Volatile private var station: Station? = null
+
+        override fun onPcm(data: ByteArray, sampleRate: Int, channels: Int) = player.feedPcm(data, sampleRate, channels)
+        override fun onText(text: String) { station?.let { showText(text, it) } }
+        override fun onSlide(bytes: ByteArray) { if (station != null) showSlide(bytes) }
+        override fun onStarted() { station?.let { st -> _state.update { it.copy(tuning = false) }; status("Playing ${st.label} (${st.ensemble.channel})") } }
+        override fun onServiceNotFound() { station?.let { problemOnly(it, "The dongle can't find this station: scan again") } }
+
+        override fun scan() {
+            stopAudio(); focus.abandon()
+            _state.update { it.copy(scan = ScanProgress("", 0, 100, 0, 0)) }
+            val list = try {
+                // the module scans by itself and can't be interrupted; its progress is a percentage
+                m.scan({ p, n -> _state.update { it.copy(scan = ScanProgress("$p %", p, 100, 0, n)) } })
+            } catch (e: IOException) {
+                _state.update { it.copy(scan = null) }; status("Scan failed: ${e.message}"); return
+            }
+            val country = Locale.getDefault().country
+            val found = list.groupBy { it.freqIdx }.map { (fi, svcs) ->
+                val first = svcs.first()
+                StoredEnsemble(MODULE_EID + fi, first.channel, first.freqKhz, first.ensembleLabel.ifEmpty { first.channel }, 0, 0,
+                    svcs.distinctBy { it.sid }.map { StoredService(ServiceKey(EccGuess.ecc(it.sid, country), it.sid), it.label, it.cid, 0, MODULE_ASCTY) })
+            }
+            store.applyScan(found, Frames.BAND3.map { it.first }.toSet())
+            _state.update { it.copy(scan = null) }
+            status("Scan done: ${found.size} ensembles, ${found.sumOf { it.services.size }} stations")
+        }
+
+        override fun play(key: ServiceKey) {
+            val st = store.state.value.station(key) ?: return status("Station not found, please scan")
+            val fi = Frames.BAND3.indexOfFirst { it.second == st.ensemble.freqKhz }
+            if (st.ensemble.eid < MODULE_EID || fi < 0) return problemOnly(st, "Scanned with another dongle: scan again with this one")
+            stopAudio()
+            _state.update { it.copy(current = st, nowPlaying = null, slide = null, problem = null, tuning = true, reception = Reception.GOOD, following = null) }
+            if (!requestFocus(player)) return problemOnly(st, "Audio focus denied")
+            store.played(key)
+            station = st
+            status("Tuning ${st.label}…")
+            m.play(ModuleService(fi, st.ensemble.freqKhz, st.ensemble.channel, st.key.sid, st.service.subchannel, st.label, st.ensemble.label, 0),
+                serviceFollowing = followStation())
+            _state.update { it.copy(playing = true) }
+            // until paused or replaced: keep signal, reception and following current (the module reports ~continuously)
+            while (true) {
+                when (val c = commands.poll(500, TimeUnit.MILLISECONDS)) {
+                    null, Cmd.SkipAnnouncement -> Unit
+                    Cmd.Pause -> { stopAudio(); focus.abandon(); status("Paused"); return }
+                    else -> { commands.offerFirst(c); return }
+                }
+                val sr = m.signal
+                val r = when { sr == null -> Reception.GOOD; sr.none -> Reception.LOST; sr.weak -> Reception.WEAK; else -> Reception.GOOD }
+                val following = if (m.following) st.ensemble.channel else null
+                val prev = _state.value
+                if (prev.signalBars != (sr?.bars ?: 0) || prev.reception != r || prev.following != following)
+                    _state.update { it.copy(signalBars = sr?.bars ?: 0, reception = r, following = following) }
+            }
+        }
+
+        private fun stopAudio() {
+            m.stop(); station = null
+            player.release()
+            _state.update { it.copy(playing = false) }
+        }
+
+        override fun close() = m.close()
+    }
+
+    /** What the command loop drives: one per connection, by dongle family. */
+    private interface RadioSession {
+        val description: String
+        fun scan()
+        /** Plays until paused or replaced by the next command (which stays queued). */
+        fun play(key: ServiceKey)
+        fun close() {}
+    }
+
+    @Volatile private var focusLevel = 1f        // what audio focus allows now (a call: 0, navigation: ducked)
+
+    /** Audio focus for [player]: a call silences it, navigation ducks it, another media app pauses the radio. */
+    private fun requestFocus(player: AudioPlayer): Boolean {
+        val ok = focus.request { c ->
+            focusLevel = when (c) {
+                FocusChange.LOST -> { pause(); 1f }                  // another media app took over
+                FocusChange.SILENCE -> 0f                            // phone call, voice assistant
+                FocusChange.DUCK -> DUCK_LEVEL                       // navigation prompt
+                FocusChange.RESTORE -> 1f
+            }
+            player.setLevel(focusLevel)
+            Log.i(TAG, "audio focus: $c")
+        }
+        if (ok) player.setLevel(focusLevel)                         // e.g. a station change during a call stays silent
+        return ok
+    }
+
+    /** A dongle that hands over the raw ensemble (C100 family): tuning, FIC, decoding and following are ours. */
+    private inner class Session(private val d: RawTuner, private val player: AudioPlayer) : RadioSession {
+        override val description get() = d.description
         private var tunedKhz: Int? = null
 
         private fun tune(khz: Int, retries: Boolean): Tuned {
@@ -233,7 +371,7 @@ class DabEngine(
             return f
         }
 
-        fun scan() {
+        override fun scan() {
             stopAudio(); focus.abandon(); dropAnnouncement()
             val found = ArrayList<StoredEnsemble>()
             val tried = HashSet<String>()                            // an aborted scan only counts channels it reached
@@ -274,7 +412,6 @@ class DabEngine(
         private var taReturn: Station? = null       // playing an announcement: the listener's station
         private var taCluster = -1
         private var nextFollowAt = 0L               // across stream() restarts, so rounds stay 30 s apart
-        @Volatile private var focusLevel = 1f        // what audio focus allows now (a call: 0, navigation: ducked)
 
         /** Leaving an announcement without switching back (pause, scan, a new station): the listener's station shows again. */
         private fun dropAnnouncement() {
@@ -289,8 +426,9 @@ class DabEngine(
             _state.update { it.copy(playing = false) }
         }
 
-        fun play(key: ServiceKey) {
+        override fun play(key: ServiceKey) {
             val st = store.state.value.station(key) ?: return status("Station not found, please scan")
+            if (st.ensemble.eid >= MODULE_EID) return problemOnly(st, "Scanned with another dongle: scan again with this one")
             stopAudio()
             _state.update { it.copy(current = st, nowPlaying = null, slide = null, problem = null, tuning = true, reception = Reception.GOOD, following = null) }
             fun problem(msg: String) { status(msg); _state.update { it.copy(tuning = false, problem = msg) } }
@@ -302,17 +440,7 @@ class DabEngine(
                 // no lock (an underground car park at start-up): don't give up, stream() keeps retrying and following
                 tune(st.ensemble.freqKhz, retries = true)
             }
-            if (!focus.request { c ->
-                    focusLevel = when (c) {
-                        FocusChange.LOST -> { pause(); 1f }                  // another media app took over
-                        FocusChange.SILENCE -> 0f                            // phone call, voice assistant
-                        FocusChange.DUCK -> DUCK_LEVEL                       // navigation prompt
-                        FocusChange.RESTORE -> 1f
-                    }
-                    player.setLevel(focusLevel)
-                    Log.i(TAG, "audio focus: $c")
-                }) return problem("Audio focus denied")
-            player.setLevel(focusLevel)                                      // e.g. a station change during a call stays silent
+            if (!requestFocus(player)) return problem("Audio focus denied")
             store.played(key)
             taReturn = null; taCluster = -1; _state.update { it.copy(announcement = null) }
             var cur: Station = st
@@ -357,18 +485,8 @@ class DabEngine(
             fun good() = if (framer != null) mp2Frames else dec.ausOk
             fun bad() = if (framer != null) framer.resyncs + mp2Bad else dec.ausBad
             val pad = PadDecoder(
-                onDls = { t ->
-                    // DLS may carry control codes (line breaks, end-of-headline); blank after that = nothing to show
-                    val text = t.map { if (it < ' ') ' ' else it }.joinToString("").replace(Regex("\\s+"), " ").trim()
-                    if (text.isNotEmpty()) Log.i(TAG, "DLS: $text")
-                    _state.update { it.copy(nowPlaying = if (text.isEmpty()) null else DlsParser.parse(text, key.ecc, key.sid, st.label)) }
-                },
-                onSlide = { s ->
-                    // checked from the header before anything decodes it: a small file can declare 16000x16000 (1 GB)
-                    val info = ImageSniff.info(s.body)
-                    if (info != null && info.width <= MAX_SLIDE_PX && info.height <= MAX_SLIDE_PX) _state.update { it.copy(slide = s.body) }
-                    else Log.w(TAG, "slide dropped: ${info?.let { "${it.width}x${it.height} ${it.mime}" } ?: "not a JPEG/PNG"}")
-                },
+                onDls = { t -> showText(t, st) },
+                onSlide = { s -> showSlide(s.body) },
             )
             val monitor = ReceptionMonitor().apply { start(System.currentTimeMillis()) }
             var checkAt = 0L; var diagAt = 0L; var diag = IntArray(4); var diagBytes = 0
@@ -548,6 +666,10 @@ class DabEngine(
 
     private companion object {
         const val TAG = "DabEngine"
+        /** Ensembles from a module's scan: a synthetic id per channel, above every real (16-bit) ensemble id. */
+        const val MODULE_EID = 0x10000
+        /** Module stations: the module decodes, so no audio type from the FIC. */
+        const val MODULE_ASCTY = -1
         const val LEARN_EVERY_MS = 10_000L       // store learned alternatives at most this often
         const val MAX_SLIDE_PX = 1280            // DAB slides are 320x240 (up to 640x480); anything bigger is dropped
         const val DUCK_LEVEL = 0.25f            // under a navigation prompt

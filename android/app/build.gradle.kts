@@ -39,6 +39,7 @@ dependencies {
     implementation(project(":dab-core"))
     implementation(project(":tuner-api"))
     implementation(project(":driver-dtr100"))
+    implementation(project(":driver-si4684"))
     implementation(project(":logos"))
     implementation(project(":usb-android"))
     implementation(project(":audio"))
