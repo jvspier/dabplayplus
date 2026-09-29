@@ -36,7 +36,8 @@ run on the Dudu3 (see findings.md Status).
   DAB decoding (FIC parsing, DAB+ superframes, AAC) happens on the host.** Firmware level 4.
 - **Access:** the udev rule `/etc/udev/rules.d/60-dab-dongle.rules` (uaccess) is installed,
   so no root is needed.
-- **Target:** Dudu3 Android head unit (not installed yet).
+- **Target:** Dudu3 Android head unit (not installed yet): Unisoc **UIS8581** (8× Cortex-A55, no big cores; PowerVR
+  GE8322 GPU), 4 GB RAM / 64 GB eMMC, 1280×720, Android 10 (API 29). A budget-phone class SoC: see findings.md "Performance".
 
 ## Roadmap
 Progress: 0 done. 1 not done (not needed). 2 done: the protocol lives in the unpacked native

@@ -88,6 +88,28 @@ this file as work progresses.
   **bug + security review** of the app. When the head unit is in the car: first run on the Dudu3 (Android 10) over
   ADB-on-Wi-Fi, boot auto-start, a real service-following switch, signal-bar calibration. Later: baseline profile.
 
+## Performance on head-unit hardware (2026-09-29)
+The Dudu3 has a Unisoc UIS8581 (owner's spec sheet): 8× Cortex-A55 at 1.2–1.6 GHz, PowerVR GE8322, 4 GB. One A55 core
+is roughly 10–12× slower than one laptop core (i7-1355U); cheaper head units are similar (A53/A55, weaker GPUs).
+- **Decoding [verified, laptop JVM, `BENCH=1 ./gradlew :dab-core:test --tests '*DecodeBenchmark*'`]:** DAB+ superframes +
+  RS + PAD cost 0.2–0.5 ms CPU per second of audio (0.05 % of a core), FIC 0.06 ms, the Kotlin MP2 decoder 1.3–3.4 ms
+  (0.34 %). ×12 for an A55: under 5 % of one of its eight cores in the worst case. Not a concern.
+- **Memory [verified, emulator]:** 36 MB PSS while running. Not a concern.
+- **UI thread [verified, emulator pinned to 2 host threads]:** p50 1–2 ms, p90 2–4 ms per frame during tab switches and
+  scrolling (release build). ×10–12 for an A55 puts tab switches at the edge of the 16.7 ms budget: a baseline profile
+  is essential (below) and tab switches may still drop a frame or two. **To measure on the Dudu3.**
+- **GPU [verified, overdraw overlay]:** before 2026-09-29 every pixel was painted 4+ times per frame (window background
+  + page colour + three full-screen radial glows). Now the page is one cached layer and the window background is off:
+  background 1×, tiles/bars 2×, content 3×. The emulator's GPU numbers say nothing (host GPU; its software GPU mode
+  segfaults in emulator 37.1.11), so GPU time is **to measure on the Dudu3**.
+- **Baseline profile [verified]:** `:baselineprofile` generates it on the emulator (`./gradlew :app:generateReleaseBaselineProfile`,
+  ~17.8k rules, 752 of our methods); it ships in the APK. Against an uncompiled install it halves the UI thread's p90
+  (4.1 → 1.8 ms) and the median frame makes the deadline. Play applies it at install; a sideloaded APK needs
+  `adb shell cmd package compile -m speed-profile -f io.github.jvspier.dabplay` once (a head unit that is always in use
+  rarely gets ART's idle-time compile).
+- Continuous animations while playing (waveform, DLS marquee) keep the GPU drawing 60 frames a second; fine on the
+  numbers above, but watch the unit's temperature/throttling behind the dashboard on the first long drive.
+
 ## Status (2026-09-24, end of day)
 - Phases 0 and 2 done; phase 4 (Linux PoC) nearly done. Protocol: `docs/protocol.md`. Tools: `tools/README.md`.
 - The PoC (`tools/dtr100.py`) does all of this on real hardware:

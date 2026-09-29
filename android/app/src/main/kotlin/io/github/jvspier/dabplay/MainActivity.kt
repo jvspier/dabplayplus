@@ -67,6 +67,8 @@ class MainActivity : ComponentActivity() {
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             hide(WindowInsetsCompat.Type.systemBars())
         }
+        // Compose paints the whole window itself: the theme's window background would be one more full-screen layer per frame
+        window.setBackgroundDrawable(null)
         setContent {
             val settings by app.settings.state.collectAsStateWithLifecycle()
             DabPlayTheme(settings.display) {

@@ -19,3 +19,5 @@ rootProject.name = "DABplay"
 include(":dab-core", ":tuner-api", ":driver-dtr100", ":logos")
 // Android
 include(":usb-android", ":audio", ":data", ":app")
+// Generates the app's baseline profile on a connected device/emulator: ./gradlew :app:generateReleaseBaselineProfile
+include(":baselineprofile")

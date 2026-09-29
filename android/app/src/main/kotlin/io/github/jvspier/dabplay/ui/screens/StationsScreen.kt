@@ -192,7 +192,8 @@ private fun StationRow(st: Station, isCurrent: Boolean, audio: Boolean, fav: Boo
             }
         }
         Row(
-            Modifier.fillMaxSize().offset { IntOffset(dx.value.roundToInt(), 0) }.background(c.bg)
+            // a background only while swiping (it hides the strip underneath); otherwise it's a full layer for nothing
+            Modifier.fillMaxSize().offset { IntOffset(dx.value.roundToInt(), 0) }.then(if (dx.value > 0f) Modifier.background(c.bg) else Modifier)
                 .swipeToFavourite(dx, onCommit = { a.toggleFavourite(key) }, scope = scope)
                 .pressable({ a.play(key) }),
             verticalAlignment = Alignment.CenterVertically,

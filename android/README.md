@@ -25,9 +25,12 @@ R8-minified and, for now, signed with the debug key (local testing only; no uplo
 ```
 JAVA_HOME=/usr/lib/jvm/java-25-openjdk ./gradlew assembleRelease
 adb install -r app/build/outputs/apk/release/app-release.apk
-adb shell cmd package compile -m speed-profile -f io.github.jvspier.dabplay   # what Play does with baseline profiles
+adb shell cmd package compile -m speed-profile -f io.github.jvspier.dabplay   # applies the baseline profile, as Play does
 adb shell dumpsys gfxinfo io.github.jvspier.dabplay reset   # then interact, and read it back without "reset"
 ```
+
+The baseline profile (`app/src/release/generated/baselineProfiles/`) is regenerated after bigger UI changes, with the
+head-unit emulator running: `./gradlew :app:generateReleaseBaselineProfile` (module `:baselineprofile`).
 
 Emulator that mimics the head unit: AVD `dab-headunit-api29` (1280×720, 160 dpi, landscape), started with
 `emulator -avd dab-headunit-api29 -no-window -no-audio -no-boot-anim -gpu host -no-snapshot`, then

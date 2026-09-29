@@ -50,6 +50,8 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.lerp
@@ -129,12 +131,10 @@ fun AppShell(engine: EngineState, db: Snapshot, settings: Settings, actions: Rad
     val right = settings.driverSide == DriverSide.RIGHT
 
     // the Now-playing glow fades in over the whole screen (not just the content column), 300ms
-    val npGlow by animateFloatAsState(if (tab == Tab.PLAYING) 1f else 0f, tween(300), label = "npGlow")
+    val npGlow = animateFloatAsState(if (tab == Tab.PLAYING) 1f else 0f, tween(300), label = "npGlow")
     CompositionLocalProvider(LocalClockFormat provides settings.clock, LocalNow provides rememberNow()) {
-    Box(Modifier.fillMaxSize().background(c.bg).pageGlow().drawBehind {
-        if (npGlow > 0f) drawRect(Brush.radialGradient(listOf(c.npGlow, Color.Transparent), center = Offset(size.width * 0.45f, size.height * 0.5f),
-            radius = size.width * 0.6f), alpha = npGlow)
-    }) {
+    Box(Modifier.fillMaxSize()) {
+        PageBackground { npGlow.value }
         Row(Modifier.fillMaxSize()) {
             val parts = buildList<@Composable RowScope.() -> Unit> {
                 add { Rail(tab, right) { tab = it } }
@@ -197,16 +197,25 @@ private fun AnnouncementBanner(a: AnnouncementInfo?, onSkip: () -> Unit, modifie
     }
 }
 
-/** Page background: radial glows from the design (g1 bottom-right, g2 top-left). */
+/**
+ * The page: background colour and the design's radial glows (g1 bottom-right, g2 top-left, the Now-playing glow), as
+ * one cached layer. It's redrawn only when the theme changes or the Now-playing glow fades, and otherwise goes on
+ * screen as a single texture. Drawn directly, it painted every pixel four times per frame, which a head unit's GPU
+ * feels at 1280×720 (measured with the overdraw overlay, 2026-09-29).
+ */
 @Composable
-private fun Modifier.pageGlow(): Modifier {
+private fun PageBackground(npGlow: () -> Float) {
     val c = LocalDabColors.current
-    // positions from the 1280×720 design, scaled to the actual screen
-    return this.drawBehind {
+    Box(Modifier.fillMaxSize().graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen).drawBehind {
+        drawRect(c.bg)
+        // positions from the 1280×720 design, scaled to the actual screen
         val sx = size.width / 1280f; val sy = size.height / 720f
         drawRect(Brush.radialGradient(listOf(c.glow2, Color.Transparent), center = Offset(250f * sx, -70f * sy), radius = 900f * sx))
         drawRect(Brush.radialGradient(listOf(c.glow1, Color.Transparent), center = Offset(1150f * sx, 830f * sy), radius = 700f * sx))
-    }
+        val np = npGlow()                         // read here: the fade redraws this layer only, nothing recomposes
+        if (np > 0f) drawRect(Brush.radialGradient(listOf(c.npGlow, Color.Transparent), center = Offset(size.width * 0.45f, size.height * 0.5f),
+            radius = size.width * 0.6f), alpha = np)
+    })
 }
 
 @Composable

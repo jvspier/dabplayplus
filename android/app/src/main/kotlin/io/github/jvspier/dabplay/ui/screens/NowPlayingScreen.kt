@@ -153,7 +153,7 @@ private fun NowCard(e: EngineState, st: Station?, CARD_H: Dp) {
                 else if (st != null) StationLogo(st.label, st.key, tile, radius = radius, modifier = at)
                 // by day, a faint neutral sheen under every picture: a white-bottomed slide (NPO's cards) reflects white on
                 // a light page, which is invisible, so this keeps the "stand" visible (owner, 2026-09-28)
-                if (!night) Box(Modifier.align(Alignment.TopCenter).offset(y = floor).size(w, REFLECTION)
+                if (!night && (b != null || st != null)) Box(Modifier.align(Alignment.TopCenter).offset(y = floor).size(w, REFLECTION)
                     .clip(RoundedCornerShape(topStart = radius, topEnd = radius))
                     .background(Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.07f), 1f to Color.Transparent)))
                 // the reflection: mirrored right under the picture, blurred, fading out; soft, the text sits on it

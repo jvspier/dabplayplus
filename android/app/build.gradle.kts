@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.baselineprofile)
 }
 
 android {
@@ -43,6 +44,10 @@ dependencies {
     implementation(project(":audio"))
     implementation(project(":data"))
 
+    // baseline profile (src/release/generated/baselineProfiles): the UI is compiled ahead of time at install, not
+    // interpreted until the device finds idle time to compile it, which a head unit that is always in use rarely has
+    implementation(libs.androidx.profileinstaller)
+    baselineProfile(project(":baselineprofile"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.media3.session)
     implementation(libs.media3.common)
