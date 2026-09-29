@@ -165,7 +165,7 @@ class DabEngine(
             check(conn.claimInterface(intf, true)) { "cannot claim interface 0" }
             val eps = (0 until intf.endpointCount).map { intf.getEndpoint(it) }
                 .filter { it.type == UsbConstants.USB_ENDPOINT_XFER_BULK }.associateBy { it.address }
-            val d = C100.open(AndroidUsbTransport(conn, eps)) { Log.i(TAG, it) }
+            val d = C100.open(AndroidUsbTransport(conn, eps), log = { Log.i(TAG, it) })
             _state.update { it.copy(dongle = true, error = null) }
             status("Dongle ready (${d.description})")
             val radio = Session(d, player)
