@@ -463,6 +463,8 @@ class Dtr100(
 
         /** [mcuSignal] value meaning nothing receivable (antenna pulled, 2026-09-27: it jumps straight to 2000). */
         const val SIGNAL_NONE = 2000
+        /** From here RAON's own meter shows one bar: errors are likely (the engine's "weak signal" hint). */
+        const val SIGNAL_WEAK = 700
 
         /**
          * Bars from [mcuSignal], the chip's CER (0 = perfect, [SIGNAL_NONE] = nothing). Thresholds from RAON's own

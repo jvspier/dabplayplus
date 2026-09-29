@@ -49,8 +49,9 @@ class LogTransport(file: File) : Transport {
         return data.size
     }
 
+    /** Nothing asked for: like the real endpoint, the read times out (drainStale relies on that). */
     override fun read(endpoint: Int, buffer: ByteArray, timeoutMs: Int): Int {
-        val p = pending!!; pending = null
+        val p = pending ?: throw java.io.IOException("timeout"); pending = null
         val n = minOf(p.size, buffer.size)
         p.copyInto(buffer, 0, 0, n)
         return n
@@ -96,5 +97,20 @@ class TransferLogTest {
         d.startAudio(7, 88 * 3)                               // Qmusic: subch 7, 88 kbit/s (no re-init)
         t.skipTo("21 00 00 02 03 09", "21 00 00 02 3a 07"); d.stopAudio()
         println("  start 538 / stop / start Qmusic / stop: identical; ${t.pos} of ${t.pairs.size} logged transfers consumed")
+    }
+
+    /** The engine's path since the driver interface: C100.open → RawTuner. Same bytes as the direct calls above. */
+    @Test fun theDriverInterfacePathSendsTheSameTraffic() {
+        val log = File(captures, "2026-09-25-switch-538-qmusic.log")
+        assumeTrue("local transfer log missing: $log", log.exists())
+        val t = LogTransport(log)
+        val tuner = C100.open(t, newDriver = { Dtr100(it, sleep = {}, clockMs = { 0L }) })
+        assertTrue(tuner is Dtr100Tuner, "the register-level driver must be chosen for the DTR-100")
+        assertTrue(tuner.tune(220352, retries = true).locked)
+        val restart = arrayOf("21 00 00 02 03 06", "21 00 00 02 10 48", "21 00 00 02 10 c9")
+        t.skipTo(*restart); tuner.startAudio(2, 80)
+        t.skipTo("21 00 00 02 03 09", "21 00 00 02 3a 02"); tuner.stopAudio()
+        tuner.startAudio(7, 88)
+        t.skipTo("21 00 00 02 03 09", "21 00 00 02 3a 07"); tuner.stopAudio()
     }
 }

@@ -27,7 +27,10 @@ import io.github.jvspier.dabplay.data.Station
 import io.github.jvspier.dabplay.data.StationStore
 import io.github.jvspier.dabplay.data.StoredEnsemble
 import io.github.jvspier.dabplay.data.StoredService
+import io.github.jvspier.dabplay.driver.dtr100.C100
 import io.github.jvspier.dabplay.driver.dtr100.Dtr100
+import io.github.jvspier.dabplay.tuner.RawTuner
+import io.github.jvspier.dabplay.tuner.Tuned
 import io.github.jvspier.dabplay.usb.AndroidUsbTransport
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.TimeUnit
@@ -162,13 +165,9 @@ class DabEngine(
             check(conn.claimInterface(intf, true)) { "cannot claim interface 0" }
             val eps = (0 until intf.endpointCount).map { intf.getEndpoint(it) }
                 .filter { it.type == UsbConstants.USB_ENDPOINT_XFER_BULK }.associateBy { it.address }
-            val d = Dtr100(AndroidUsbTransport(conn, eps))
-            d.drainStale().takeIf { it > 0 }?.let { Log.i(TAG, "dropped $it stale bytes from a previous session") }
-            val fw = d.version()
-            d.powerOn()
-            d.systemInit()
+            val d = C100.open(AndroidUsbTransport(conn, eps)) { Log.i(TAG, it) }
             _state.update { it.copy(dongle = true, error = null) }
-            status("Dongle ready (firmware level $fw)")
+            status("Dongle ready (${d.description})")
             val radio = Session(d, player)
             when {
                 resume != null -> commands.offerFirst(Cmd.Play(resume))
@@ -206,21 +205,15 @@ class DabEngine(
     }
 
     /** Everything that runs on the USB thread. */
-    private inner class Session(private val d: Dtr100, private val player: AudioPlayer) {
+    private inner class Session(private val d: RawTuner, private val player: AudioPlayer) {
         private var tunedKhz: Int? = null
-        private var ficEnabled = false
 
-        private fun tune(khz: Int, retries: Boolean): Dtr100.TuneOutcome {
-            var t = d.tune(khz); var tries = 1
-            // same retry rules as tools/dtr100.py scan: sync 3 -> 2 tries, promising (u1 >= 1000) -> 3 tries
-            while (!t.locked && retries && tries < (if ((t.info.u1 ?: 0) >= 1000) 3 else if (t.info.sync == 3) 2 else 1)) { t = d.tune(khz); tries++ }
+        private fun tune(khz: Int, retries: Boolean): Tuned {
+            val t = d.tune(khz, retries)
             tunedKhz = if (t.locked) khz else null
-            if (t.locked && !ficEnabled) { d.ficEnable(); ficEnabled = true }
-            if (t.locked) _state.update { it.copy(signalBars = bars(t.info.u1 ?: 0)) }
+            if (t.locked) _state.update { it.copy(signalBars = t.bars) }
             return t
         }
-
-        private fun bars(u1: Int) = when { u1 < 4000 -> 1; u1 < 9000 -> 2; u1 < 15000 -> 3; else -> 4 }
 
         /** Read FIC until the service list is complete and quiet for 300 ms (max 3 s). */
         private fun readFic(): FicDecoder {
@@ -351,7 +344,7 @@ class DabEngine(
                     follow(st)?.let { if (it !== st) return it }
                 }
             }
-            d.startAudio(st.service.subchannel, st.service.bitrateKbps * 3)
+            d.startAudio(st.service.subchannel, st.service.bitrateKbps)
             playingKey = key
             // a different station than shown (an announcement, following): its predecessor's text and slide must go
             _state.update { it.copy(current = st, playing = true, tuning = false, following = null,
@@ -398,10 +391,11 @@ class DabEngine(
                 val now = System.currentTimeMillis()
                 if (now - checkAt >= 500) {                                // reception, twice a second
                     checkAt = now
-                    val sig = d.mcuSignal ?: 0
-                    val r = monitor.update(now, good(), bad(), noSignal = sig >= Dtr100.SIGNAL_NONE, weakSignal = sig >= 700)
+                    val sr = d.signal                                      // null until the dongle's first report
+                    val sig = sr?.raw ?: 0
+                    val r = monitor.update(now, good(), bad(), noSignal = sr?.none == true, weakSignal = sr?.weak == true)
                     // one bar per update, like RAON's own level meter: CER jitters, the bars shouldn't (lost is at once)
-                    val want = if (r == Reception.LOST) 0 else Dtr100.signalBars(sig)
+                    val want = if (r == Reception.LOST) 0 else sr?.bars ?: 4
                     val have = _state.value.signalBars
                     val bars = if (want == 0) 0 else have + (want - have).coerceIn(-1, 1)
                     val prev = _state.value
@@ -537,7 +531,7 @@ class DabEngine(
                 val ens = try {
                     if (!tune(khz, retries = false).locked) continue
                     ensembleFrom(readFic(), ch, khz) ?: continue
-                } catch (e: Dtr100.DriverException) { Log.w(TAG, "following: $ch failed: ${e.message}"); continue }
+                } catch (e: java.io.IOException) { Log.w(TAG, "following: $ch failed: ${e.message}"); continue }
                 val svc = ens.services.firstOrNull { it.key == st.key } ?: continue
                 Log.i(TAG, "following ${st.label}: continuing on $ch (${ens.label})")
                 _state.update { it.copy(following = null) }
