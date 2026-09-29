@@ -9,11 +9,13 @@ import java.io.IOException
 /**
  * Opens a wRadio C100 family dongle (16c0:05dc, "dabusb@126.com"). First the register-level driver ([Dtr100], verified
  * on the owner's DTR-100); only when its init fails, the YHX high-level command set of the "Dual Antenna" C100, the
- * same order DABdream+ uses. YHX's own library asks every stick it opens for its identity (command 0x02), so that
- * question is harmless on a register-level stick (see docs/dongles.md).
+ * same order DABdream+ uses. The high-level identify command (0x02) therefore only reaches a stick that failed the
+ * register-level init. YHX's library sends it to every stick it opens, firmware level 4 included (it has a code path
+ * for those), so it is that maker's normal "who are you" question.
  */
 object C100 {
-    fun open(t: Transport, log: (String) -> Unit = {}, newDriver: (Transport) -> Dtr100 = { Dtr100(it) }): RawTuner {
+    fun open(t: Transport, log: (String) -> Unit = {}, newDriver: (Transport) -> Dtr100 = { Dtr100(it) },
+             highLevel: (Transport, (String) -> Unit) -> RawTuner? = { tr, l -> C100HighLevel.open(tr, l) }): RawTuner {
         val d = newDriver(t)
         d.drainStale().takeIf { it > 0 }?.let { log("dropped $it stale bytes from a previous session") }
         val fw = d.version()
@@ -23,7 +25,9 @@ object C100 {
             return Dtr100Tuner(d, fw)
         } catch (e: IOException) {
             log("register-level init failed (${e.message}); trying the C100 high-level command set")
-            C100HighLevel.open(t, log)?.let { return it }
+            d.drainStale()                                  // replies the failed attempt may have left queued
+            val h = try { highLevel(t, log) } catch (e2: IOException) { log("C100 high level: ${e2.message}"); null }
+            if (h != null) return h
             throw e
         }
     }

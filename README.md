@@ -34,7 +34,7 @@ Big tiles, big text, few taps: made to be used while driving.
 | Dongle | USB ID | Status |
 |---|---|---|
 | wRadio C100 / DTR-100 / "DAB+ Receiver for Android Navigation" (single antenna), sold under many brands | `16c0:05dc`, manufacturer `dabusb@126.com` | **Tested** |
-| C100 "Dual Antenna" (YHX) | `16c0:05dc`, same | In progress, **untested** |
+| C100 "Dual Antenna" (YHX) | `16c0:05dc`, same | **Untested** ([protocol](docs/protocol-c100-highlevel.md)) |
 | Si4684 module: Eonon A503, XFA-DAB220 | `1a86:5537` | In progress, **untested** |
 | Siano SMS2160 "Rhine800" / Denver TDMB | `187f:0800`, `187f:0700` | In progress, **untested** |
 | Siano SMS2270 "Rio" | `187f:0600` | Not supported: needs vendor firmware we can't distribute |
