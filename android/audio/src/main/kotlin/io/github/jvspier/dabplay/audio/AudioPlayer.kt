@@ -24,6 +24,7 @@ class AudioPlayer {
     private sealed interface Item
     private class Au(val asc: ByteArray, val data: ByteArray, val rate: Int) : Item
     private class Mp2(val frame: ByteArray) : Item
+    private class Pcm(val data: ByteArray, val rate: Int, val channels: Int) : Item
 
     private val queue = ArrayBlockingQueue<Item>(QUEUE_AUS)
     @Volatile private var worker: Thread? = null
@@ -35,6 +36,12 @@ class AudioPlayer {
 
     /** Queue one DAB (MP2) Layer II frame. Call from one thread. */
     fun feedMp2(frame: ByteArray) = offer(Mp2(frame))
+
+    /**
+     * Queue decoded audio from a dongle that decodes itself: 16-bit little-endian PCM, interleaved, whole sample frames
+     * (the driver keeps any odd tail for the next chunk). Call from one thread.
+     */
+    fun feedPcm(data: ByteArray, rate: Int, channels: Int) = offer(Pcm(data, rate, channels))
 
     private fun offer(item: Item) {
         if (worker?.isAlive != true) worker = Thread({ loop() }, "dab-audio").apply { isDaemon = true; start() }
@@ -70,6 +77,7 @@ class AudioPlayer {
                     when (item) {
                         is Au -> s.decode(item)
                         is Mp2 -> s.decodeMp2(item.frame)
+                        is Pcm -> s.playPcm(item)
                     }
                 } catch (e: InterruptedException) {
                     throw e
@@ -104,8 +112,23 @@ class AudioPlayer {
         private var shorts = ShortArray(0)
 
         /** DAB (MP2): our decoder; a frame that fails its CRC becomes 24 ms of silence, so the timing holds. */
-        fun decodeMp2(frame: ByteArray) {
+        private fun dropCodec() {
             if (codec != null) { runCatching { codec?.stop() }; runCatching { codec?.release() }; codec = null; asc = null }
+        }
+
+        /** Already decoded by the dongle: straight to the track. */
+        fun playPcm(p: Pcm) {
+            dropCodec(); mp2 = null
+            if (decoderName != DONGLE_PCM) decoderName = DONGLE_PCM
+            if (ownTrack == null || p.rate != trackRate || p.channels != trackChannels) openTrack(p.rate, p.channels)
+            val n = p.data.size / 2
+            if (shorts.size < n) shorts = ShortArray(n)
+            java.nio.ByteBuffer.wrap(p.data).order(java.nio.ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts, 0, n)
+            writeShorts(n)
+        }
+
+        fun decodeMp2(frame: ByteArray) {
+            dropCodec()
             val d = mp2 ?: Mp2Decoder().also { mp2 = it; decoderName = "DABplay+ MP2 (Layer II)" }
             val p = d.decode(frame)
             val rate = p?.sampleRate ?: trackRate
@@ -238,5 +261,6 @@ class AudioPlayer {
         const val PREROLL_MS = 400      // > 3 superframes (120 ms each)
         const val BUFFER_MS = 1000
         const val QUEUE_AUS = 128       // ~2.5 s of AUs (20-60 ms each)
+        const val DONGLE_PCM = "decoded by the dongle (PCM)"
     }
 }

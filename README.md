@@ -26,15 +26,25 @@ Big tiles, big text, few taps: made to be used while driving.
 
 ## Hardware
 
-- **Dongle:** DTR-100 / "DAB+ Receiver for Android Navigation" (USB `16c0:05dc`, manufacturer `dabusb@126.com`),
-  sold under several brands. The dongle demodulates; all DAB decoding happens in the app. More dongle families are
-  catalogued in [docs/dongles.md](docs/dongles.md).
 - **Android 8 (API 26) and up**, landscape. Designed on 1280×720, scales to other sizes.
+- **A USB DAB+ dongle** from the list below.
 
-## Status
+### Supported dongles
 
-Work in progress. Tested with a real dongle in the Android emulator (USB passthrough); the first run on a real head
-unit (Android 10) is next. DAB (classic, MP2) stations are not supported yet, and that's being worked on.
+| Dongle | USB ID | Status |
+|---|---|---|
+| wRadio C100 / DTR-100 / "DAB+ Receiver for Android Navigation" (single antenna), sold under many brands | `16c0:05dc`, manufacturer `dabusb@126.com` | **Tested** |
+| C100 "Dual Antenna" (YHX) | `16c0:05dc`, same | In progress, **untested** |
+| Si4684 module: Eonon A503, XFA-DAB220 | `1a86:5537` | In progress, **untested** |
+| Siano SMS2160 "Rhine800" / Denver TDMB | `187f:0800`, `187f:0700` | In progress, **untested** |
+| Siano SMS2270 "Rio" | `187f:0600` | Not supported: needs vendor firmware we can't distribute |
+
+> **About "untested":** only the first dongle has been tested on real hardware. Support for the others is written
+> from public sources and from how other apps talk to them, with automated tests against that description, but
+> nobody has run it with the real dongle yet. It may work, partly work or not work at all. If you have one of these
+> dongles, please [open an issue](https://github.com/jvspier/dabplayplus/issues) and say how it went (the app's
+> log helps: `adb logcat -s DabEngine`), and this table gets updated. Other dongle families are catalogued in
+> [docs/dongles.md](docs/dongles.md).
 
 ## Building
 
