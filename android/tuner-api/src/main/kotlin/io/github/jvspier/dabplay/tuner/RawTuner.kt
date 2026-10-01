@@ -24,6 +24,9 @@ interface RawTuner {
 
     /** Reception as the dongle last reported it (from its status polls, so reading it is free); null before the first. */
     val signal: SignalReading?
+
+    /** Before the connection closes: whatever the dongle's own app sends at teardown (often nothing). */
+    fun close() {}
 }
 
 /** A tune attempt: locked or not, the bars to show right away, and driver details for the log. */

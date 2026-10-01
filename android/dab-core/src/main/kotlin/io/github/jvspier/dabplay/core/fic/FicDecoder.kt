@@ -6,7 +6,15 @@ import io.github.jvspier.dabplay.core.Crc
 import io.github.jvspier.dabplay.core.DabText
 import io.github.jvspier.dabplay.core.u8
 
-data class Subchannel(val id: Int, val startCu: Int, val sizeCu: Int?, val bitrateKbps: Int?, val protection: String)
+/**
+ * A sub-channel from FIG 0/1. [protection] is for people ("EEP 3-A", "UEP #12 (PL3)"); the structured form is for
+ * dongles that need the layout to start one (Siano): [eepOption] 0 = A, 1 = B (null for UEP), [level] the raw 2-bit EEP
+ * level (0..3) or the UEP table's protection level (1..5), [uepIndex] the UEP table index (null for EEP).
+ */
+data class Subchannel(
+    val id: Int, val startCu: Int, val sizeCu: Int?, val bitrateKbps: Int?, val protection: String,
+    val eepOption: Int? = null, val level: Int = 0, val uepIndex: Int? = null,
+)
 
 /** An MSC stream audio component of a service (TMid 0). ASCTy 63 = DAB+, 0 = MP2. */
 data class AudioComponent(val ascty: Int, val subchannel: Int, val primary: Boolean)
@@ -153,11 +161,11 @@ class FicDecoder {
                 val size = ((b.u8(i + 2) and 3) shl 8) or b.u8(i + 3)
                 val br = when (opt) { 0 -> size / EEP_A[lvl] * 8; 1 -> size / EEP_B[lvl] * 32; else -> null }
                 val prot = "EEP ${lvl + 1}-${if (opt < 2) "AB"[opt] else '?'}"
-                subchannels[id] = Subchannel(id, start, size, br, prot)
+                subchannels[id] = Subchannel(id, start, size, br, prot, eepOption = opt, level = lvl)
                 i += 4
             } else {                                               // short form (UEP): size and bitrate from Table 8
                 val t = b.u8(i + 2) and 0x3F
-                subchannels[id] = Subchannel(id, start, Uep.SIZE_CU[t], Uep.BITRATE[t], "UEP #$t (PL${Uep.LEVEL[t]})")
+                subchannels[id] = Subchannel(id, start, Uep.SIZE_CU[t], Uep.BITRATE[t], "UEP #$t (PL${Uep.LEVEL[t]})", level = Uep.LEVEL[t], uepIndex = t)
                 i += 3
             }
         }

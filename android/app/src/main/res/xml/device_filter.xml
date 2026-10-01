@@ -5,4 +5,8 @@
     <usb-device vendor-id="5824" product-id="1500" manufacturer-name="dabusb@126.com" />
     <!-- Si4684 modules (Eonon A503, XFA-DAB220): 1a86:5537, untested -->
     <usb-device vendor-id="6790" product-id="21815" />
+    <!-- Siano with firmware on board: Denver TDMB 187f:0700 / 0802, Rhine800 187f:0800; untested. Not the Rio (0600). -->
+    <usb-device vendor-id="6271" product-id="1792" />
+    <usb-device vendor-id="6271" product-id="2048" />
+    <usb-device vendor-id="6271" product-id="2050" />
 </resources>

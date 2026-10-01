@@ -33,6 +33,7 @@ import io.github.jvspier.dabplay.tuner.RawTuner
 import io.github.jvspier.dabplay.core.EccGuess
 import io.github.jvspier.dabplay.driver.si4684.Frames
 import io.github.jvspier.dabplay.driver.si4684.Si4684
+import io.github.jvspier.dabplay.driver.siano.Siano
 import io.github.jvspier.dabplay.tuner.ModuleListener
 import io.github.jvspier.dabplay.tuner.ModuleService
 import io.github.jvspier.dabplay.tuner.Transport
@@ -179,6 +180,7 @@ class DabEngine(
             val r: RadioSession = when (kind) {
                 DongleKind.C100 -> Session(C100.open(transport, log = { Log.i(TAG, it) }), player)
                 DongleKind.SI4684 -> ModuleSession(transport, player)
+                DongleKind.SIANO -> Session(Siano.open(transport, log = { Log.i(TAG, it) }), player)
             }
             radio = r
             _state.update { it.copy(dongle = true, error = null) }
@@ -344,6 +346,7 @@ class DabEngine(
     /** A dongle that hands over the raw ensemble (C100 family): tuning, FIC, decoding and following are ours. */
     private inner class Session(private val d: RawTuner, private val player: AudioPlayer) : RadioSession {
         override val description get() = d.description
+        override fun close() = d.close()
         private var tunedKhz: Int? = null
 
         private fun tune(khz: Int, retries: Boolean): Tuned {

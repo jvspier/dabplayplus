@@ -41,7 +41,7 @@ Big tiles, big text, few taps: made to be used while driving.
 | wRadio C100 / DTR-100 / "DAB+ Receiver for Android Navigation" (single antenna), sold under many brands | `16c0:05dc`, manufacturer `dabusb@126.com` | **Tested** |
 | C100 "Dual Antenna" (YHX) | `16c0:05dc`, same | **Untested** ([protocol](docs/protocol-c100-highlevel.md)) |
 | Si4684 module: Eonon A503, XFA-DAB220 | `1a86:5537` | **Untested** ([protocol](docs/protocol-si4684.md)). The module decodes by itself: no traffic announcements, and service following is the module's own |
-| Siano SMS2160 "Rhine800" / Denver TDMB | `187f:0800`, `187f:0700`, `187f:0802` | Planned (in progress) |
+| Siano SMS2160 "Rhine800" / Denver TDMB | `187f:0800`, `187f:0700`, `187f:0802` | **Untested** ([protocol](docs/protocol-siano.md)) |
 | Siano SMS2270 "Rio" | `187f:0600` | Not supported: needs vendor firmware we can't distribute |
 
 > **About "untested":** only the first dongle has been tested on real hardware. Support for the others is written
@@ -77,8 +77,8 @@ See [android/README.md](android/README.md) for the emulator setup with USB passt
 
 - [docs/architecture.md](docs/architecture.md): modules, driver interface, playback.
 - [docs/protocol.md](docs/protocol.md): the DTR-100's USB protocol;
-  [protocol-c100-highlevel.md](docs/protocol-c100-highlevel.md) and [protocol-si4684.md](docs/protocol-si4684.md)
-  for the other dongles.
+  [protocol-c100-highlevel.md](docs/protocol-c100-highlevel.md), [protocol-si4684.md](docs/protocol-si4684.md) and
+  [protocol-siano.md](docs/protocol-siano.md) for the other dongles.
 - [docs/findings.md](docs/findings.md): hardware findings and the test log.
 - [docs/design-notes.md](docs/design-notes.md): UI decisions.
 - `tools/`: the Python proof of concept, the reference implementation.

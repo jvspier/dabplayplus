@@ -19,6 +19,11 @@ cited source, **[inf]** = inference. Purpose: choose which extra tuner drivers D
 | 11 | **RTL-SDR** (0bda:2838/2832, Noxon DAB 0ccd:00b3 [src N]) | Vendor bulk, IQ samples | RTL2832U + R820T/FC0013 | Host: full software demodulation | AbracaDABra (Android 11+, MIT) [src O]; welle.io (Android unmaintained) [src P] | librtlsdr, welle.io, AbracaDABra | Medium: well documented, but high head-unit CPU load; big job |
 | 12 | Full-Join DTN-01 (2016) | Unknown | Unknown | Unknown | Full-Join "DAB Player" [src Q] | None | Hard |
 
+**In the app (2026-10-01):** #1 tested; #2 (C100 Dual Antenna), #5 and the other firmware-on-board Siano sticks
+(187f:0700/0802), and #6 (Si4684) implemented from DABdream+'s traffic, **untested** (docs/protocol-c100-highlevel.md,
+docs/protocol-siano.md, docs/protocol-si4684.md); #4 (Rio) not supported (host firmware). The README's table is the
+user-facing list.
+
 ## Notes
 - DABdream+'s "three types" (2026-04-07 snapshot): C100 (16c0:05dc), Dual Antenna C100 (16c0:05dc), Siano
   SMS2270 Rio (187f:0600). The live post now has five sections (+ Rhine800 187f:0800, + Si4684 1a86:5537).
