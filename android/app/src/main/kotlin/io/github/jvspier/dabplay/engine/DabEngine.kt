@@ -572,7 +572,8 @@ class DabEngine(
                     }
                     continue
                 }
-                guarded("DAB+") { dec.feed(data) { au ->
+                // a lost AU becomes silence of its length (120 ms per superframe / AUs per superframe): the timing holds
+                guarded("DAB+") { dec.feed(data, lost = { n -> dec.format?.let { f -> player.feedSilence(n * 120 / f.ausPerSuperframe) } }) { au ->
                     pad.feedAu(au.data)
                     player.feedAac(au.asc, au.data, au.format.outputRate)
                 } }

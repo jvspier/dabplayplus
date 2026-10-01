@@ -25,6 +25,7 @@ class AudioPlayer {
     private class Au(val asc: ByteArray, val data: ByteArray, val rate: Int) : Item
     private class Mp2(val frame: ByteArray) : Item
     private class Pcm(val data: ByteArray, val rate: Int, val channels: Int) : Item
+    private class Silence(val ms: Int) : Item
 
     private val queue = ArrayBlockingQueue<Item>(QUEUE_AUS)
     @Volatile private var worker: Thread? = null
@@ -36,6 +37,12 @@ class AudioPlayer {
 
     /** Queue one DAB (MP2) Layer II frame. Call from one thread. */
     fun feedMp2(frame: ByteArray) = offer(Mp2(frame))
+
+    /**
+     * [ms] of silence in place of audio that was lost on air (a DAB+ AU that failed its CRC). Keeps the timeline: a
+     * short reception error is a short mute, instead of an underrun and a 400 ms re-buffer. Call from one thread.
+     */
+    fun feedSilence(ms: Int) = offer(Silence(ms))
 
     /**
      * Queue decoded audio from a dongle that decodes itself: 16-bit little-endian PCM, interleaved, whole sample frames
@@ -78,6 +85,7 @@ class AudioPlayer {
                         is Au -> s.decode(item)
                         is Mp2 -> s.decodeMp2(item.frame)
                         is Pcm -> s.playPcm(item)
+                        is Silence -> s.silence(item.ms)
                     }
                 } catch (e: InterruptedException) {
                     throw e
@@ -114,6 +122,15 @@ class AudioPlayer {
         /** DAB (MP2): our decoder; a frame that fails its CRC becomes 24 ms of silence, so the timing holds. */
         private fun dropCodec() {
             if (codec != null) { runCatching { codec?.stop() }; runCatching { codec?.release() }; codec = null; asc = null }
+        }
+
+        /** Zeros at the current track's format; nothing before the first audio (no format to be silent in yet). */
+        fun silence(ms: Int) {
+            if (ownTrack == null || trackRate == 0) return
+            val n = trackRate * ms / 1000 * trackChannels
+            if (shorts.size < n) shorts = ShortArray(n)
+            shorts.fill(0, 0, n)
+            writeShorts(n)
         }
 
         /** Already decoded by the dongle: straight to the track. */

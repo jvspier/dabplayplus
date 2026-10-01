@@ -37,8 +37,13 @@ class SuperframeDecoder(bitrateKbps: Int) {
 
     private fun fireOk(b: ByteArray, o: Int) = Crc.firecode(b, o + 2) == ((b.u8(o) shl 8) or b.u8(o + 1))
 
-    /** Feed raw sub-channel bytes; [out] receives every CRC-valid access unit. */
-    fun feed(data: ByteArray, out: (AccessUnit) -> Unit) {
+    private var unsyncedBytes = 0                    // skipped while hunting for the next superframe
+
+    /**
+     * Feed raw sub-channel bytes; [out] receives every CRC-valid access unit, [lost] the number of AUs that didn't
+     * make it (a failed AU CRC, or whole superframes skipped while resynchronising), so the player can keep time.
+     */
+    fun feed(data: ByteArray, lost: (Int) -> Unit = {}, out: (AccessUnit) -> Unit) {
         buf += data
         var pos = 0
         while (true) {
@@ -46,20 +51,26 @@ class SuperframeDecoder(bitrateKbps: Int) {
                 val limit = maxOf(0, buf.size - pos - 11)
                 var found = -1
                 for (off in 0 until limit) if (fireOk(buf, pos + off)) { found = off; break }
-                if (found < 0) { pos += limit; break }
+                if (found < 0) { pos += limit; unsyncedBytes += limit; break }
                 if (found > 0) resyncs++
                 pos += found
+                unsyncedBytes += found
                 synced = true
+                // whole superframes went by while hunting: their AUs are lost too (as many as the last superframe had)
+                val skipped = (unsyncedBytes + sfLen / 2) / sfLen
+                unsyncedBytes = 0
+                val per = format?.ausPerSuperframe
+                if (skipped > 0 && per != null) { ausBad += skipped * per; lost(skipped * per) }
             }
             if (buf.size - pos < sfLen) break
             val sf = buf.copyOfRange(pos, pos + sfLen)
             if (!fireOk(sf, 0)) {
                 correct(sf)                            // the firecode itself may have been hit by errors
-                if (!fireOk(sf, 0)) { synced = false; pos += 1; continue }
+                if (!fireOk(sf, 0)) { synced = false; pos += 1; unsyncedBytes += 1; continue }
             } else correct(sf)
             pos += sfLen
             superframes++
-            accessUnits(sf, out)
+            accessUnits(sf, lost, out)
         }
         buf = buf.copyOfRange(pos, buf.size)
     }
@@ -76,7 +87,7 @@ class SuperframeDecoder(bitrateKbps: Int) {
         }
     }
 
-    private fun accessUnits(sf: ByteArray, out: (AccessUnit) -> Unit) {
+    private fun accessUnits(sf: ByteArray, lost: (Int) -> Unit, out: (AccessUnit) -> Unit) {
         val f = sf.u8(2)
         val dac = (f shr 6) and 1
         val sbr = (f shr 5) and 1
@@ -95,9 +106,9 @@ class SuperframeDecoder(bitrateKbps: Int) {
         val asc = Asc.build(core, outRate, sbr == 1, ps == 1, stereo == 1)
         for (k in 0 until nAu) {
             val a = starts[k]; val b = starts[k + 1]
-            if (!(a < b && b <= 110 * s) || b - a < 3) { ausBad++; continue }
+            if (!(a < b && b <= 110 * s) || b - a < 3) { ausBad++; lost(1); continue }
             val crc = Crc.crc16Ccitt(sf, a, b - 2) xor 0xFFFF
-            if (crc != ((sf.u8(b - 2) shl 8) or sf.u8(b - 1))) { ausBad++; continue }
+            if (crc != ((sf.u8(b - 2) shl 8) or sf.u8(b - 1))) { ausBad++; lost(1); continue }
             ausOk++
             out(AccessUnit(asc, sf.copyOfRange(a, b - 2), fmt))
         }
