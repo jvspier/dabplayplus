@@ -1,5 +1,6 @@
 package io.github.jvspier.dabplay.ui
 
+import androidx.activity.compose.BackHandler
 import android.graphics.BitmapFactory
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.AnimatedVisibility
@@ -125,6 +126,9 @@ fun AppShell(engine: EngineState, db: Snapshot, settings: Settings, actions: Rad
     val c = LocalDabColors.current
     var tab by rememberSaveable { mutableStateOf(if (db.favourites.isEmpty() && db.stations.isNotEmpty()) Tab.STATIONS else Tab.HOME) }
     val saved = rememberSaveableStateHolder()
+    // Back never leaves the radio by accident (the system bar slides in over the mini player): another tab → Home,
+    // Home → nothing; leaving is the head unit's home button (owner, 2026-10-01). Edit favourites has its own Back.
+    BackHandler { if (tab != Tab.HOME) tab = Tab.HOME }
     val panelLayout = settings.layout == LayoutVariant.PANEL
     val showPanel = panelLayout && tab != Tab.PLAYING
     val showBar = !panelLayout && tab != Tab.PLAYING

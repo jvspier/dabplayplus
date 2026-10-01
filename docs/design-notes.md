@@ -98,3 +98,7 @@ design session.
   announcements always come through (red, no Skip). "TA" badge next to the signal bars when the setting is on: lit
   when the station takes part, amber during an announcement. [verified] 11C and 5B signal traffic support (ASu 0x0002),
   the badge lights live on 538; a real announcement switch is untested (none happened during testing).
+
+- **Back never leaves the app by accident** (owner, 2026-10-01): Back on another tab goes to Home; on Home it does
+  nothing. Leaving is the head unit's home button. Reason: the system bar slides in over the mini player after a swipe
+  from the bottom edge, so a stray tap on its Back sent the radio to the launcher. Edit favorites keeps its own Back.
