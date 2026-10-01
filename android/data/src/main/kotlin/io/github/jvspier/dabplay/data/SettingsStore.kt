@@ -21,6 +21,11 @@ data class Settings(
     val clock: ClockFormat = ClockFormat.SYSTEM,
     /** Switch to traffic announcements on the same multiplex (off by default: owner, 2026-09-28). Alarms always. */
     val trafficAnnouncements: Boolean = false,
+    /**
+     * Open DABplay+ when the car starts (the dongle appearing, or the boot). Off by default (owner, 2026-10-01): many
+     * drivers start with CarPlay / Android Auto, and the radio shouldn't take over the screen.
+     */
+    val startWithCar: Boolean = false,
 )
 
 /** Countries that drive on the left, so the driver sits on the right and the controls belong on the right. */
@@ -41,7 +46,8 @@ class SettingsStore(context: Context) {
         prefs.edit().putString("display", s.display.name).putString("layout", s.layout.name)
             .putString("driverSide", s.driverSide.name).putBoolean("resumeOnStart", s.resumeOnStart)
             .putBoolean("downloadLogos", s.downloadLogos).putBoolean("followStation", s.followStation)
-            .putString("clock", s.clock.name).putBoolean("trafficAnnouncements", s.trafficAnnouncements).apply()
+            .putString("clock", s.clock.name).putBoolean("trafficAnnouncements", s.trafficAnnouncements)
+            .putBoolean("startWithCar", s.startWithCar).apply()
     }
 
     private fun load(): Settings {
@@ -56,6 +62,7 @@ class SettingsStore(context: Context) {
             followStation = prefs.getBoolean("followStation", d.followStation),
             clock = e("clock", d.clock, ClockFormat::valueOf),
             trafficAnnouncements = prefs.getBoolean("trafficAnnouncements", d.trafficAnnouncements),
+            startWithCar = prefs.getBoolean("startWithCar", d.startWithCar),
         )
     }
 }

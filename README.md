@@ -27,6 +27,8 @@ Big tiles, big text, few taps: made to be used while driving.
   with a banner and Skip; a "TA" badge shows when the station takes part.
 - **Plays nicely in the car**: silent during phone calls, quieter under navigation prompts; steering-wheel buttons
   through a proper media session; auto-resume of the last station; Back never leaves the radio by accident.
+- **Start with the car** (optional, off by default): opens DABplay+ when the car starts; off, it stays out of the way
+  of CarPlay / Android Auto even though the dongle is always connected.
 - Two layouts (player bar or side panel), day/night theme, controls on the driver's side (left or right).
 
 ## Hardware

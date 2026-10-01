@@ -1,5 +1,12 @@
 package io.github.jvspier.dabplay.ui.screens
 
+import androidx.compose.runtime.remember
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.activity.compose.BackHandler
 import io.github.jvspier.dabplay.data.StationStore
 import androidx.compose.animation.AnimatedContent
@@ -48,6 +55,7 @@ import com.adamglin.phosphoricons.Fill
 import com.adamglin.phosphoricons.fill.ArrowLeft
 import com.adamglin.phosphoricons.fill.ArrowsClockwise
 import com.adamglin.phosphoricons.fill.CaretDown
+import com.adamglin.phosphoricons.fill.Car
 import com.adamglin.phosphoricons.fill.CaretRight
 import com.adamglin.phosphoricons.fill.CaretUp
 import com.adamglin.phosphoricons.fill.Clock
@@ -119,7 +127,21 @@ private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Bo
                 Segmented(listOf(ClockFormat.SYSTEM to "System", ClockFormat.H12 to "12h", ClockFormat.H24 to "24h"), s.clock, Accent.amber, ON_AMBER,
                     { v -> a.updateSettings { it.copy(clock = v) } }, optionWidth = segW)
             }
-            SettingRow(PhosphorIcons.Fill.SignIn, Accent.blue, tile, "Resume last station", "Start playing when the car starts") {
+            // Android 10+ only lets an app open itself at start-up with "Display over other apps" allowed
+            val ctx = LocalContext.current
+            var canOpenItself by remember { mutableStateOf(canDrawOverlays(ctx)) }
+            LifecycleResumeEffect(Unit) { canOpenItself = canDrawOverlays(ctx); onPauseOrDispose { } }
+            val needsOverlay = s.startWithCar && !canOpenItself
+            SettingRow(PhosphorIcons.Fill.Car, Accent.green, tile, "Start with the car",
+                when {
+                    needsOverlay -> "On · tap to allow \"Display over other apps\": Android needs it for this"
+                    s.startWithCar -> "On · opens DABplay+ when the car starts"
+                    else -> "Off · open DABplay+ yourself, e.g. when you use CarPlay"
+                },
+                onClick = if (needsOverlay) ({ openOverlaySettings(ctx) }) else null) {
+                DabSwitch(s.startWithCar) { v -> a.updateSettings { it.copy(startWithCar = v) } }
+            }
+            SettingRow(PhosphorIcons.Fill.SignIn, Accent.blue, tile, "Resume last station", "Start playing when DABplay+ opens") {
                 DabSwitch(s.resumeOnStart) { v -> a.updateSettings { it.copy(resumeOnStart = v) } }
             }
             SettingRow(PhosphorIcons.Fill.DownloadSimple, Accent.green, tile, "Download station logos", logoLine(s.downloadLogos, logoStatus, db)) {
@@ -214,4 +236,13 @@ private fun EditFavourites(db: Snapshot, a: RadioActions, compact: Boolean, onBa
             }
         }
     }
+}
+
+private fun canDrawOverlays(ctx: Context) = Build.VERSION.SDK_INT < 23 || android.provider.Settings.canDrawOverlays(ctx)
+
+/** The system screen for "Display over other apps", for this app (falls back to the full list). */
+private fun openOverlaySettings(ctx: Context) {
+    val pkg = Uri.parse("package:${ctx.packageName}")
+    runCatching { ctx.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, pkg).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        .recoverCatching { ctx.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
 }

@@ -102,3 +102,13 @@ design session.
 - **Back never leaves the app by accident** (owner, 2026-10-01): Back on another tab goes to Home; on Home it does
   nothing. Leaving is the head unit's home button. Reason: the system bar slides in over the mini player after a swipe
   from the bottom edge, so a stray tap on its Back sent the radio to the launcher. Edit favorites keeps its own Back.
+
+- **Start with the car** (owner, 2026-10-01): a setting, **off by default** (many drivers start with CarPlay / Android
+  Auto). Off: when Android opens the app because the dongle appeared (the "always open" tick in the USB prompt), it
+  closes again (cold) or stays in the background (alive), without attaching the dongle. On: a boot listener opens the
+  app; Android 10+ only allows that with "Display over other apps", so the Settings row says so and opens that screen
+  until it is allowed. [verified] Android 10 and 14 emulators: opens itself after a reboot with the permission
+  (BAL_ALLOW_SAW_PERMISSION), blocked without it; the setting off: nothing opens.
+  Caveat [verified, emulator]: Android forgets USB permission at a cold boot and does not announce a dongle that was
+  there before boot finished, so the first open after a cold boot shows the USB prompt. Head units that sleep instead
+  of shutting down keep it; to check on the Dudu3.

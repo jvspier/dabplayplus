@@ -1,0 +1,22 @@
+package io.github.jvspier.dabplay
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.util.Log
+
+/**
+ * Backup for Settings → Start with the car: the main trigger is Android opening the app when the dongle appears at
+ * start-up; this covers units that don't announce an already-connected dongle again. Best effort: Android 10+ may not
+ * let a receiver open an app (background activity starts), so the dongle path is the one to rely on.
+ */
+class BootReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val app = context.applicationContext as DabApp
+        if (!app.settings.state.value.startWithCar) return
+        Log.i("BootReceiver", "${intent.action}: Start with the car is on, opening")
+        runCatching {
+            context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }.onFailure { Log.w("BootReceiver", "couldn't open the app: ${it.message}") }
+    }
+}
