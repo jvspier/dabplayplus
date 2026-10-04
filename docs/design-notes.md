@@ -114,3 +114,7 @@ design session.
   Caveat [verified, emulator]: Android forgets USB permission at a cold boot and does not announce a dongle that was
   there before boot finished, so the first open after a cold boot shows the USB prompt. Head units that sleep instead
   of shutting down keep it; to check on the Dudu3.
+
+- **Going public** (owner, 2026-10-04): no history rewrite. The old design export and mockups may stay in git history,
+  and the Co-Authored-By trailers stay (it is how the app was made). The vendor-derived register tables stay in
+  (reconfirms 2026-09-25). Distribution: APKs via GitHub Releases after 1-2 weeks of Dudu3 use, one release key.
