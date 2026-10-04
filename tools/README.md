@@ -5,8 +5,10 @@
 - `fic.py` (FIC/FIG parsing, channel table), `dabplus.py` (superframe/RS/AU + faad2 via ctypes),
   `pad.py` (X-PAD → DLS, DL+, MOT slideshow), `decode_raw.py` (offline decode of `--raw` captures).
 - `fm_test.py`: literal port of the vendor's unused FM API (init, tune, seek detector, RSSI, audio start/stop); see findings 2026-09-25.
+  **Don't run it**: the FM register state survives power-off and degrades DAB until the dongle is replugged.
 - `switch_test.py`: play A, proper stop, switch to B on the same ensemble without re-init; measures the switch time.
 - `gen_kotlin_tables.py`: generates the Kotlin register/PLL tables for the Android dtr100 driver (DAB only, no FM).
+- `gen_mp2_vectors.sh`: MP2 test vectors with ffmpeg (all DAB Layer II variants) for the Kotlin MP2 decoder tests.
 - `golden.py`: golden reference output of the PoC for every capture (captures/golden/), used by the Kotlin dab-core tests.
 - `export_aus.py`: raw capture → length-prefixed AU file + ASC JSON + faad2 reference WAV (decoder tests).
 - `android/MediaCodecTest.java` + `android/compare_pcm.py`: Android MediaCodec decode test run via `app_process`
@@ -33,5 +35,6 @@ JAVA_HOME=/usr/lib/jvm/java-25-openjdk ~/.local/opt/ghidra_12.1.4_PUBLIC/support
 ```
 
 Android SDK (no Android Studio): `~/.local/opt/android-sdk` (cmdline-tools 23, platform-tools, emulator,
-platforms;android-29, build-tools;37.0.0, system images android-26/29 default x86_64). AVDs `dab-api26`, `dab-api29`.
+platforms;android-29, build-tools;37.0.0, system images android-26/29/34 x86_64). AVDs `dab-api26`, `dab-api29`, and the
+head-unit ones `dab-headunit-api29` / `dab-headunit-api34` (see `android/README.md`; only api34 can host the dongle).
 Start headless: `emulator -avd dab-api29 -no-window -no-audio -no-boot-anim -gpu host -no-snapshot` (other GPU modes crash here).

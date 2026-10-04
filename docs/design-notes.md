@@ -51,8 +51,9 @@ design session.
 - **Dongle support: pluggable tuner drivers** behind one interface; the DAB stack (FIC, audio, PAD, UI) is
   shared. Launch with the 16c0:05dc family fully supported (port the firmware ≤1 and ≥5 code paths from the
   decompile too); other families (AP8224/FC8080 mass-storage, Siano, maybe RTL-SDR later) are "experimental"
-  until confirmed by users. In-app **diagnostics export** for users with untested dongles. A research round on
-  existing dongle families comes first.
+  until confirmed by users. In-app **diagnostics export** for users with untested dongles (planned). A research round on
+  existing dongle families comes first. (2026-10-04: C100 Dual Antenna, Si4684 and Siano are implemented and
+  untested; the README's dongle table is the current list.)
 - **Legal:** The owner accepts the risk of shipping the vendor-derived register tables (their call, 2026-09-25).
 
 - **App name: DABplay+** (owner, 2026-09-25). No existing Play Store app or GitHub repo with that name
@@ -61,12 +62,13 @@ design session.
   Kotlin (port of a permissively licensed decoder such as kjmp2, licence to verify, or written from the spec),
   tested against mpg123/ffmpeg; the vendor APK's `assets/dab.bin` is an MP2 test file.
 
-## To discuss
-- "Station unavailable / buffering" states map to DAB states: tuning, no signal, weak signal (signal meter?).
-- Scan (≈ 19 s) progress UI on the Stations screen; ensembles found vs services.
+## Decided later (2026-09-27 onwards)
+- Player states map to DAB states: "Tuning…", "No signal · waiting for reception" / "…searching other multiplexes"
+  (amber), live signal bars (0–4) for weak reception, "DAB dongle not connected" (amber), real problems in red.
+- Scan progress on the Stations screen: the channel being scanned on the Scan button; the list fills afterwards.
 - **v1 scope additions/removals** (owner, 2026-09-27): MP2 (DAB classic) decoding is a day-1 feature for
-  distribution; the manual station-logo override is dropped. Next up: reception loss handling (tunnels, fringe
-  areas) and a working "Follow station"; Dudu3 run + boot auto-start once the head unit is installed.
+  distribution; the manual station-logo override is dropped. Reception loss handling and "Follow station" followed
+  the same week.
 - **Rail: icons only, in both layouts** (owner, 2026-09-28): the handoff's labelled, filled rail for 1b is dropped;
   1b uses the same 120 dp icon rail as 1a.
 - **Now playing, v2** (owner's mockup and iterations, 2026-09-28): the slide or logo stands centred up top, sharp and

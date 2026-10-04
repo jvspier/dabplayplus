@@ -13,7 +13,7 @@ into the decompiled file.
    │  JNI: dab_api_*, decoder_*, fic2_*, msc_p_*        (RegisterNatives on com/ex/dabplayer/pad/dab/Dab)
  libdab.so
    ├─ DAB software stack: FIC/FIG parser, MSC framing, FAAD2 (DAB+ HE-AAC), mpg123 (DAB MP2), OpenSL ES out
-   ├─ chip driver: 8-bit register read/write, paged via reg 0x03   (looks like FCI's "BBM" reference driver)
+   ├─ chip driver: 8-bit register read/write, paged via reg 0x03   (a RAONTECH chip; first guessed FCI)
    └─ MCU bridge: 4-byte commands on bulk EP 0x02, replies on bulk EP 0x82
  USB MCU (unmarked 28-pin) ── SPI ──> DAB chip ("Super Radio")
 ```
@@ -122,8 +122,11 @@ the decoder. **[verified on hw]** The data is the raw sub-channel stream: for DA
 packet-mode data (slideshow/EPG), not audio.
 
 ## Open items
-- Exact meaning of the version bytes and the 0x42 reply layout (confirm on hardware).
-- MSC packet framing used by `msc_p_*` (read `jni_msc_p_feed` and `jni_l`).
-- The Java-side call order (packed; infer from the native API, or capture it in phase 3).
-- Chip identity: the driver structure matches FCI's BBM driver (FC80xx family), but the package
-  is not the FC8080's 32-QFN, and the chip supports FM.
+- Version reply: only byte 3 (firmware level) is used; bytes 1..2 unknown. The 0x42 reply is settled (table above:
+  available bytes, then the CER).
+- Not needed for the app, so left open: MSC packet-data framing (`msc_p_*`, packet-mode data services) and the
+  packed Java side's call order (the native API was enough).
+- Untested firmware paths (≤ 1 and ≥ 5): ported from the decompile; our dongle is level 4.
+- Chip identity: **resolved 2026-09-28: a RAONTECH part.** Page register 0x03 is RAON's map select, and OMRI-USB's
+  `RaonTunerInput` drives this dongle with identical commands (findings.md, work log). The earlier guess (FCI's BBM
+  driver, FC80xx family) didn't fit the package and the FM support.

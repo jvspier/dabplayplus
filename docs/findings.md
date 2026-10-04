@@ -3,7 +3,32 @@
 Every claim is tagged **[verified]** (seen directly) or **[hypothesis]** (inferred). Update
 this file as work progresses.
 
-## Status (2026-09-27)
+## Status (2026-10-04)
+- **Phase 5, Android app**: feature-complete for v1 and verified with the real DTR-100 in the API 34 emulator (USB
+  passthrough). What's in it: README "Features"; how it's built: `docs/architecture.md`.
+- **Since the 09-27/28 log below** [verified on hw unless noted]:
+  - Bug + security review in four parts (engine survives errors and detach; everything from the air or the internet is
+    bounded; storage survives power cuts; UI robustness), RAON signal-bar thresholds.
+  - Traffic announcements (setting, off by default; the TA badge lights on 538; a real switch untested), calls silence
+    the radio and navigation ducks it [verified: call via `adb emu gsm call`; ducking untested].
+  - Performance for budget head units (section below): one cached background layer, baseline profile.
+  - Driver interface (`RawTuner` / `ModuleTuner`); the DTR-100 replay test gives byte-identical traffic through it, and
+    a hardware regression after each driver change passed (scan 5 ensembles / 55 stations in 21.5 s, 538 in 0.6–0.8 s).
+  - Three more dongle families from DABdream+'s traffic, **untested** (no hardware): C100 Dual Antenna, Si4684 module,
+    Siano (docs/protocol-*.md).
+  - Weak reception [verified, 12C indoors, CER ~900–1070, up to 51 RS failures/s]: every burst of bad AUs emptied the
+    audio buffer and cost a 400 ms re-buffer ("skipping"). Lost AUs now become silence of their length.
+  - Back never leaves the app (the system bar slides in over the mini player after a swipe from the bottom edge).
+  - Start with the car (setting, off by default) [verified, Android 10 + 14 emulators]: a boot listener can open the
+    app only with "Display over other apps" (BAL_ALLOW_SAW_PERMISSION; blocked without). **USB permission doesn't
+    survive a cold boot**, and a dongle present before boot completes isn't announced, so the first open after a
+    cold boot shows the USB prompt [verified, API 34 emulator].
+- **Next**: (1) before the Dudu3 run, with the dongle: USB attach/detach in the app process, `AudioPlayer` thread
+  safety, a diagnostics log file; (2) after that: split `DabEngine` with JVM tests, a driver registry, self-made test
+  broadcasts; (3) the Dudu3 run (frame times, steering wheel, calls/navigation, sleep vs cold boot, signal bars);
+  (4) before going public: history cleanup, release key, GitHub Releases.
+
+## Work log: phase 5, 2026-09-27 … 09-28
 - **Android app, phase 5** (`android/`, see `android/README.md`). Done and verified on the API 34 head-unit emulator
   (1280×720) with the real dongle over USB passthrough:
   - dab-core, the dtr100 driver and the playback core (scan 22 s / 55 stations, MediaCodec audio, DLS, slides,
@@ -83,10 +108,6 @@ this file as work progresses.
     - OMRI-USB wires only this RAON stick; its device filter also lists 1d19:110d, 0fd9:004c, 0416:b003 without code
       (a "Found Siano device" log line hints Siano support was removed). No help for other dongle families.
     - Their code is LGPL: read for knowledge only, nothing copied into DABplay+ (MIT).
-- Next session (owner, 2026-09-27): **MP2 decoder** (v1 feature), **extra dongle drivers** (docs/dongles.md; the
-  best candidates need their vendor APKs: C100 Dual Antenna/Dual Tuner, Si4684 "Eonon" 1a86:5537), and a
-  **bug + security review** of the app. When the head unit is in the car: first run on the Dudu3 (Android 10) over
-  ADB-on-Wi-Fi, boot auto-start, a real service-following switch, signal-bar calibration. Later: baseline profile.
 
 ## Performance on head-unit hardware (2026-09-29)
 The Dudu3 has a Unisoc UIS8581 (owner's spec sheet): 8× Cortex-A55 at 1.2–1.6 GHz, PowerVR GE8322, 4 GB. One A55 core
@@ -110,7 +131,7 @@ is roughly 10–12× slower than one laptop core (i7-1355U); cheaper head units 
 - Continuous animations while playing (waveform, DLS marquee) keep the GPU drawing 60 frames a second; fine on the
   numbers above, but watch the unit's temperature/throttling behind the dashboard on the first long drive.
 
-## Status (2026-09-24, end of day)
+## Work log: 2026-09-24 (end of day)
 - Phases 0 and 2 done; phase 4 (Linux PoC) nearly done. Protocol: `docs/protocol.md`. Tools: `tools/README.md`.
 - The PoC (`tools/dtr100.py`) does all of this on real hardware:
   - `scan`: full band III in ≈ 19 s, reliably finds 5B, 9C, 9D, 11C, 12C (55 services).
@@ -159,6 +180,8 @@ is roughly 10–12× slower than one laptop core (i7-1355U); cheaper head units 
   happens on the host (see the APK analysis).
 - [verified] The "Super Radio" chip is a QFN with about 12 pins per side (~48 pins).
   - [hypothesis] QFN-48 fits several DAB receiver SoCs; not identifying on its own.
+  - **Resolved 2026-09-28:** the chip is a **RAONTECH** part (OMRI-USB's RAON driver uses identical commands; see the
+    work log). The FC8080 notes below are kept for the record.
   - [hypothesis] **Probably not an FC8080.** A forum post (Rundfunkforum t=56416, only seen
     as a search snippet because the site sits behind a bot check) says 16c0:05dc dongles use
     the FCI/Silicon Motion **FC8080**, identified from the Android app. But the FC8080
@@ -284,7 +307,7 @@ Files in `vendor/` (gitignored), unzipped to `decompiled/<ver>/apk/`:
   registers, per-channel clock plans, FIC 384 bytes/frame, audio + 4 data sub-channel
   buffers). This backs up the FC80xx-family claim, **but** the driver also has an FM path
   (76–108 MHz), and the package doesn't match the FC8080. So: an FCI-family or FCI-compatible
-  chip. [hypothesis]
+  chip. [hypothesis] **Superseded 2026-09-28: a RAONTECH part** (work log).
 - [hypothesis] PLL words scale with frequency by about 341.39, i.e. a 12.288 MHz reference
   = the **24.576 MHz crystal ÷ 2**. This fits the teardown.
 - [verified] JNI method names (RegisterNatives table, in order):

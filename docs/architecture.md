@@ -1,125 +1,143 @@
 # DABplay+: Android app architecture
 
-Status: **approved by the owner, 2026-09-25**. Nothing is built yet. It builds on the verified PoC (`tools/`, `docs/protocol.md`)
-and the design decisions in `docs/design-notes.md`.
+The design was approved by the owner on 2026-09-25; this document describes the app **as built (2026-10-04)**. It
+builds on the verified PoC (`tools/`, `docs/protocol.md`) and the UI decisions in `docs/design-notes.md`. Work that is
+agreed but not built yet is marked **planned**.
 
 ## Constraints and targets
-- minSdk **26** (Android 8), must be solid on **API 29** (Dudu3). targetSdk = whatever the Play Store requires
-  at release time (API 35/36 at the time of writing).
-- Landscape head units; design baseline 1280×720, scaling to 2000×1200 and others.
-- **Offline first**: DAB reception needs no internet and nothing breaks without it. Online features are still
-  first-class: **station-logo download is in v1**, fetched whenever a connection is available and cached.
-- "Quick" targets: preset switch within the same ensemble **< 1 s** to audio (measured 0.90 s in the PoC; DAB's
-  time interleaving + superframe alignment put the floor at ≈ 0.6 s); across ensembles **≈ 1.5 s**;
-  cold start (boot → audio) as soon as the dongle enumerates, **< 3 s** after that.
-- **Pure Kotlin, no native code** (verified: MediaCodec decodes DAB+ on API 26/29). That gives one universal
-  APK for every ABI (arm64, armv7, x86) and no GPL dependencies.
+- minSdk **26** (Android 8), solid on **API 29** (the Dudu3: Unisoc UIS8581, 8× Cortex-A55, PowerVR GE8322). targetSdk
+  36, compileSdk 37.
+- Landscape head units; design baseline 1280×720, scales to other sizes.
+- **Offline first**: DAB reception needs no internet. Station logos are downloaded when online and cached; nothing
+  breaks without them.
+- **Pure Kotlin, no native code**: one APK for every ABI and no GPL dependencies. AAC goes through the platform's
+  MediaCodec; MP2 through our own Layer II decoder.
+- Budget hardware: one cached background layer instead of four full-screen paints, a baseline profile shipped in the
+  APK, decoding well under 1 % of a core (findings.md, "Performance on head-unit hardware").
 
 ## Big picture
 
 ```
- ┌──────────────── app (single Activity, Jetpack Compose) ───────────────────────┐
- │ Home · Stations · Now playing · Recent · Settings     layout 1a/1b + mirroring │
- └───────────────▲──────────────── state (StateFlow) ───────────────▲──────────────┘
-                 │ MediaController (play/pause/skip)                │ RadioState (DLS, slide, signal, scan)
- ┌───────────────┴── playback: RadioService (Media3 MediaSessionService, foreground) ┴─┐
- │  RadioPlayer (Media3 SimpleBasePlayer) ── steering-wheel keys, notification         │
- │  RadioEngine: tuning, service following, scan, favourites ↔ presets                  │
- └───────┬───────────────────────────────┬───────────────────────────────┬─────────────┘
-         │ tuner-api (interface)         │ dab-core (pure Kotlin/JVM)    │ audio
- ┌───────┴─────────┐          ┌──────────┴──────────────┐      ┌─────────┴──────────────┐
- │ driver-dtr100   │  FIC,MSC │ FIC/FIG → service DB    │ AUs  │ MediaCodec AAC (FDK)   │
- │ (16c0:05dc)     │ ───────► │ DAB+ superframe, RS, AU │ ───► │ MP2 (own Kotlin dec.)  │
- │                 │          │ PAD: DLS, DL+, MOT SLS  │ PCM  │ AudioTrack, audio focus│
- │ (future others) │          │ "Artist – Title" rules  │      └────────────────────────┘
- └───────┬─────────┘          └─────────────────────────┘
-         │ Android USB host API (UsbDeviceConnection.bulkTransfer)
+ ┌──────────────── app: MainActivity + Compose UI (AppShell, 5 screens) ─────────────────┐
+ │ Home · Stations · Now playing · Recent · Settings      bar/panel layout, driver side   │
+ └──────────▲──────────────── EngineState (StateFlow) ───────────────────▲────────────────┘
+            │ MediaController                                            │ state, slides, text
+ ┌──────────┴── playback: RadioService (Media3 MediaSessionService) ─────┴────────────────┐
+ │  DabPlayer (SimpleBasePlayer): steering-wheel keys, notification, artwork               │
+ │  DabEngine: one USB thread + command queue; scan, play, following, announcements,       │
+ │             reception; one RadioSession per connection (raw Session / ModuleSession)    │
+ └───────┬──────────────────────────────┬──────────────────────────────┬──────────────────┘
+         │ tuner-api: RawTuner,         │ dab-core (plain Kotlin/JVM)  │ audio: AudioPlayer
+         │ ModuleTuner, Transport       │ FIC, superframes, RS, PAD,   │ MediaCodec AAC, MP2,
+ ┌───────┴──────────────────────┐      │ MP2, announcements, ECC guess│ PCM, AudioTrack
+ │ driver-dtr100 (C100 family)  │ raw  └──────────────────────────────┘
+ │ driver-siano                 │ FIC+MSC → decoded on the host
+ │ driver-si4684 (module)       │ PCM, text, slides → decoded on the dongle
+ └───────┬──────────────────────┘
+         │ usb-android: AndroidUsbTransport (UsbDeviceConnection.bulkTransfer)
        dongle
- data: Room (ensembles, services, favourites, recents) · DataStore (settings) · disk cache (logos, slides)
- logos: RadioDNS SPI → website manifest icon / apple-touch-icon → radio-browser favicon (app-scoped coroutine, only when online)
+ data: StationStore (one JSON file) · SettingsStore (SharedPreferences) · LogoStore (files + index)
+ logos: LogoFetcher → RadioDNS SPI → website manifest / touch icon → radio-browser (only when online)
 ```
 
 ## Modules (Gradle)
-| Module | Contents | Android deps |
+| Module | Contents | Depends on |
 |---|---|---|
-| `:dab-core` | FIC/FIG parsing (0/0,1,2,6,9,13,21,24; 1/x), service model, DAB+ superframe (firecode, RS(120,110), AU split), ASC building, PAD (X-PAD, DLS, DL+, MOT slideshow), DLS → "Artist – Title" normaliser with per-broadcaster rules | **none** (plain Kotlin/JVM, so fast unit tests) |
-| `:tuner-api` | `DabTuner` interface, capabilities, driver registry (match by VID/PID + probe) | USB types only |
-| `:driver-dtr100` | Port of `tools/dtr100.py`: MCU commands, register access, init, full tune, FIC read, sub-channel start/stop, MSC read; firmware paths ≤1, 2–4, ≥5 | USB host API |
-| `:audio` | AAC via MediaCodec (decoder chosen by name: `c2.android.aac.decoder` / `OMX.google.aac.decoder`, then fallback), MP2 via an own Kotlin Layer II decoder, AudioTrack output, audio focus and ducking | media |
-| `:data` | Room DB, DataStore settings, image cache | Room, DataStore |
-| `:logos` | RadioDNS lookup (DNS CNAME/SRV via dnsjava), SPI XML parse, manifest/apple-touch-icon scrape, radio-browser API | OkHttp, dnsjava (no WorkManager: the fetcher runs while the app does) |
-| `:app` | Compose UI (Nocturne tokens → theme, Inter font, Phosphor icons), navigation, settings screens, playback service wiring, diagnostics export | Compose, Media3 |
+| `:dab-core` | FIC/FIG (0/0,1,2,6,9,13,18,19,21,24; 1/x), DAB+ superframes (firecode, RS(120,110), AU split, lost-AU reporting), ASC, PAD (X-PAD, DLS, DL Plus, MOT slideshow), "Artist – Title" rules, MP2 (Layer II decoder + DAB framing), announcements, reception monitor, ECC guess | nothing (JVM, fast unit tests) |
+| `:tuner-api` | `Transport` (bulk USB, faked in tests), `RawTuner` (host decodes), `ModuleTuner` (dongle decodes) | nothing |
+| `:driver-dtr100` | `Dtr100` (register-level, verified), `C100HighLevel` (YHX Dual Antenna, untested), `C100.open` picks one | tuner-api |
+| `:driver-siano` | Siano sticks with firmware on board (untested) | tuner-api, dab-core |
+| `:driver-si4684` | Si4684 module (Eonon A503, XFA-DAB220; untested) | tuner-api, dab-core |
+| `:usb-android` | `AndroidUsbTransport` | tuner-api |
+| `:audio` | `AudioPlayer`: AAC via MediaCodec (platform FDK decoder chosen by name), MP2, PCM; own thread, pre-roll, underrun recovery, silence for lost AUs, volume ramps | dab-core |
+| `:data` | `StationStore` (JSON, single writer thread, fsync + rename), `SettingsStore`, `LogoStore` | coroutines |
+| `:logos` | RadioDNS (dnsjava CNAME/SRV), SPI XML, web app manifest / touch icons, radio-browser; `PublicOnlyDns`, size caps, image sniffing | OkHttp, dnsjava |
+| `:app` | Compose UI, `DabEngine`, `AudioFocus`, `RadioService` + `DabPlayer`, `LogoFetcher`, `BootReceiver` | everything above, Media3 |
+| `:baselineprofile` | generates the baseline profile on a connected emulator | (test module) |
 
-## Tuner driver interface (sketch)
+## Tuner drivers
+Two contracts, because the dongles split into two kinds:
+
 ```kotlin
-interface DabTuner {
-    val capabilities: Capabilities            // bands (III, L), max parallel sub-channels, fwLevel
-    suspend fun open(); suspend fun close()
-    suspend fun tune(freqKhz: Int): TuneResult  // Locked(signal) | NoSignal(reason)
-    val fic: Flow<ByteArray>                  // 384-byte FIC blocks (or whole FIBs)
-    suspend fun startSubchannel(subch: Int, bitrateKbps: Int)
-    suspend fun stopSubchannel()
-    val msc: Flow<ByteArray>                  // raw sub-channel bytes
-    val signal: StateFlow<Signal>             // u1 / quality → 0..4 bars
+interface RawTuner {                       // the dongle hands over the raw ensemble; dab-core decodes
+    fun tune(khz: Int, retries: Boolean): Tuned
+    fun ficRead(): ByteArray?               // whole 32-byte FIBs
+    fun startAudio(subchannel: Int, bitrateKbps: Int); fun stopAudio()
+    fun mscRead(): ByteArray                // raw sub-channel bytes
+    val signal: SignalReading?              // bars 0..4, none, weak, raw value
+    fun close()
+}
+interface ModuleTuner {                    // the dongle decodes: scan, list, PCM, text, slides
+    fun scan(progress: (Int, Int) -> Unit, timeoutMs: Long): List<ModuleService>
+    fun play(service: ModuleService, serviceFollowing: Boolean); fun stop()
+    val signal: SignalReading?; val following: Boolean
 }
 ```
-Everything above the interface (FIC parsing, audio, PAD, UI) is shared. A dongle that outputs decoded audio
-(PCM/MP3 families) gets an alternative `AudioSource` path in the same interface family.
+All calls come from the engine's one USB thread (the Si4684 driver runs its own reader threads and calls back through
+a `ModuleListener`). Drivers only see `Transport`, so their tests replay or simulate USB traffic on the JVM.
+
+Selection (`DongleKind`, `C100.open`): 16c0:05dc with manufacturer `dabusb@126.com` → the register-level DTR-100 driver;
+only if its init fails, the YHX high-level set. 187f:0700/0800/0802 → Siano. 1a86:5537 → Si4684. **Planned:** a driver
+registry in `tuner-api`, so a new dongle doesn't mean editing the engine.
 
 ## Station model
-- A **service** is keyed by **ECC + SId** (e.g. `E3.83C7` = 538), which is globally unique and stable across
-  multiplexes. Favourites, recents, logos and slides are all keyed by it.
-- A service can be on several **ensembles** (EId + frequency + sub-channel + bitrate + ASCTy). The DB keeps
-  all known carriers per service, plus last-seen time and signal.
-- A scan updates the DB. An ensemble missing from a scan is only dropped after it has been missed several
-  times, because marginal multiplexes come and go.
+- A **service** is keyed by **ECC + SId** (e.g. `E3.83C7` = 538). Favourites, recents and logos use that key.
+- `StoredEnsemble` (EId, channel, kHz, label, last seen, missed scans) holds its `StoredService`s (key, label,
+  sub-channel, bitrate, ASCTy). A scan replaces the ensembles it found; one missing from a scan is dropped only after
+  being missed twice (marginal multiplexes come and go).
+- Learned alternatives (FIG 0/24 + 0/21 while listening) are stored per service for service following.
+- Si4684 modules have no FIC: their ensembles get a synthetic id above 0xFFFF per channel, and the ECC is guessed from
+  the SId's country digit and the device's country (`EccGuess`).
 
 ## Playback and tuning flow
-1. Preset tap → `RadioEngine.play(serviceKey)`.
-2. Same ensemble as now: proper stop, start the new sub-channel (no retune). Verified in the PoC: 0.90 s.
-3. Other ensemble: tune, then **start the stored sub-channel straight away** (don't wait for the FIC), and
-   verify against the FIC in the background, target < 1.5 s.
-4. MSC → superframe decoder → AUs → MediaCodec → AudioTrack. PAD from the AUs → DLS / slides → UI.
-5. **Service following**: a signal watchdog. On loss (> N s), try the same SId on other known ensembles
-   (DB + FIG 0/24 + 0/21). No FM fallback: FM is out of scope (see design-notes).
+1. A tap or steering-wheel key → `DabEngine.play(key)` (a command on the USB thread's queue).
+2. Same ensemble: stop the sub-channel, start the new one (no retune), 0.6–0.9 s to audio. Another ensemble: tune
+   first, ≈ 0.8 s more.
+3. MSC → `SuperframeDecoder` (or `Mp2Framer`) → `AudioPlayer`; PAD → DLS / slides → `EngineState` → UI and media
+   session. FIC is read every 50 ms while playing: announcements (FIG 0/18, 0/19) and alternatives (0/24, 0/21).
+4. **Reception**: `ReceptionMonitor` turns signal + good/bad frames into GOOD / WEAK / LOST. A lost AU becomes silence
+   of its length, so short errors are short mutes, not re-buffers.
+5. **Service following**: after 6 s of lost signal, try the same service on other known ensembles (band III only),
+   then retry every 30 s; re-lock attempts on the current one every 5 s.
+6. **Traffic announcements** (setting, off by default): switch to the announcing sub-channel on the same ensemble
+   and back; alarms always come through.
+7. Audio focus: a call silences, navigation ducks to 25 %, another media app pauses.
 
 ## Background, boot and USB (head-unit specifics)
-- `RadioService` is a Media3 `MediaSessionService`, foreground type `mediaPlayback`. The MediaSession gives
-  steering-wheel keys (next/previous favourite, play/pause) and the system media notification for free.
-- **USB permission without a prompt at every start**: an `USB_DEVICE_ATTACHED` intent filter with
-  `device_filter.xml` (VIDs/PIDs of the supported dongles). Once the user ticks "always open", Android grants
-  access automatically on every attach. (The attach intent only goes to activities, so an invisible
-  trampoline activity hands it to the service.)
-- **Boot and ACC**: a `BOOT_COMPLETED` receiver starts the service (allowed on Android 10). Many head units don't
-  reboot but *sleep* on ACC off, and the dongle re-enumerates on wake. So the service treats every
-  attach/detach as normal: re-open, re-init and resume the last service.
-- Audio focus: request focus for media. Navigation prompts duck (or pause, depending on the unit). This
-  must be tested on the Dudu3.
+- `RadioService` is a Media3 `MediaSessionService` (foreground, `mediaPlayback`): steering-wheel keys, notification,
+  station logo or slide as artwork.
+- USB: `device_filter.xml` lists the supported dongles; with "always open" ticked, Android opens the app when the dongle
+  appears and grants access. USB permission does **not** survive a cold boot, and a dongle present before boot
+  completes isn't announced (verified on the emulator), so the first open after a cold boot shows the prompt.
+- **Start with the car** (setting, off by default): off, an open caused by the dongle appearing closes again (or stays
+  in the background). On, `BootReceiver` opens the app; Android 10+ allows that only with "Display over other apps".
+- Back never leaves the app by accident (another tab → Home; Home → nothing).
+- **Planned:** USB attach/detach handling in the app process instead of `MainActivity`, so a destroyed activity can't
+  miss a detach; an in-app **diagnostics log** (engine events, reception statistics, driver messages) to pull off the
+  head unit after a drive.
 
-## Performance notes
-- USB I/O on one dedicated thread (blocking `bulkTransfer`); the DAB pipeline runs on a single-thread
-  coroutine dispatcher; MediaCodec and AudioTrack on their own. Ring buffer between MSC and the decoder.
-- RS decoding only runs when the syndrome is non-zero (it almost never is on a good signal).
-- Register writes are 0.2 ms each over USB (measured), so init (≈ 150 ms) and tune (≈ 0.6 s) are dominated
-  by the chip's own settle times, not by the code.
+## Threads
+- `dab-usb`: the engine's command loop and all dongle I/O (blocking `bulkTransfer`).
+- `dab-audio`: `AudioPlayer`'s decoder + AudioTrack writes (urgent-audio priority, 400 ms pre-roll).
+- `station-store`: JSON writes. Logo fetching: an app-scoped coroutine on IO.
+- Si4684 only: the driver's reply reader and PCM reader threads. **Planned:** make `AudioPlayer.offer()/release()` safe
+  across threads (today the Si4684 PCM thread and the engine thread can race at a station change).
 
 ## Testing
-- `:dab-core` **golden tests on the JVM**: feed `captures/raw/*.msc` / `*.fic` and compare with the Python PoC's
-  output (services, DLS, slides, AU CRCs). Captures stay out of any public repo (broadcast content).
-- No replay driver (owner, 2026-09-27: no broadcast recordings anywhere near the app). The emulator gets the real
-  dongle via USB passthrough (`-qemu -usb -device usb-host,vendorid=0x16c0,productid=0x05dc`).
-- Decoder: MediaCodec test like `tools/android/MediaCodecTest.java`, also as an instrumented test.
-- On-device: the Dudu3 over ADB on Wi-Fi with logcat, plus the in-app diagnostics export (transfer log + events).
+- `:dab-core` **golden tests**: `captures/raw/*.msc` / `*.fic` against the Python PoC's output. Captures stay local
+  (broadcast content), so these tests skip elsewhere, CI included. **Planned:** self-made test broadcasts in the repo.
+- Drivers: `Dtr100` replays a real session log (byte-identical traffic); the untested drivers are checked against
+  simulated dongles built from their protocol descriptions.
+- MP2: reference files generated with ffmpeg (`tools/gen_mp2_vectors.sh`), matched to ≤ 1 LSB.
+- `DecodeBenchmark` (`BENCH=1`): decoding cost per second of audio.
+- CI (GitHub Actions): wrapper validation, unit tests, release build on every push.
+- Hardware: the emulator with USB passthrough (android/README.md); the Dudu3 over ADB on Wi-Fi.
+- **Planned:** split `DabEngine` so the raw session runs on the JVM with an injectable clock, tested against a scripted
+  fake `RawTuner` (signal loss → following, announcements, reconnecting).
 
 ## Open items / risks
-- **MP2 (DAB classic)**: decided, it is supported. Android has no Layer II decoder (its MP3 decoder is Layer III
-  only), so `:audio` gets its own Kotlin Layer II decoder (a port of a permissively licensed one such as kjmp2,
-  licence to verify, or written from the spec), golden-tested against mpg123/ffmpeg. There are no MP2 stations
-  here, so testing uses files.
-- **Vendor AAC decoders** on some head units: choose the platform FDK decoder by name. Verify on the Dudu3.
-- **ACC sleep/wake** and USB re-enumeration behaviour on the Dudu3 (and the ~2 s first-enumeration delay).
-- Dongle firmware levels other than 4 are untested (the code paths come from the decompile).
-- A lock without a single valid FIB happens occasionally (seen on the first tune after a replug): the driver treats it as a
-  failed tune and retries. Never write the vendor's FM registers: their state survives power-off and re-init and degrades DAB
-  until a replug.
-- Build tooling: Gradle + AGP need a JDK AGP supports (installing JDK 21 alongside 25 may be needed).
+- First run on the Dudu3: frame times on its GPU, steering-wheel keys, calls/navigation, sleep vs cold boot and USB.
+- Untested on air: MP2 (no MP2 in NL), a real announcement switch, following a station while driving.
+- Three of four dongle families are untested on hardware (README).
+- Dongle firmware levels other than 4: code paths from the decompile, untested.
+- Never write the vendor's FM registers: their state survives power-off and degrades DAB until a replug.
