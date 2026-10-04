@@ -9,7 +9,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        // Placeholder: the applicationId is permanent once published on the Play Store.
+        // Final (owner, 2026-10-04): the applicationId can never change once APKs or a Play release are out.
         applicationId = "io.github.jvspier.dabplay"
         minSdk = 26
         targetSdk = 36
