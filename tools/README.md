@@ -18,7 +18,7 @@
   optionally creating and naming functions from a TSV first (used for the JNI table).
 - `ghidra/fn.py`: print one function (plus callees with `-d N`) from that C dump.
 
-Setup: `python3 -m venv .venv && .venv/bin/pip install pyusb reedsolo`; needs faad2-libs and pipewire (`pw-play`). Ghidra lives in `~/.local/opt/ghidra_12.1.4_PUBLIC`
+Setup: `python3 -m venv .venv && .venv/bin/pip install -r tools/requirements.txt`; needs faad2-libs and pipewire (`pw-play`). Ghidra lives in `~/.local/opt/ghidra_12.1.4_PUBLIC`
 and needs `java-25-openjdk-devel` (a full JDK).
 
 Regenerating the decompile (Ghidra loads x86 ELF at base 0x10000, so JNI addresses from the

@@ -12,11 +12,17 @@ import android.util.Log
  */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        // exported (boot broadcasts need that): only the start-up broadcasts count, not any app's explicit intent
+        if (intent.action !in START_UP) return
         val app = context.applicationContext as DabApp
         if (!app.settings.state.value.startWithCar) return
         Log.i("BootReceiver", "${intent.action}: Start with the car is on, opening")
         runCatching {
             context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }.onFailure { Log.w("BootReceiver", "couldn't open the app: ${it.message}") }
+    }
+
+    private companion object {
+        val START_UP = setOf(Intent.ACTION_BOOT_COMPLETED, "android.intent.action.QUICKBOOT_POWERON", "com.htc.intent.action.QUICKBOOT_POWERON")
     }
 }

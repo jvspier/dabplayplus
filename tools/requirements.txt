@@ -1,0 +1,4 @@
+# Python proof of concept (tools/). Also needs the system packages faad2-libs (AAC decoding through ctypes)
+# and pipewire (pw-play) for audio out.
+pyusb==1.3.1
+reedsolo==1.7.0
