@@ -13,9 +13,10 @@ runs the unit tests and the release build on every push.
 | `driver-si4684` | Kotlin/JVM | Si4684 module 1a86:5537 (untested) |
 | `logos` | Kotlin/JVM | RadioDNS (dnsjava), SPI XML, web app manifest / touch icons, radio-browser, `PublicOnlyDns`, `ImageSniff` |
 | `usb-android` | Android lib | `AndroidUsbTransport`: `Transport` over `UsbDeviceConnection.bulkTransfer` |
-| `audio` | Android lib | `AudioPlayer`: AAC via MediaCodec (platform FDK decoder by name), MP2, PCM; pre-roll, silence for lost AUs |
-| `data` | Android lib | `StationStore` (one JSON file), `SettingsStore` (SharedPreferences), `LogoStore` |
-| `app` | Android app | Compose UI (Home, Stations, Now playing, Recent, Settings), `DabEngine`, `RadioService` + `DabPlayer` (Media3), `LogoFetcher`, `BootReceiver` |
+| `engine` | Kotlin/JVM | `DabEngine` (scan, play, following, announcements, reconnecting, dropout resume), its ports (`Ports.kt`: `Dongle`, `AudioOut`, `Focus`, `EngineLog`, `EngineTimings`, `Drivers`), `DriverRegistry` |
+| `audio` | Android lib | `AudioPlayer` (`AudioOut`): AAC via MediaCodec (platform FDK decoder by name), MP2, PCM; pre-roll, silence for lost AUs |
+| `data` | Kotlin/JVM | `StationStore` (one JSON file), `LogoStore` |
+| `app` | Android app | Compose UI (Home, Stations, Now playing, Recent, Settings), the engine's Android ports (`AndroidDongle`, `AudioFocus`, `Diagnostics`), `SettingsStore` (SharedPreferences), `RadioService` + `DabPlayer` (Media3), `LogoFetcher`, `BootReceiver` |
 | `baselineprofile` | Android test | generates the baseline profile on a connected emulator |
 
 ## Building
@@ -44,6 +45,9 @@ installed afterwards, see `gradle.properties`).
 - Golden tests: `../tools/golden.py` writes `../captures/golden/*.txt` from the Python PoC for every capture in
   `../captures/raw`; the `dab-core` tests reproduce them line by line (FIC content, every AU, every DLS change and
   slide). Captures and goldens are local test material (gitignored); the tests skip when they're absent (CI included).
+- Engine tests (`engine/src/test`, run everywhere): `DabEngine` against a scripted tuner that plays a test broadcast built
+  in the repo (`Broadcast`: valid FIC and DAB+ superframes). They cover playback, following to another multiplex on
+  signal loss, traffic announcements, reconnecting after a USB error, dropout resume and a band scan, in about 15 s.
 
 ## Diagnostics log
 The app keeps its own event log (startup with device info, dongle and driver events, tuning, playback, audio decoder

@@ -24,8 +24,9 @@ agreed but not built yet is marked **planned**.
             │ MediaController                                            │ state, slides, text
  ┌──────────┴── playback: RadioService (Media3 MediaSessionService) ─────┴────────────────┐
  │  DabPlayer (SimpleBasePlayer): steering-wheel keys, notification, artwork               │
- │  DabEngine: one USB thread + command queue; scan, play, following, announcements,       │
- │             reception; one RadioSession per connection (raw Session / ModuleSession)    │
+ │  DabEngine (:engine, plain Kotlin): one USB thread + command queue; scan, play,         │
+ │  following, announcements, reception; one RadioSession per connection                   │
+ │  (raw Session / ModuleSession); sees Android only through its ports                     │
  └───────┬──────────────────────────────┬──────────────────────────────┬──────────────────┘
          │ tuner-api: RawTuner,         │ dab-core (plain Kotlin/JVM)  │ audio: AudioPlayer
          │ ModuleTuner, Transport       │ FIC, superframes, RS, PAD,   │ MediaCodec AAC, MP2,
@@ -36,7 +37,7 @@ agreed but not built yet is marked **planned**.
  └───────┬──────────────────────┘
          │ usb-android: AndroidUsbTransport (UsbDeviceConnection.bulkTransfer)
        dongle
- data: StationStore (one JSON file) · SettingsStore (SharedPreferences) · LogoStore (files + index)
+ data: StationStore (one JSON file) · LogoStore (files + index)    app: SettingsStore (SharedPreferences)
  logos: LogoFetcher → RadioDNS SPI → website manifest / touch icon → radio-browser (only when online)
 ```
 
@@ -49,10 +50,11 @@ agreed but not built yet is marked **planned**.
 | `:driver-siano` | Siano sticks with firmware on board (untested) | tuner-api, dab-core |
 | `:driver-si4684` | Si4684 module (Eonon A503, XFA-DAB220; untested) | tuner-api, dab-core |
 | `:usb-android` | `AndroidUsbTransport` | tuner-api |
-| `:audio` | `AudioPlayer`: AAC via MediaCodec (platform FDK decoder chosen by name), MP2, PCM; own thread, pre-roll, underrun recovery, silence for lost AUs, volume ramps | dab-core |
-| `:data` | `StationStore` (JSON, single writer thread, fsync + rename), `SettingsStore`, `LogoStore` | coroutines |
+| `:engine` | `DabEngine` (scan, play, following, announcements, reconnecting, dropout resume), its ports (`Ports.kt`), `DriverRegistry` | tuner-api, dab-core, data, the drivers, logos (`ImageSniff`); JVM |
+| `:audio` | `AudioPlayer` (`AudioOut`): AAC via MediaCodec (platform FDK decoder chosen by name), MP2, PCM; own thread, pre-roll, underrun recovery, silence for lost AUs, volume ramps | dab-core, engine |
+| `:data` | `StationStore` (JSON, single writer thread, fsync + rename), `LogoStore` | coroutines (JVM) |
 | `:logos` | RadioDNS (dnsjava CNAME/SRV), SPI XML, web app manifest / touch icons, radio-browser; `PublicOnlyDns`, size caps, image sniffing | OkHttp, dnsjava |
-| `:app` | Compose UI, `DabEngine`, `AudioFocus`, `RadioService` + `DabPlayer`, `LogoFetcher`, `BootReceiver` | everything above, Media3 |
+| `:app` | Compose UI, the engine's Android side (`AndroidDongle`, `AudioFocus`, `Diagnostics`), `SettingsStore`, `RadioService` + `DabPlayer`, `LogoFetcher`, `BootReceiver` | everything above, Media3 |
 | `:baselineprofile` | generates the baseline profile on a connected emulator | (test module) |
 
 ## Tuner drivers
@@ -77,8 +79,21 @@ All calls come from the engine's one USB thread (the Si4684 driver runs its own 
 a `ModuleListener`). Drivers only see `Transport`, so their tests replay or simulate USB traffic on the JVM.
 
 Selection (`DongleKind`, `C100.open`): 16c0:05dc with manufacturer `dabusb@126.com` → the register-level DTR-100 driver;
-only if its init fails, the YHX high-level set. 187f:0700/0800/0802 → Siano. 1a86:5537 → Si4684. **Planned:** a driver
-registry in `tuner-api`, so a new dongle doesn't mean editing the engine.
+only if its init fails, the YHX high-level set. 187f:0700/0800/0802 → Siano. 1a86:5537 → Si4684. `DriverRegistry` is
+the one place that knows this (USB ids → `DongleKind` → driver); the engine sees only its `Drivers` interface, so a new
+dongle family is a new kind and a line there.
+
+## Engine ports
+`:engine` is plain Kotlin: it reaches the platform only through the interfaces in `Ports.kt`, which the app implements.
+
+| Port | What it is | In the app |
+|---|---|---|
+| `Dongle` | a USB device: name, `DongleKind`, `open()` → `Transport` + close | `AndroidDongle` (manufacturer check, claim, bulk endpoints) |
+| `AudioOut` | AAC / MP2 / PCM in, silence for lost AUs, level, release | `AudioPlayer` |
+| `Focus` | audio focus requests and changes (loss, ducking, gain) | `AudioFocus` |
+| `EngineLog` | events, warnings, errors; `logcatOnly` for song texts | `Diagnostics` |
+| `EngineTimings` | following, relock, reconnect backoff, learning intervals | defaults; shortened in tests |
+| `Drivers` | kind + transport → `RawTuner` / `ModuleTuner` | `DriverRegistry` |
 
 ## Station model
 - A **service** is keyed by **ECC + SId** (e.g. `E3.83C7` = 538). Favourites, recents and logos use that key.
@@ -131,15 +146,18 @@ registry in `tuner-api`, so a new dongle doesn't mean editing the engine.
 
 ## Testing
 - `:dab-core` **golden tests**: `captures/raw/*.msc` / `*.fic` against the Python PoC's output. Captures stay local
-  (broadcast content), so these tests skip elsewhere, CI included. **Planned:** self-made test broadcasts in the repo.
+  (broadcast content), so these tests skip elsewhere, CI included.
+- `:engine` tests run on the JVM (CI included) against a scripted `RawTuner` and a test broadcast built in the repo
+  (`Broadcast`: valid FIC with FIG 0/0, 0/1, 0/2, 1/0, 1/1, 0/18, 0/19, and DAB+ superframes with firecode, AU CRCs and
+  RS parity), so the real decode path runs: playback, signal loss → following to another multiplex, a traffic
+  announcement in and out (and none with the setting off), reconnecting after a USB error with backoff, dropout
+  resume (and none after a pause), a band scan into the store. Real threads with shortened `EngineTimings`.
 - Drivers: `Dtr100` replays a real session log (byte-identical traffic); the untested drivers are checked against
   simulated dongles built from their protocol descriptions.
 - MP2: reference files generated with ffmpeg (`tools/gen_mp2_vectors.sh`), matched to ≤ 1 LSB.
 - `DecodeBenchmark` (`BENCH=1`): decoding cost per second of audio.
 - CI (GitHub Actions): wrapper validation, unit tests, release build on every push.
 - Hardware: the emulator with USB passthrough (android/README.md); the Dudu3 over ADB on Wi-Fi.
-- **Planned:** split `DabEngine` so the raw session runs on the JVM with an injectable clock, tested against a scripted
-  fake `RawTuner` (signal loss → following, announcements, reconnecting).
 
 ## Open items / risks
 - First run on the Dudu3: frame times on its GPU, steering-wheel keys, calls/navigation, sleep vs cold boot and USB.

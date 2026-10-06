@@ -61,7 +61,8 @@ head unit (a Dudu3, Android 10, budget-class hardware) is next; the app has been
 background layer, a baseline profile, decoding that costs well under 1 % of a core).
 
 Not yet verified on air: MP2 (the Netherlands has no MP2 stations; tested against reference files), a real traffic
-announcement switch, and following a station to another multiplex while driving. Other dongles: see the table above.
+announcement switch, and following a station to another multiplex while driving (both are covered by tests against
+a simulated tuner). Other dongles: see the table above.
 
 ## Building
 

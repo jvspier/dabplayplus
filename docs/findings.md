@@ -3,7 +3,7 @@
 Every claim is tagged **[verified]** (seen directly) or **[hypothesis]** (inferred). Update
 this file as work progresses.
 
-## Status (2026-10-04)
+## Status (2026-10-06)
 - **Phase 5, Android app**: feature-complete for v1 and verified with the real DTR-100 in the API 34 emulator (USB
   passthrough). What's in it: README "Features"; how it's built: `docs/architecture.md`.
 - **Since the 09-27/28 log below** [verified on hw unless noted]:
@@ -26,9 +26,13 @@ this file as work progresses.
   - Code review of the drivers/engine work and its fixes (2026-10-06); dongle dropouts while playing resume in the
     background [verified, 3 real unplug/replug rounds: 538 again 1.0–1.05 s after the replug, home screen in front];
     the diagnostics log file.
-- **Next**: (1) done; (2) after that: split `DabEngine` with JVM tests, a driver registry, self-made test
-  broadcasts; (3) the Dudu3 run (frame times, steering wheel, calls/navigation, sleep vs cold boot, signal bars);
-  (4) before going public: history cleanup, release key, GitHub Releases.
+  - Engine split (2026-10-06): `DabEngine` is a plain-Kotlin module (`:engine`) behind ports, `:data` is plain Kotlin,
+    `DriverRegistry` picks the driver. JVM tests run the engine against a scripted tuner and an in-repo test broadcast
+    (playback, following, announcements, reconnecting, dropout resume, scan) [verified: 10 tests, stable on one CPU
+    core]. Hardware regression after each of the steps [verified, DTR-100: scan 7 ensembles / 74 stations, 538 in
+    0.6–0.8 s, 11C → 12C, pause/play, an unplug with resume in 0.97 s].
+- **Next**: (1) the Dudu3 run (frame times, steering wheel, calls/navigation, sleep vs cold boot, signal bars from the
+  `rx30` lines); (2) before going public: release key, GitHub Releases.
 
 ## Work log: phase 5, 2026-09-27 … 09-28
 - **Android app, phase 5** (`android/`, see `android/README.md`). Done and verified on the API 34 head-unit emulator
