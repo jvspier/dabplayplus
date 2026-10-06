@@ -14,4 +14,5 @@ android {
 
 dependencies {
     implementation(project(":dab-core"))
+    implementation(project(":engine"))          // AudioOut, the interface the engine plays through
 }

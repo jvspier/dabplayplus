@@ -1,11 +1,5 @@
 package io.github.jvspier.dabplay.engine
 
-import android.hardware.usb.UsbConstants
-import android.hardware.usb.UsbDevice
-import android.hardware.usb.UsbDeviceConnection
-import android.hardware.usb.UsbManager
-import android.util.Log
-import io.github.jvspier.dabplay.audio.AudioPlayer
 import io.github.jvspier.dabplay.core.Band3
 import io.github.jvspier.dabplay.core.dabplus.SuperframeDecoder
 import io.github.jvspier.dabplay.core.mp2.DabMp2Pad
@@ -27,21 +21,15 @@ import io.github.jvspier.dabplay.data.Station
 import io.github.jvspier.dabplay.data.StationStore
 import io.github.jvspier.dabplay.data.StoredEnsemble
 import io.github.jvspier.dabplay.data.StoredService
-import io.github.jvspier.dabplay.driver.dtr100.C100
-import io.github.jvspier.dabplay.driver.dtr100.Dtr100
 import io.github.jvspier.dabplay.tuner.RawTuner
 import io.github.jvspier.dabplay.core.EccGuess
-import io.github.jvspier.dabplay.diag.Diagnostics
 import io.github.jvspier.dabplay.driver.si4684.Frames
-import io.github.jvspier.dabplay.driver.si4684.Si4684
-import io.github.jvspier.dabplay.driver.siano.Siano
 import io.github.jvspier.dabplay.tuner.ModuleListener
 import io.github.jvspier.dabplay.tuner.ModuleService
-import io.github.jvspier.dabplay.tuner.Transport
+import io.github.jvspier.dabplay.tuner.ModuleTuner
 import java.io.IOException
 import java.util.Locale
 import io.github.jvspier.dabplay.tuner.Tuned
-import io.github.jvspier.dabplay.usb.AndroidUsbTransport
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -80,13 +68,17 @@ data class EngineState(
  * station (retuning only when it's on another ensemble), decodes audio and PAD, and publishes [state].
  */
 class DabEngine(
-    private val usb: UsbManager,
     private val store: StationStore,
-    private val focus: AudioFocus,
+    private val focus: Focus,
+    /** A fresh audio output per connection (the app's AudioPlayer). */
+    private val newAudio: () -> AudioOut,
+    private val events: EngineLog,
     private val resumeOnStart: () -> Boolean = { true },
     private val followStation: () -> Boolean = { true },
     private val trafficAnnouncements: () -> Boolean = { false },
-    private val events: Diagnostics,
+    private val timings: EngineTimings = EngineTimings(),
+    /** Runs first on the USB thread (the app raises its priority: the MSC reader must never fall behind). */
+    private val usbThreadSetup: () -> Unit = {},
 ) {
     // show the last-played station straight away (car start: the dongle takes a moment; or it isn't plugged in)
     private val _state = MutableStateFlow(EngineState(current = store.state.value.let { s -> s.lastPlayed?.let(s::station) }))
@@ -101,10 +93,10 @@ class DabEngine(
 
     private val commands = LinkedBlockingDeque<Cmd>()
     private var thread: Thread? = null
-    @Volatile private var device: UsbDevice? = null
+    @Volatile private var device: Dongle? = null
 
-    fun attach(dev: UsbDevice) {
-        if (thread?.isAlive == true && device?.deviceName == dev.deviceName) return
+    fun attach(dev: Dongle) {
+        if (thread?.isAlive == true && device?.name == dev.name) return
         val old = thread
         device = dev
         old?.interrupt()
@@ -124,7 +116,7 @@ class DabEngine(
 
     /** A USB device went away ([deviceName]); only our dongle leaving stops the engine (a USB stick or phone doesn't). */
     fun detached(deviceName: String?) {
-        if (deviceName != null && deviceName != device?.deviceName) return
+        if (deviceName != null && deviceName != device?.name) return
         val s = _state.value
         // the USB read usually fails a moment before Android reports the unplug: the session has ended by then, and
         // what was playing is the reconnect loop's pending resume
@@ -159,19 +151,19 @@ class DabEngine(
      * it reconnects with the same init sequence as at startup, backing off 0.5 s → 8 s, and carries on with the
      * station that was playing. It ends only when the dongle is detached (or another attach replaces it).
      */
-    private fun run(dev: UsbDevice, resumeFirst: ServiceKey? = null) {
+    private fun run(dev: Dongle, resumeFirst: ServiceKey? = null) {
         // the MSC reader must never fall behind the dongle (its buffer overflows: audible skips)
-        runCatching { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO) }
+        runCatching { usbThreadSetup() }
         commands.clear()                                     // buttons pressed while there was no dongle: don't replay
         var failures = 0
         var resume: ServiceKey? = resumeFirst
-        while (device?.deviceName == dev.deviceName && !Thread.currentThread().isInterrupted) {
+        while (device?.name == dev.name && !Thread.currentThread().isInterrupted) {
             val failed = session(dev, resume) ?: break          // null: stopped on purpose
             // a session that never got the dongle ready (pendingResume still set) can't know what played before: keep it
             resume = failed.resume ?: pendingResume
             pendingResume = resume
             failures++
-            val wait = minOf(8000L, 500L shl minOf(failures - 1, 4))
+            val wait = minOf(timings.reconnectMaxMs, timings.reconnectBaseMs shl minOf(failures - 1, 4))
             status("Dongle error, reconnecting in ${"%.1f".format(wait / 1000.0)} s")
             try { Thread.sleep(wait) } catch (_: InterruptedException) { break }
         }
@@ -181,25 +173,17 @@ class DabEngine(
     private class Failure(val resume: ServiceKey?)
 
     /** One connection: open, init, serve commands. Null when stopped on purpose, else what to resume after reconnecting. */
-    private fun session(dev: UsbDevice, resume: ServiceKey?): Failure? {
-        var conn: UsbDeviceConnection? = null
+    private fun session(dev: Dongle, resume: ServiceKey?): Failure? {
+        var conn: OpenDongle? = null
         var radio: RadioSession? = null
-        val player = AudioPlayer { events.i("AudioPlayer", it) }
+        val player = newAudio()
         try {
-            val kind = DongleKind.of(dev) ?: error("unsupported dongle %04x:%04x".format(dev.vendorId, dev.productId))
-            // check before claiming: 16c0:05dc is a shared V-USB id, don't grab someone else's device
-            if (kind == DongleKind.C100) check(dev.manufacturerName == Dtr100.MANUFACTURER) { "unsupported dongle (manufacturer '${dev.manufacturerName}')" }
-            conn = usb.openDevice(dev) ?: error("cannot open the USB device")
-            val intf = dev.getInterface(0)
-            check(conn.claimInterface(intf, true)) { "cannot claim interface 0" }
-            val eps = (0 until intf.endpointCount).map { intf.getEndpoint(it) }
-                .filter { it.type == UsbConstants.USB_ENDPOINT_XFER_BULK }.associateBy { it.address }
-            val transport = AndroidUsbTransport(conn, eps)
-            val r: RadioSession = when (kind) {
-                DongleKind.C100 -> Session(C100.open(transport, log = { events.i(TAG, it) }), player)
-                DongleKind.SI4684 -> ModuleSession(transport, player)
-                DongleKind.SIANO -> Session(Siano.open(transport, log = { events.i(TAG, it) }), player)
-            }
+            val kind = dev.kind ?: error("unsupported dongle ${dev.name}")
+            conn = dev.open()                                   // also checks a shared USB id's manufacturer
+            val transport = conn.transport
+            val log: (String) -> Unit = { events.i(TAG, it) }
+            val r: RadioSession = DriverRegistry.rawTuner(kind, transport, log)?.let { Session(it, player) }
+                ?: ModuleSession({ listener -> DriverRegistry.moduleTuner(kind, transport, listener, log) ?: error("no driver for $kind") }, player)
             radio = r
             _state.update { it.copy(dongle = true, error = null) }
             pendingResume = null                                 // handed to this session (queued below)
@@ -246,7 +230,7 @@ class DabEngine(
         val text = t.map { if (it < ' ') ' ' else it }.joinToString("").replace(Regex("\\s+"), " ").trim()
         // logcat only, not the diagnostics file: the songs heard, with times, are a listening history, and on Android 10
         // other apps with storage permission can read the app's external files folder
-        if (text.isNotEmpty()) Log.i(TAG, "DLS: $text")
+        if (text.isNotEmpty()) events.logcatOnly(TAG, "DLS: $text")
         _state.update { it.copy(nowPlaying = if (text.isEmpty()) null else DlsParser.parse(text, st.key.ecc, st.key.sid, st.label)) }
     }
 
@@ -268,8 +252,8 @@ class DabEngine(
      * finished audio, text and slides; we store its stations and show and play what it sends. No FIC here, so no
      * announcements, no learned alternatives and no ECC (guessed from the country, see [EccGuess]).
      */
-    private inner class ModuleSession(t: Transport, private val player: AudioPlayer) : RadioSession, ModuleListener {
-        private val m = Si4684.open(t, this) { events.i(TAG, it) }
+    private inner class ModuleSession(open: (ModuleListener) -> ModuleTuner, private val player: AudioOut) : RadioSession, ModuleListener {
+        private val m = open(this)
         override val description get() = m.description
         @Volatile private var station: Station? = null
 
@@ -328,7 +312,7 @@ class DabEngine(
                 }
                 // the module answers continuously while alive: a long silence is a dead link (a brown-out without
                 // re-enumeration); the failure starts the usual reconnect and resume
-                if (m.silentForMs > MODULE_SILENT_MS) throw IOException("the module stopped answering")
+                if (m.silentForMs > timings.moduleSilentMs) throw IOException("the module stopped answering")
                 val sr = m.signal
                 val r = when { sr == null -> Reception.GOOD; sr.none -> Reception.LOST; sr.weak -> Reception.WEAK; else -> Reception.GOOD }
                 val following = if (m.following) st.ensemble.channel else null
@@ -360,7 +344,7 @@ class DabEngine(
     @Volatile private var focusLevel = 1f        // what audio focus allows now (a call: 0, navigation: ducked)
 
     /** Audio focus for [player]: a call silences it, navigation ducks it, another media app pauses the radio. */
-    private fun requestFocus(player: AudioPlayer): Boolean {
+    private fun requestFocus(player: AudioOut): Boolean {
         val ok = focus.request { c ->
             focusLevel = when (c) {
                 FocusChange.LOST -> { pause(); 1f }                  // another media app took over
@@ -376,7 +360,7 @@ class DabEngine(
     }
 
     /** A dongle that hands over the raw ensemble (C100 family): tuning, FIC, decoding and following are ours. */
-    private inner class Session(private val d: RawTuner, private val player: AudioPlayer) : RadioSession {
+    private inner class Session(private val d: RawTuner, private val player: AudioOut) : RadioSession {
         override val description get() = d.description
         override fun close() = d.close()
         private var tunedKhz: Int? = null
@@ -492,18 +476,18 @@ class DabEngine(
         private fun stream(st: Station): Station? {
             val key = st.key
             // back from a failed follow attempt, the original may not lock yet: keep trying, showing "No signal"
-            if (nextFollowAt == 0L) nextFollowAt = System.currentTimeMillis() + FOLLOW_AFTER_MS
+            if (nextFollowAt == 0L) nextFollowAt = System.currentTimeMillis() + timings.followAfterMs
             while (tunedKhz != st.ensemble.freqKhz) {
                 if (tune(st.ensemble.freqKhz, retries = false).locked) break
                 _state.update { it.copy(current = if (taReturn == null) st else it.current, reception = Reception.LOST,
                     signalBars = 0, playing = true, tuning = false) }
-                when (val c = commands.poll(RELOCK_EVERY_MS, TimeUnit.MILLISECONDS)) {
+                when (val c = commands.poll(timings.relockEveryMs, TimeUnit.MILLISECONDS)) {
                     null, Cmd.SkipAnnouncement -> Unit
                     Cmd.Pause -> { pauseStream(); focus.abandon(); dropAnnouncement(); _state.update { it.copy(playing = false) }; status("Paused"); return null }
                     else -> { commands.offerFirst(c); return null }            // keep the order: it's next
                 }
                 if (followStation() && System.currentTimeMillis() >= nextFollowAt) {
-                    nextFollowAt = System.currentTimeMillis() + FOLLOW_RETRY_MS
+                    nextFollowAt = System.currentTimeMillis() + timings.followRetryMs
                     follow(st)?.let { if (it !== st) return it }
                 }
             }
@@ -585,8 +569,8 @@ class DabEngine(
                     }
                     if (taReturn != null && act?.cluster != taCluster) return endAnnouncement("over")
                     if (r == Reception.LOST && followStation() && monitor.lostSince >= 0 &&
-                        now - monitor.lostSince >= FOLLOW_AFTER_MS && now >= nextFollowAt) {
-                        nextFollowAt = now + FOLLOW_RETRY_MS
+                        now - monitor.lostSince >= timings.followAfterMs && now >= nextFollowAt) {
+                        nextFollowAt = now + timings.followRetryMs
                         follow(st)?.let { return it }
                     }
                 }
@@ -595,7 +579,7 @@ class DabEngine(
                     d.ficRead()?.let { f ->
                         guarded("FIC") { ficLive.feed(f) }
                         val k = "${ficLive.otherEnsembleServices.values.sumOf { it.size }}/${ficLive.frequencyInfo.size}"
-                        if (k != learnedKey && now - learnedAt >= LEARN_EVERY_MS) { learnedKey = k; learnedAt = now; learnAlternatives(ficLive, st) }
+                        if (k != learnedKey && now - learnedAt >= timings.learnEveryMs) { learnedKey = k; learnedAt = now; learnAlternatives(ficLive, st) }
                     }
                 }
                 val t0 = System.nanoTime()
@@ -713,13 +697,7 @@ class DabEngine(
         const val MODULE_EID = 0x10000
         /** Module stations: the module decodes, so no audio type from the FIC. */
         const val MODULE_ASCTY = -1
-        /** No reply from a Si4684 module for this long while playing: reconnect. */
-        const val MODULE_SILENT_MS = 10_000L
-        const val LEARN_EVERY_MS = 10_000L       // store learned alternatives at most this often
         const val MAX_SLIDE_PX = 1280            // DAB slides are 320x240 (up to 640x480); anything bigger is dropped
         const val DUCK_LEVEL = 0.25f            // under a navigation prompt
-        const val FOLLOW_AFTER_MS = 6_000L      // signal gone this long before trying another ensemble
-        const val FOLLOW_RETRY_MS = 30_000L     // then again every 30 s while it stays gone
-        const val RELOCK_EVERY_MS = 5_000L      // retune attempts on the station's own frequency while nothing locks
     }
 }

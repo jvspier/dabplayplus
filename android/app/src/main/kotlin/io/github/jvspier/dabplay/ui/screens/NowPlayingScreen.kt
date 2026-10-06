@@ -112,10 +112,11 @@ fun NowPlayingScreen(e: EngineState, db: Snapshot, a: RadioActions, chipOnLeft: 
 private fun nowLine(e: EngineState, st: Station?): Pair<String, Color> {
     val c = LocalDabColors.current
     val np = e.nowPlaying
+    val problem = e.problem                    // a local: EngineState lives in another module (no smart cast)
     val text = when {
         st == null -> "Nothing playing"
         !e.dongle && !e.playing -> "DAB dongle not connected"
-        e.problem != null -> e.problem
+        problem != null -> problem
         e.tuning -> "Tuning…"
         e.playing && e.reception == Reception.LOST -> noSignalText(e)
         np == null -> st.label

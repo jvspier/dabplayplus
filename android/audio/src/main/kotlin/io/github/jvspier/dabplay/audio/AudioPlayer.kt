@@ -1,5 +1,6 @@
 package io.github.jvspier.dabplay.audio
 
+import io.github.jvspier.dabplay.engine.AudioOut
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
@@ -20,8 +21,11 @@ import java.util.concurrent.ArrayBlockingQueue
  * [PREROLL_MS] pre-roll into a ~1 s AudioTrack buffer; after an underrun it pauses and pre-rolls again
  * (one clean gap instead of stuttering).
  */
-/** [events]: the lines worth keeping in the app's diagnostics log (decoder, track format, underruns, errors). */
-class AudioPlayer(private val events: (String) -> Unit = {}) {
+/**
+ * [events]: where its messages go (decoder, track format, underruns, errors); the app's diagnostics log, which also
+ * writes them to logcat. Without one, logcat directly.
+ */
+class AudioPlayer(private val events: (String) -> Unit = { Log.i(TAG, it) }) : AudioOut {
     private sealed interface Item
     private class Au(val asc: ByteArray, val data: ByteArray, val rate: Int) : Item
     private class Mp2(val frame: ByteArray) : Item
@@ -34,22 +38,22 @@ class AudioPlayer(private val events: (String) -> Unit = {}) {
     @Volatile var decoderName: String? = null; private set
 
     /** Queue one DAB+ AU ([asc] = its AudioSpecificConfig, [outputRate] = e.g. 32000/48000). Call from one thread. */
-    fun feedAac(asc: ByteArray, au: ByteArray, outputRate: Int) = offer(Au(asc, au, outputRate))
+    override fun feedAac(asc: ByteArray, au: ByteArray, outputRate: Int) = offer(Au(asc, au, outputRate))
 
     /** Queue one DAB (MP2) Layer II frame. Call from one thread. */
-    fun feedMp2(frame: ByteArray) = offer(Mp2(frame))
+    override fun feedMp2(frame: ByteArray) = offer(Mp2(frame))
 
     /**
      * [ms] of silence in place of audio that was lost on air (a DAB+ AU that failed its CRC). Keeps the timeline: a
      * short reception error is a short mute, instead of an underrun and a 400 ms re-buffer. Call from one thread.
      */
-    fun feedSilence(ms: Int) = offer(Silence(ms))
+    override fun feedSilence(ms: Int) = offer(Silence(ms))
 
     /**
      * Queue decoded audio from a dongle that decodes itself: 16-bit little-endian PCM, interleaved, whole sample frames
      * (the driver keeps any odd tail for the next chunk). Call from one thread.
      */
-    fun feedPcm(data: ByteArray, rate: Int, channels: Int) = offer(Pcm(data, rate, channels))
+    override fun feedPcm(data: ByteArray, rate: Int, channels: Int) = offer(Pcm(data, rate, channels))
 
     /** Synchronised with [release]: two threads (the engine's, a module driver's) mustn't both start a worker. */
     @Synchronized private fun offer(item: Item) {
@@ -61,11 +65,11 @@ class AudioPlayer(private val events: (String) -> Unit = {}) {
      * Output level 0..1 (a call: 0, a navigation prompt: ducked, else 1). Faded towards on the audio thread, in steps
      * per written buffer (~20 ms each), so about 120 ms from full to silent. Keeps decoding: it's live again at once.
      */
-    fun setLevel(level: Float) { targetLevel = level.coerceIn(0f, 1f) }
+    override fun setLevel(level: Float) { targetLevel = level.coerceIn(0f, 1f) }
     @Volatile private var targetLevel = 1f
 
     /** Stop now (station switch, pause): silences at once and frees the decoder and track. */
-    @Synchronized fun release() {
+    @Synchronized override fun release() {
         val w = worker ?: return
         worker = null
         w.interrupt()
@@ -94,7 +98,7 @@ class AudioPlayer(private val events: (String) -> Unit = {}) {
                 } catch (e: Exception) {
                     // a bad AU, a codec that won't configure, an audio HAL not ready at boot: start over with the next item
                     errors++
-                    if (errors <= 5 || errors % 100 == 0) { Log.e(TAG, "audio error #$errors, resetting the decoder", e); events("audio error #$errors: $e") }
+                    if (errors <= 5 || errors % 100 == 0) events("audio error #$errors, resetting the decoder: ${e.stackTraceToString().take(1500)}")
                     runCatching { s.release() }
                     s = Stream()
                 }
@@ -184,7 +188,7 @@ class AudioPlayer(private val events: (String) -> Unit = {}) {
             codec = MediaCodec.createByCodecName(name).apply { configure(fmt, null, null, 0); start() }
             decoderName = name
             this.asc = asc.copyOf()
-            run { val m = "decoder $name, ASC ${asc.joinToString("") { "%02x".format(it) }}"; Log.i(TAG, m); events(m) }
+            events("decoder $name, ASC ${asc.joinToString("") { "%02x".format(it) }}")
         }
 
         private fun drain() {
@@ -232,7 +236,7 @@ class AudioPlayer(private val events: (String) -> Unit = {}) {
             if (t.playState == AudioTrack.PLAYSTATE_PLAYING && t.underrunCount != underruns) {
                 underruns = t.underrunCount
                 t.pause(); buffered = 0                      // ran dry: pre-roll again before resuming
-                run { val m = "underrun (queue ${queue.size} AUs), re-buffering"; Log.i(TAG, m); events(m) }
+                events("underrun (queue ${queue.size} AUs), re-buffering")
             }
             return t
         }
@@ -263,7 +267,7 @@ class AudioPlayer(private val events: (String) -> Unit = {}) {
                 .setBufferSizeInBytes(maxOf(min * 4, bytesPerSec * BUFFER_MS / 1000))
                 .setTransferMode(AudioTrack.MODE_STREAM)
                 .build().also { it.setVolume(level); ownTrack = it }
-            run { val m = "AudioTrack $rate Hz, $channels ch, pre-roll $PREROLL_MS ms"; Log.i(TAG, m); events(m) }
+            events("AudioTrack $rate Hz, $channels ch, pre-roll $PREROLL_MS ms")
         }
 
         fun release() {

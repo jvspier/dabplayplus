@@ -45,6 +45,7 @@ dependencies {
     implementation(project(":usb-android"))
     implementation(project(":audio"))
     implementation(project(":data"))
+    implementation(project(":engine"))
 
     // baseline profile (src/release/generated/baselineProfiles): the UI is compiled ahead of time at install, not
     // interpreted until the device finds idle time to compile it, which a head unit that is always in use rarely has

@@ -12,7 +12,6 @@ import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import io.github.jvspier.dabplay.data.StationStore
-import io.github.jvspier.dabplay.engine.DongleKind
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -114,8 +113,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun findDongle(ask: Boolean = true) {
-        val dev = usb.deviceList.values.firstOrNull { DongleKind.of(it) != null } ?: return
-        if (usb.hasPermission(dev)) { app.engine.attach(dev); return }
+        val dev = usb.deviceList.values.firstOrNull { usbDongleKind(it) != null } ?: return
+        if (usb.hasPermission(dev)) { app.engine.attach(AndroidDongle(usb, dev)); return }
         if (!ask) return
         val flags = if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0
         usb.requestPermission(dev, PendingIntent.getBroadcast(this, 0, Intent(ACTION_PERMISSION).setPackage(packageName), flags))

@@ -11,6 +11,7 @@ import android.hardware.usb.UsbManager
 import android.media.AudioManager
 import androidx.core.content.ContextCompat
 import androidx.core.content.IntentCompat
+import io.github.jvspier.dabplay.audio.AudioPlayer
 import io.github.jvspier.dabplay.data.LogoStore
 import io.github.jvspier.dabplay.diag.Diagnostics
 import io.github.jvspier.dabplay.data.SettingsStore
@@ -39,9 +40,11 @@ class DabApp : Application() {
         events.i("DabApp", "DABplay+ $version on ${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
         store = StationStore(File(filesDir, "stations.json"), onError = { events.e("DabApp", "saving stations failed", it) })
         settings = SettingsStore(this)
-        engine = DabEngine(getSystemService(UsbManager::class.java), store, AudioFocus(getSystemService(AudioManager::class.java)),
+        engine = DabEngine(store, AudioFocus(getSystemService(AudioManager::class.java)),
+            newAudio = { AudioPlayer { events.i("AudioPlayer", it) } }, events = events,
             resumeOnStart = { settings.state.value.resumeOnStart }, followStation = { settings.state.value.followStation },
-            trafficAnnouncements = { settings.state.value.trafficAnnouncements }, events = events)
+            trafficAnnouncements = { settings.state.value.trafficAnnouncements },
+            usbThreadSetup = { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO) })
         logos = LogoStore(File(filesDir, "logos"))
         logoFetcher = LogoFetcher(this, store, logos, settings, current = { engine.state.value.current?.key }).also { it.start() }
         // in the app process, not an activity: the radio plays on with no screen open, and an unplug must still stop it
