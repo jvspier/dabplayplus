@@ -13,8 +13,20 @@ android {
         applicationId = "io.github.jvspier.dabplay"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 1                                 // +1 for every release: Android installs only higher codes as updates
+        versionName = "0.9.0"
+    }
+
+    // The release key lives outside the repo: dabplay.storeFile and dabplay.password in ~/.gradle/gradle.properties.
+    // Without them (CI, other machines) release builds are signed with the debug key: fine for testing, never published.
+    val releaseStore = providers.gradleProperty("dabplay.storeFile").orNull
+    signingConfigs {
+        if (releaseStore != null) create("release") {
+            storeFile = file(releaseStore)
+            storePassword = providers.gradleProperty("dabplay.password").get()
+            keyAlias = "dabplay"
+            keyPassword = storePassword
+        }
     }
 
     buildTypes {
@@ -23,8 +35,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // local testing only, until there is a real upload key
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 

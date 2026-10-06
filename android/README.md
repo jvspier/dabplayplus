@@ -27,8 +27,8 @@ JAVA_HOME=/usr/lib/jvm/java-25-openjdk ./gradlew test assembleRelease
 ```
 
 Judge smoothness only on a **release** build: debug Compose is unoptimised and janks by design. The release build is
-R8-minified and, for now, signed with the debug key (local testing only; a real release key comes before the first
-public APK):
+R8-minified and signed with the release key when `~/.gradle/gradle.properties` has `dabplay.storeFile` and
+`dabplay.password` (the key and its password never go into the repo); elsewhere, CI included, with the debug key:
 ```
 adb install -r app/build/outputs/apk/release/app-release.apk
 adb shell cmd package compile -m speed-profile -f io.github.jvspier.dabplay   # applies the baseline profile, as Play does

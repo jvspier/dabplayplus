@@ -32,7 +32,8 @@ this file as work progresses.
     core]. Hardware regression after each of the steps [verified, DTR-100: scan 7 ensembles / 74 stations, 538 in
     0.6–0.8 s, 11C → 12C, pause/play, an unplug with resume in 0.97 s].
 - **Next**: (1) the Dudu3 run (frame times, steering wheel, calls/navigation, sleep vs cold boot, signal bars from the
-  `rx30` lines); (2) before going public: release key, GitHub Releases.
+  `rx30` lines); 0.9.0 is the build for it (pre-release on GitHub, signed with the release key, 2026-10-06); (2) 1.0.0
+  once the Dudu3 run passes, then the repo goes public.
 
 ## Work log: phase 5, 2026-09-27 … 09-28
 - **Android app, phase 5** (`android/`, see `android/README.md`). Done and verified on the API 34 head-unit emulator
