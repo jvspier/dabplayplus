@@ -118,8 +118,9 @@ registry in `tuner-api`, so a new dongle doesn't mean editing the engine.
   playing (a voltage dip while cranking or at a start-stop restart, a USB hub reset), the station is remembered and
   `UsbAttachActivity` reconnects it in the background when it's back [verified: 538 again < 1 s after the replug,
   home screen stayed in front].
-- **Planned:** an in-app **diagnostics log** (engine events, reception statistics, driver messages) to pull off the
-  head unit after a drive.
+- **Diagnostics log** (`diag/Diagnostics`): engine events, driver and audio-player messages, unplugs, and a signal line
+  every 30 s while playing (`rx30`; every second while reception isn't good), in logcat and in two rolling files of up
+  to 2 MB: `adb pull /sdcard/Android/data/io.github.jvspier.dabplay/files/diagnostics/`.
 
 ## Threads
 - `dab-usb`: the engine's command loop and all dongle I/O (blocking `bulkTransfer`).

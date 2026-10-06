@@ -20,7 +20,8 @@ import java.util.concurrent.ArrayBlockingQueue
  * [PREROLL_MS] pre-roll into a ~1 s AudioTrack buffer; after an underrun it pauses and pre-rolls again
  * (one clean gap instead of stuttering).
  */
-class AudioPlayer {
+/** [events]: the lines worth keeping in the app's diagnostics log (decoder, track format, underruns, errors). */
+class AudioPlayer(private val events: (String) -> Unit = {}) {
     private sealed interface Item
     private class Au(val asc: ByteArray, val data: ByteArray, val rate: Int) : Item
     private class Mp2(val frame: ByteArray) : Item
@@ -93,7 +94,7 @@ class AudioPlayer {
                 } catch (e: Exception) {
                     // a bad AU, a codec that won't configure, an audio HAL not ready at boot: start over with the next item
                     errors++
-                    if (errors <= 5 || errors % 100 == 0) Log.e(TAG, "audio error #$errors, resetting the decoder", e)
+                    if (errors <= 5 || errors % 100 == 0) { Log.e(TAG, "audio error #$errors, resetting the decoder", e); events("audio error #$errors: $e") }
                     runCatching { s.release() }
                     s = Stream()
                 }
@@ -183,7 +184,7 @@ class AudioPlayer {
             codec = MediaCodec.createByCodecName(name).apply { configure(fmt, null, null, 0); start() }
             decoderName = name
             this.asc = asc.copyOf()
-            Log.i(TAG, "decoder $name, ASC ${asc.joinToString("") { "%02x".format(it) }}")
+            run { val m = "decoder $name, ASC ${asc.joinToString("") { "%02x".format(it) }}"; Log.i(TAG, m); events(m) }
         }
 
         private fun drain() {
@@ -231,7 +232,7 @@ class AudioPlayer {
             if (t.playState == AudioTrack.PLAYSTATE_PLAYING && t.underrunCount != underruns) {
                 underruns = t.underrunCount
                 t.pause(); buffered = 0                      // ran dry: pre-roll again before resuming
-                Log.i(TAG, "underrun (queue ${queue.size} AUs), re-buffering")
+                run { val m = "underrun (queue ${queue.size} AUs), re-buffering"; Log.i(TAG, m); events(m) }
             }
             return t
         }
@@ -262,7 +263,7 @@ class AudioPlayer {
                 .setBufferSizeInBytes(maxOf(min * 4, bytesPerSec * BUFFER_MS / 1000))
                 .setTransferMode(AudioTrack.MODE_STREAM)
                 .build().also { it.setVolume(level); ownTrack = it }
-            Log.i(TAG, "AudioTrack $rate Hz, $channels ch, pre-roll $PREROLL_MS ms")
+            run { val m = "AudioTrack $rate Hz, $channels ch, pre-roll $PREROLL_MS ms"; Log.i(TAG, m); events(m) }
         }
 
         fun release() {

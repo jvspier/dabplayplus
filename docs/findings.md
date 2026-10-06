@@ -23,8 +23,10 @@ this file as work progresses.
     app only with "Display over other apps" (BAL_ALLOW_SAW_PERMISSION; blocked without). **USB permission doesn't
     survive a cold boot**, and a dongle present before boot completes isn't announced, so the first open after a
     cold boot shows the USB prompt [verified, API 34 emulator].
-- **Next**: (1) before the Dudu3 run, with the dongle: USB attach/detach in the app process, `AudioPlayer` thread
-  safety, a diagnostics log file; (2) after that: split `DabEngine` with JVM tests, a driver registry, self-made test
+  - Code review of the drivers/engine work and its fixes (2026-10-06); dongle dropouts while playing resume in the
+    background [verified, 3 real unplug/replug rounds: 538 again 1.0–1.05 s after the replug, home screen in front];
+    the diagnostics log file.
+- **Next**: (1) done; (2) after that: split `DabEngine` with JVM tests, a driver registry, self-made test
   broadcasts; (3) the Dudu3 run (frame times, steering wheel, calls/navigation, sleep vs cold boot, signal bars);
   (4) before going public: history cleanup, release key, GitHub Releases.
 

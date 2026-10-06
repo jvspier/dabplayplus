@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.Intent
 import android.hardware.usb.UsbManager
 import android.os.Bundle
-import android.util.Log
 import io.github.jvspier.dabplay.engine.DongleKind
 
 /**
@@ -26,8 +25,8 @@ class UsbAttachActivity : Activity() {
                 startActivity(Intent(this, MainActivity::class.java).setAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
                     .putExtras(intent).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             // it dropped out while playing (a voltage dip, a loose plug): carry on in the background, nothing comes forward
-            app.engine.wantsDongleBack && dev != null -> { Log.i(TAG, "dongle back: resuming in the background"); app.engine.attach(dev) }
-            else -> Log.i(TAG, "dongle appeared; Start with the car is off and the radio isn't on screen: not opening")
+            app.engine.wantsDongleBack && dev != null -> { app.events.i(TAG, "dongle back: resuming in the background"); app.engine.attach(dev) }
+            else -> app.events.i(TAG, "dongle appeared; Start with the car is off and the radio isn't on screen: not opening")
         }
         finish()
     }

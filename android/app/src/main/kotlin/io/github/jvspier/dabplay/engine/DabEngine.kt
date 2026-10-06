@@ -31,6 +31,7 @@ import io.github.jvspier.dabplay.driver.dtr100.C100
 import io.github.jvspier.dabplay.driver.dtr100.Dtr100
 import io.github.jvspier.dabplay.tuner.RawTuner
 import io.github.jvspier.dabplay.core.EccGuess
+import io.github.jvspier.dabplay.diag.Diagnostics
 import io.github.jvspier.dabplay.driver.si4684.Frames
 import io.github.jvspier.dabplay.driver.si4684.Si4684
 import io.github.jvspier.dabplay.driver.siano.Siano
@@ -85,6 +86,7 @@ class DabEngine(
     private val resumeOnStart: () -> Boolean = { true },
     private val followStation: () -> Boolean = { true },
     private val trafficAnnouncements: () -> Boolean = { false },
+    private val events: Diagnostics,
 ) {
     // show the last-played station straight away (car start: the dongle takes a moment; or it isn't plugged in)
     private val _state = MutableStateFlow(EngineState(current = store.state.value.let { s -> s.lastPlayed?.let(s::station) }))
@@ -150,7 +152,7 @@ class DabEngine(
         play(list[Math.floorMod((if (i < 0) -1 else i) + delta, list.size)].key)
     }
 
-    private fun status(s: String) { Log.i(TAG, s); _state.update { it.copy(status = s) } }
+    private fun status(s: String) { events.i(TAG, s); _state.update { it.copy(status = s) } }
 
     /**
      * The USB thread. A USB or driver error (a timeout on a voltage dip while cranking, a stale reply) doesn't end it:
@@ -182,7 +184,7 @@ class DabEngine(
     private fun session(dev: UsbDevice, resume: ServiceKey?): Failure? {
         var conn: UsbDeviceConnection? = null
         var radio: RadioSession? = null
-        val player = AudioPlayer()
+        val player = AudioPlayer { events.i("AudioPlayer", it) }
         try {
             val kind = DongleKind.of(dev) ?: error("unsupported dongle %04x:%04x".format(dev.vendorId, dev.productId))
             // check before claiming: 16c0:05dc is a shared V-USB id, don't grab someone else's device
@@ -194,9 +196,9 @@ class DabEngine(
                 .filter { it.type == UsbConstants.USB_ENDPOINT_XFER_BULK }.associateBy { it.address }
             val transport = AndroidUsbTransport(conn, eps)
             val r: RadioSession = when (kind) {
-                DongleKind.C100 -> Session(C100.open(transport, log = { Log.i(TAG, it) }), player)
+                DongleKind.C100 -> Session(C100.open(transport, log = { events.i(TAG, it) }), player)
                 DongleKind.SI4684 -> ModuleSession(transport, player)
-                DongleKind.SIANO -> Session(Siano.open(transport, log = { Log.i(TAG, it) }), player)
+                DongleKind.SIANO -> Session(Siano.open(transport, log = { events.i(TAG, it) }), player)
             }
             radio = r
             _state.update { it.copy(dongle = true, error = null) }
@@ -216,10 +218,10 @@ class DabEngine(
             }
             return null
         } catch (e: InterruptedException) {
-            Log.i(TAG, "engine stopped")
+            events.i(TAG, "engine stopped")
             return null
         } catch (e: Exception) {
-            Log.e(TAG, "engine error", e)
+            events.e(TAG, "engine error", e)
             val s = _state.value
             _state.update { it.copy(error = e.message) }
             return Failure(if (s.playing || s.tuning) (s.announcement?.returnTo ?: s.current?.key) else null)
@@ -242,7 +244,7 @@ class DabEngine(
     /** Dynamic label text for [st]: control codes (line breaks, end-of-headline) become spaces; blank = nothing to show. */
     private fun showText(t: String, st: Station) {
         val text = t.map { if (it < ' ') ' ' else it }.joinToString("").replace(Regex("\\s+"), " ").trim()
-        if (text.isNotEmpty()) Log.i(TAG, "DLS: $text")
+        if (text.isNotEmpty()) events.i(TAG, "DLS: $text")
         _state.update { it.copy(nowPlaying = if (text.isEmpty()) null else DlsParser.parse(text, st.key.ecc, st.key.sid, st.label)) }
     }
 
@@ -250,7 +252,7 @@ class DabEngine(
     private fun showSlide(body: ByteArray) {
         val info = ImageSniff.info(body)
         if (info != null && info.width <= MAX_SLIDE_PX && info.height <= MAX_SLIDE_PX) _state.update { it.copy(slide = body) }
-        else Log.w(TAG, "slide dropped: ${info?.let { "${it.width}x${it.height} ${it.mime}" } ?: "not a JPEG/PNG"}")
+        else events.w(TAG, "slide dropped: ${info?.let { "${it.width}x${it.height} ${it.mime}" } ?: "not a JPEG/PNG"}")
     }
 
     /** Show [st] with a problem instead of playing it. */
@@ -265,7 +267,7 @@ class DabEngine(
      * announcements, no learned alternatives and no ECC (guessed from the country, see [EccGuess]).
      */
     private inner class ModuleSession(t: Transport, private val player: AudioPlayer) : RadioSession, ModuleListener {
-        private val m = Si4684.open(t, this) { Log.i(TAG, it) }
+        private val m = Si4684.open(t, this) { events.i(TAG, it) }
         override val description get() = m.description
         @Volatile private var station: Station? = null
 
@@ -365,7 +367,7 @@ class DabEngine(
                 FocusChange.RESTORE -> 1f
             }
             player.setLevel(focusLevel)
-            Log.i(TAG, "audio focus: $c")
+            events.i(TAG, "audio focus: $c")
         }
         if (ok) player.setLevel(focusLevel)                         // e.g. a station change during a call stays silent
         return ok
@@ -521,6 +523,7 @@ class DabEngine(
             )
             val monitor = ReceptionMonitor().apply { start(System.currentTimeMillis()) }
             var checkAt = 0L; var diagAt = 0L; var diag = IntArray(4); var diagBytes = 0
+            var summaryAt = System.currentTimeMillis()
             // FIC while playing (owner-approved test 2026-09-27: audio stays clean, FIBs valid, ~15 % of frames caught;
             // the vendor lib serialises its FIC and MSC reads with one mutex too): learns FIG 0/24 + 0/21 alternatives
             if (st.ensemble.freqKhz != liveFicKhz) { liveFic = FicDecoder(); liveFicKhz = st.ensemble.freqKhz }
@@ -549,13 +552,19 @@ class DabEngine(
                     val bars = if (want == 0) 0 else have + (want - have).coerceIn(-1, 1)
                     val prev = _state.value
                     if (r != prev.reception || bars != prev.signalBars) {
-                        if (r != prev.reception) Log.i(TAG, "reception ${prev.reception} -> $r (sig $sig)")
+                        if (r != prev.reception) events.i(TAG, "reception ${prev.reception} -> $r (sig $sig)")
                         if (r == Reception.LOST && prev.reception != Reception.LOST) pad.resetPartial()
                         _state.update { it.copy(reception = r, signalBars = bars) }
                     }
+                    // every 30 s while playing, also when all is well: the drive's signal profile, for calibrating the bars
+                    if (now - summaryAt >= 30_000) {
+                        summaryAt = now
+                        events.i(TAG, "rx30 ${st.label} ${st.ensemble.channel} sig=$sig bars=$bars $r sf=${dec.superframes} " +
+                            "rsFail=${dec.rsFail} ${if (framer != null) "frames" else "au"}=${good()}/${bad()}")
+                    }
                     if (r != Reception.GOOD && now - diagAt >= 1000) {     // field diagnostics, only when it matters
                         diagAt = now
-                        Log.i(TAG, "rx sig=$sig bytes=$diagBytes sf=${dec.superframes - diag[0]} rsFail=${dec.rsFail - diag[1]} " +
+                        events.i(TAG, "rx sig=$sig bytes=$diagBytes sf=${dec.superframes - diag[0]} rsFail=${dec.rsFail - diag[1]} " +
                             "${if (framer != null) "frames" else "au"}=${good() - diag[2]}/${bad() - diag[3]}")
                         diag = intArrayOf(dec.superframes, dec.rsFail, good(), bad()); diagBytes = 0
                     }
@@ -566,7 +575,7 @@ class DabEngine(
                     if (ta != _state.value.taSupported) _state.update { it.copy(taSupported = ta) }
                     val act = watcher.update(now, ficLive, base.key.sid, base.service.subchannel, wanted)
                     if (taReturn == null && act != null) announcementStation(base, act.subchannel)?.let { src ->
-                        Log.i(TAG, "announcement (flags ${act.flags}) in cluster ${act.cluster}: ${base.label} -> ${src.label}")
+                        events.i(TAG, "announcement (flags ${act.flags}) in cluster ${act.cluster}: ${base.label} -> ${src.label}")
                         pauseStream()
                         taReturn = base; taCluster = act.cluster
                         _state.update { it.copy(announcement = AnnouncementInfo(act.flags, src.label, base.key)) }
@@ -591,7 +600,7 @@ class DabEngine(
                 val data = d.mscRead()
                 diagBytes += data.size
                 val ms = (System.nanoTime() - t0) / 1_000_000
-                if (ms > 150) Log.w(TAG, "slow MSC read: $ms ms")
+                if (ms > 150) events.w(TAG, "slow MSC read: $ms ms")
                 if (data.isEmpty()) { Thread.sleep(5); continue }
                 if (framer != null) {
                     guarded("MP2") {
@@ -627,7 +636,7 @@ class DabEngine(
         /** Back from an announcement to the listener's station. */
         private fun endAnnouncement(why: String): Station? {
             val back = taReturn ?: return null
-            Log.i(TAG, "announcement $why: back to ${back.label}")
+            events.i(TAG, "announcement $why: back to ${back.label}")
             pauseStream()
             taReturn = null; taCluster = -1
             _state.update { it.copy(announcement = null) }
@@ -643,7 +652,7 @@ class DabEngine(
         private inline fun guarded(what: String, block: () -> Unit) {
             try { block() } catch (e: RuntimeException) {
                 decodeErrors++
-                if (decodeErrors <= 5 || decodeErrors % 100 == 0) Log.w(TAG, "$what decode error #$decodeErrors", e)
+                if (decodeErrors <= 5 || decodeErrors % 100 == 0) events.w(TAG, "$what decode error #$decodeErrors", e)
             }
         }
 
@@ -655,7 +664,7 @@ class DabEngine(
                     .map { AltFreq(it.eid, it.khz) }
             }.filterValues { it.isNotEmpty() }
             if (found.isEmpty()) return
-            Log.i(TAG, "learned alternatives: " + found.entries.joinToString { (k, v) -> "$k on ${v.joinToString("/") { channelName(it.khz) }}" })
+            events.i(TAG, "learned alternatives: " + found.entries.joinToString { (k, v) -> "$k on ${v.joinToString("/") { channelName(it.khz) }}" })
             store.learnAlternatives(found)
         }
 
@@ -677,18 +686,18 @@ class DabEngine(
                 if (commands.peek() != null) break
                 val ch = channelName(khz)
                 _state.update { it.copy(following = ch) }
-                Log.i(TAG, "following ${st.label}: trying $ch")
+                events.i(TAG, "following ${st.label}: trying $ch")
                 val ens = try {
                     if (!tune(khz, retries = false).locked) continue
                     ensembleFrom(readFic(), ch, khz) ?: continue
-                } catch (e: java.io.IOException) { Log.w(TAG, "following: $ch failed: ${e.message}"); continue }
+                } catch (e: java.io.IOException) { events.w(TAG, "following: $ch failed: ${e.message}"); continue }
                 val svc = ens.services.firstOrNull { it.key == st.key } ?: continue
-                Log.i(TAG, "following ${st.label}: continuing on $ch (${ens.label})")
+                events.i(TAG, "following ${st.label}: continuing on $ch (${ens.label})")
                 _state.update { it.copy(following = null) }
                 return Station(svc, ens.copy(lastSeen = System.currentTimeMillis()))
             }
             _state.update { it.copy(following = null) }
-            Log.i(TAG, "following ${st.label}: no alternative receivable, back to ${st.ensemble.channel}")
+            events.i(TAG, "following ${st.label}: no alternative receivable, back to ${st.ensemble.channel}")
             runCatching { tune(own, retries = false) }
             return st
         }

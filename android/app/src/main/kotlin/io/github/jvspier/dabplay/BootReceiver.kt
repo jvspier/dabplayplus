@@ -3,7 +3,6 @@ package io.github.jvspier.dabplay
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.util.Log
 
 /**
  * Backup for Settings → Start with the car: the main trigger is Android opening the app when the dongle appears at
@@ -16,10 +15,10 @@ class BootReceiver : BroadcastReceiver() {
         if (intent.action !in START_UP) return
         val app = context.applicationContext as DabApp
         if (!app.settings.state.value.startWithCar) return
-        Log.i("BootReceiver", "${intent.action}: Start with the car is on, opening")
+        app.events.i("BootReceiver", "${intent.action}: Start with the car is on, opening")
         runCatching {
             context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        }.onFailure { Log.w("BootReceiver", "couldn't open the app: ${it.message}") }
+        }.onFailure { app.events.w("BootReceiver", "couldn't open the app: ${it.message}") }
     }
 
     private companion object {
