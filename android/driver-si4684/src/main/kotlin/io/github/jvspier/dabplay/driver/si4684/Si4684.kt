@@ -43,6 +43,7 @@ class Si4684 internal constructor(
     private var decoding = false
     private var scanning = false
     private var scanListPending = false
+    private var lastProgressAt = 0L
     private var scanResult: List<ModuleService>? = null
     private var scanProgress: ((Int, Int) -> Unit)? = null
     private var level = 0
@@ -58,6 +59,8 @@ class Si4684 internal constructor(
 
     /** Init as DABdream+ does it: version (≤ 1 s), then only if it answered: 500 ms, 0x32, 500 ms; then status, list. */
     internal fun init() {
+        lastHeartbeatAt = clockMs()                       // no keep-alive poll in the middle of the init sequence
+        lastRxAt = clockMs()
         if (threads) startThreads()
         send(0x30)
         if (await(1000) { version != null }) {
@@ -70,11 +73,14 @@ class Si4684 internal constructor(
 
     override fun scan(progress: (percent: Int, found: Int) -> Unit, timeoutMs: Long): List<ModuleService> {
         synchronized(lock) { scanning = true; scanResult = null; scanProgress = progress; current = null; decoding = false }
+        synchronized(lock) { lastProgressAt = clockMs() }
         send(0x01)
-        await(timeoutMs) { scanResult != null }
+        val end = clockMs() + timeoutMs
+        // the module reports progress as it goes; 30 s without any means it isn't scanning (the engine thread waits here)
+        while (!await(1000) { scanResult != null } && clockMs() < end && clockMs() - synchronized(lock) { lastProgressAt } < NO_PROGRESS_MS) Unit
         synchronized(lock) {
             scanning = false; scanProgress = null
-            return scanResult ?: throw IOException("the module's scan did not finish within ${timeoutMs / 1000} s")
+            return scanResult ?: throw IOException("the module's scan didn't finish (no progress for ${NO_PROGRESS_MS / 1000} s, or over ${timeoutMs / 1000} s)")
         }
     }
 
@@ -85,11 +91,12 @@ class Si4684 internal constructor(
      */
     override fun play(service: ModuleService, serviceFollowing: Boolean) {
         send(0x0C, byteArrayOf(if (serviceFollowing) 1 else 0))
-        synchronized(lock) { current = service; decoding = false; ackSeen = false }
+        synchronized(lock) { current = null; decoding = false; ackSeen = false }
         dropTail = true
         send(0x48, byteArrayOf(0))
         await(300) { ackSeen }
-        synchronized(lock) { resolving = service.sid to service.cid; resolvedIdx = -1 }
+        // only now: a status naming this service before the audio-off ack would otherwise send 48 01 before our 48 00
+        synchronized(lock) { current = service; resolving = service.sid to service.cid; resolvedIdx = -1 }
         sleep(150)
         send(0x44, select(0, service))
         val idx = if (await(2000) { resolvedIdx >= 0 }) synchronized(lock) { resolvedIdx } else 0
@@ -108,6 +115,8 @@ class Si4684 internal constructor(
 
     override val following: Boolean get() = synchronized(lock) { linkInfo }
 
+    override val silentForMs: Long get() = clockMs() - lastRxAt
+
     override fun close() {
         closed = true
         replyThread?.interrupt(); audioThread?.interrupt()
@@ -117,13 +126,27 @@ class Si4684 internal constructor(
     // --- readers ------------------------------------------------------------------------------------------------
 
     private fun startThreads() {
-        replyThread = Thread({ while (!closed && !Thread.currentThread().isInterrupted) pumpReplies() }, "si4684-replies")
-            .apply { isDaemon = true; start() }
-        audioThread = Thread({
-            runCatching { urgentAudioPriority() }
-            while (!closed && !Thread.currentThread().isInterrupted) pumpAudio()
-        }, "si4684-audio").apply { isDaemon = true; start() }
+        replyThread = reader("si4684-replies") { pumpReplies() }
+        audioThread = reader("si4684-audio") { pumpAudio() }
     }
+
+    /**
+     * A reader thread that can't take the process down: an interrupt (close) ends it, any other exception (a driver
+     * bug, a listener throwing) costs a log line and a short pause, as a bad packet costs one packet on the raw path.
+     */
+    private fun reader(name: String, body: () -> Unit) = Thread({
+        if (name == "si4684-audio") runCatching { urgentAudioPriority() }
+        while (!closed) {
+            try {
+                body()
+            } catch (e: InterruptedException) {
+                return@Thread
+            } catch (e: Exception) {
+                log("Si4684 $name: ${e.javaClass.simpleName}: ${e.message}")
+                try { Thread.sleep(50) } catch (_: InterruptedException) { return@Thread }
+            }
+        }
+    }, name).apply { isDaemon = true; start() }
 
     private val replyBuf = ByteArray(4096)
     private val audioBuf = ByteArray(16384)
@@ -156,6 +179,12 @@ class Si4684 internal constructor(
     // --- replies and events -------------------------------------------------------------------------------------
 
     private fun onFrame(type: Int, p: ByteArray) {
+        try { handleFrame(type, p) } catch (e: InterruptedException) { throw e } catch (e: Exception) {
+            log("Si4684: frame 0x%02x dropped: %s".format(type, e.message))
+        }
+    }
+
+    private fun handleFrame(type: Int, p: ByteArray) {
         if (p.isEmpty()) return
         when (type) {
             0xB0 -> signalAll { version = text(p, 0, p.size, 15) }
@@ -172,7 +201,8 @@ class Si4684 internal constructor(
     private fun onScanProgress(p: ByteArray) {
         val percent = p.u(0)
         val found = if (p.size > 2) p.u(2) else 0
-        val cb = synchronized(lock) { scanListPending = true; scanProgress }
+        // only the list asked for at 100 % is the result; a list sent mid-scan (status "list changed") is partial
+        val cb = synchronized(lock) { lastProgressAt = clockMs(); if (percent >= 100) scanListPending = true; scanProgress }
         cb?.invoke(minOf(percent, 100), found)
         if (percent >= 100) send(0x47)
     }
@@ -286,10 +316,14 @@ class Si4684 internal constructor(
         const val EP_AUDIO = 0x81
         const val EP_REPLIES = 0x82
         private const val MAX_SLIDE_BYTES = 512 * 1024
+        private const val NO_PROGRESS_MS = 30_000L
 
         /** Starts the reader threads and runs the init. */
-        fun open(t: Transport, listener: ModuleListener, log: (String) -> Unit = {}): Si4684 =
-            Si4684(t, listener, log, { Thread.sleep(it) }, { System.nanoTime() / 1_000_000 }, threads = true).also { it.init() }
+        fun open(t: Transport, listener: ModuleListener, log: (String) -> Unit = {}): Si4684 {
+            val m = Si4684(t, listener, log, { Thread.sleep(it) }, { System.nanoTime() / 1_000_000 }, threads = true)
+            try { m.init() } catch (e: Throwable) { m.close(); throw e }     // e.g. interrupted by a detach: no stray threads
+            return m
+        }
 
         /** For tests: no threads; waits pump the replies themselves. */
         internal fun forTest(t: Transport, listener: ModuleListener, clockMs: () -> Long, sleep: (Long) -> Unit): Si4684 =

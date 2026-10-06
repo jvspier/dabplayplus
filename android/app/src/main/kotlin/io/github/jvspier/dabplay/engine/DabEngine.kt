@@ -255,7 +255,10 @@ class DabEngine(
         override fun onPcm(data: ByteArray, sampleRate: Int, channels: Int) = player.feedPcm(data, sampleRate, channels)
         override fun onText(text: String) { station?.let { showText(text, it) } }
         override fun onSlide(bytes: ByteArray) { if (station != null) showSlide(bytes) }
-        override fun onStarted() { station?.let { st -> _state.update { it.copy(tuning = false) }; status("Playing ${st.label} (${st.ensemble.channel})") } }
+        override fun onStarted() {
+            // also after an earlier "can't find" for the provisional select: the module found it after all
+            station?.let { st -> _state.update { it.copy(tuning = false, playing = true, problem = null) }; status("Playing ${st.label} (${st.ensemble.channel})") }
+        }
         override fun onServiceNotFound() { station?.let { problemOnly(it, "The dongle can't find this station: scan again") } }
 
         override fun scan() {
@@ -298,6 +301,9 @@ class DabEngine(
                     Cmd.Pause -> { stopAudio(); focus.abandon(); status("Paused"); return }
                     else -> { commands.offerFirst(c); return }
                 }
+                // the module answers continuously while alive: a long silence is a dead link (a brown-out without
+                // re-enumeration); the failure starts the usual reconnect and resume
+                if (m.silentForMs > MODULE_SILENT_MS) throw IOException("the module stopped answering")
                 val sr = m.signal
                 val r = when { sr == null -> Reception.GOOD; sr.none -> Reception.LOST; sr.weak -> Reception.WEAK; else -> Reception.GOOD }
                 val following = if (m.following) st.ensemble.channel else null
@@ -674,6 +680,8 @@ class DabEngine(
         const val MODULE_EID = 0x10000
         /** Module stations: the module decodes, so no audio type from the FIC. */
         const val MODULE_ASCTY = -1
+        /** No reply from a Si4684 module for this long while playing: reconnect. */
+        const val MODULE_SILENT_MS = 10_000L
         const val LEARN_EVERY_MS = 10_000L       // store learned alternatives at most this often
         const val MAX_SLIDE_PX = 1280            // DAB slides are 320x240 (up to 640x480); anything bigger is dropped
         const val DUCK_LEVEL = 0.25f            // under a navigation prompt

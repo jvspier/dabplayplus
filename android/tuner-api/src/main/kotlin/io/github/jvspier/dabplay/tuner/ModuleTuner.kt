@@ -30,6 +30,9 @@ interface ModuleTuner {
     /** True while the module's service following is switching frequency. */
     val following: Boolean
 
+    /** Time since the module last sent anything. It answers continuously while alive, so a long silence means a dead link. */
+    val silentForMs: Long
+
     fun close()
 }
 

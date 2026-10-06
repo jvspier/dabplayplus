@@ -184,4 +184,45 @@ class Si4684Test {
         p.feed(bytes("aa c8 00 01 05 cc") + reply(0xC8, 3))                            // bad footer, then a good frame
         assertEquals(listOf("c8 01", "c4 00", "c8 02", "c8 03"), got)
     }
+
+    @Test fun aListSentMidScanIsNotTheResult() {
+        val partial = ByteArray(44).also { it[1] = 0x1C; it[5] = 1 }
+        val full = partial + ByteArray(44).also { it[1] = 0x08; it[5] = 2 }
+        m.answer = { c, _ -> when (c) {
+            0x01 -> listOf(reply(0x81, 30, 0, 1), reply(0xC7, partial), reply(0x81, 100, 0, 2))   // a status-triggered list mid-scan
+            0x47 -> listOf(reply(0xC7, full))
+            else -> emptyList()
+        } }
+        assertEquals(2, d.scan({ _, _ -> }, timeoutMs = 10_000).size)
+    }
+
+    @Test fun aScanWithoutProgressGivesUpAfter30Seconds() {
+        val t0 = m.clock
+        val e = kotlin.runCatching { d.scan({ _, _ -> }, timeoutMs = 300_000) }.exceptionOrNull()
+        assertTrue(e is IOException, "expected a failure, got $e")
+        assertTrue(m.clock - t0 in 30_000..32_000, "gave up after ${m.clock - t0} ms")
+    }
+
+    @Test fun readerThreadsSurviveErrorsAndEndOnClose() {
+        val uncaught = java.util.concurrent.CopyOnWriteArrayList<Throwable>()
+        val old = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { _, e -> uncaught += e }
+        try {
+            val broken = object : Transport {
+                override fun write(endpoint: Int, data: ByteArray, timeoutMs: Int) = data.size
+                override fun read(endpoint: Int, buffer: ByteArray, timeoutMs: Int): Int =
+                    if (endpoint == 0x81) throw IllegalStateException("driver bug") else { Thread.sleep(5); throw IOException("gone") }
+                override fun close() {}
+            }
+            val threaded = Si4684(broken, rec, {}, { Thread.sleep(it) }, { System.nanoTime() / 1_000_000 }, threads = true)
+            threaded.init()                                                   // starts the readers; no version reply
+            Thread.sleep(200)
+            val readers = Thread.getAllStackTraces().keys.filter { it.name.startsWith("si4684-") }
+            assertEquals(2, readers.count { it.isAlive })
+            threaded.close()                                                  // interrupts them mid-sleep
+            readers.forEach { it.join(2000) }
+            assertTrue(readers.none { it.isAlive })
+            assertTrue(uncaught.isEmpty(), "uncaught: $uncaught")
+        } finally { Thread.setDefaultUncaughtExceptionHandler(old) }
+    }
 }
