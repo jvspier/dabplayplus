@@ -7,6 +7,8 @@
 - `fm_test.py`: literal port of the vendor's unused FM API (init, tune, seek detector, RSSI, audio start/stop); see findings 2026-09-25.
   **Don't run it**: the FM register state survives power-off and degrades DAB until the dongle is replugged.
 - `switch_test.py`: play A, proper stop, switch to B on the same ensemble without re-init; measures the switch time.
+- `gen_app_icon.py`: the app icon (adaptive icon layers, themed and notification icons, 512 px store PNG) from one drawing;
+  needs `pip install fonttools uharfbuzz` and ImageMagick.
 - `gen_kotlin_tables.py`: generates the Kotlin register/PLL tables for the Android dtr100 driver (DAB only, no FM).
 - `gen_mp2_vectors.sh`: MP2 test vectors with ffmpeg (all DAB Layer II variants) for the Kotlin MP2 decoder tests.
 - `golden.py`: golden reference output of the PoC for every capture (captures/golden/), used by the Kotlin dab-core tests.

@@ -3,10 +3,12 @@ package io.github.jvspier.dabplay.playback
 import android.app.PendingIntent
 import android.content.Intent
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import io.github.jvspier.dabplay.DabApp
 import io.github.jvspier.dabplay.MainActivity
+import io.github.jvspier.dabplay.R
 
 /** Foreground media service: owns the MediaSession (steering-wheel keys, system media controls, notification). */
 @UnstableApi
@@ -20,6 +22,8 @@ class RadioService : MediaSessionService() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val player = DabPlayer(app.engine, app.logos.state, logosOn = { app.settings.state.value.downloadLogos })
         session = MediaSession.Builder(this, player).setSessionActivity(open).build()
+        setMediaNotificationProvider(DefaultMediaNotificationProvider.Builder(this).build()
+            .apply { setSmallIcon(R.drawable.ic_notification) })
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = session
