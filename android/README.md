@@ -49,7 +49,8 @@ installed afterwards, see `gradle.properties`).
 The app keeps its own event log (startup with device info, dongle and driver events, tuning, playback, audio decoder
 and underruns, unplugs, a signal line every 30 s while playing, every second while reception is weak). After a drive:
 `adb pull /sdcard/Android/data/io.github.jvspier.dabplay/files/diagnostics/` (`dabplay.log`, plus `dabplay.1.log` once
-the first reaches 2 MB).
+the first reaches 2 MB). Song texts (DLS) stay out of the file, in logcat only: on Android 10 other apps with storage
+permission can read this folder, and the songs heard with their times would be a listening history.
 
 ## Emulators
 Two AVDs mimic the head unit (1280×720, 160 dpi, landscape):

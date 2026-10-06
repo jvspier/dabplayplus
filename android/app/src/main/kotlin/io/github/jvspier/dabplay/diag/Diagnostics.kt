@@ -9,6 +9,8 @@ import java.util.Locale
 import java.util.concurrent.Executors
 
 /**
+ * Keep listening content out of it (song texts): the folder is readable by apps with storage permission on Android 10.
+ *
  * The app's own event log: everything also goes to logcat, and to a file on the device, so a drive can be read back
  * afterwards (`adb pull /sdcard/Android/data/io.github.jvspier.dabplay/files/diagnostics/`), where watching logcat in
  * a moving car isn't an option. Two files of at most [MAX_BYTES] (the current one and the one before), written on a

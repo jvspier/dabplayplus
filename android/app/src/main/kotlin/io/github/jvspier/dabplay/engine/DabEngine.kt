@@ -244,7 +244,9 @@ class DabEngine(
     /** Dynamic label text for [st]: control codes (line breaks, end-of-headline) become spaces; blank = nothing to show. */
     private fun showText(t: String, st: Station) {
         val text = t.map { if (it < ' ') ' ' else it }.joinToString("").replace(Regex("\\s+"), " ").trim()
-        if (text.isNotEmpty()) events.i(TAG, "DLS: $text")
+        // logcat only, not the diagnostics file: the songs heard, with times, are a listening history, and on Android 10
+        // other apps with storage permission can read the app's external files folder
+        if (text.isNotEmpty()) Log.i(TAG, "DLS: $text")
         _state.update { it.copy(nowPlaying = if (text.isEmpty()) null else DlsParser.parse(text, st.key.ecc, st.key.sid, st.label)) }
     }
 
