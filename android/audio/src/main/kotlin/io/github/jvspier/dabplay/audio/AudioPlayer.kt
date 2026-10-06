@@ -50,7 +50,8 @@ class AudioPlayer {
      */
     fun feedPcm(data: ByteArray, rate: Int, channels: Int) = offer(Pcm(data, rate, channels))
 
-    private fun offer(item: Item) {
+    /** Synchronised with [release]: two threads (the engine's, a module driver's) mustn't both start a worker. */
+    @Synchronized private fun offer(item: Item) {
         if (worker?.isAlive != true) worker = Thread({ loop() }, "dab-audio").apply { isDaemon = true; start() }
         if (!queue.offer(item)) { queue.poll(); queue.offer(item) }     // full: drop the oldest, never block
     }
@@ -63,7 +64,7 @@ class AudioPlayer {
     @Volatile private var targetLevel = 1f
 
     /** Stop now (station switch, pause): silences at once and frees the decoder and track. */
-    fun release() {
+    @Synchronized fun release() {
         val w = worker ?: return
         worker = null
         w.interrupt()

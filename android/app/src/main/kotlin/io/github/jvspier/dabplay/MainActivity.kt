@@ -44,12 +44,8 @@ class MainActivity : ComponentActivity() {
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            val dev = IntentCompat.getParcelableExtra(intent, UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
-            when (intent.action) {
-                // granted: attach; denied: don't ask again straight away (that looped the dialog)
-                ACTION_PERMISSION -> if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) findDongle(ask = false)
-                UsbManager.ACTION_USB_DEVICE_DETACHED -> app.engine.detached(dev?.deviceName)   // only ours stops the radio
-            }
+            // granted: attach; denied: don't ask again straight away (that looped the dialog). Unplugs: DabApp.
+            if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) findDongle(ask = false)
         }
     }
 
@@ -58,9 +54,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         usb = getSystemService(UsbManager::class.java)
-        ContextCompat.registerReceiver(this, receiver, IntentFilter(ACTION_PERMISSION).apply {
-            addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
-        }, ContextCompat.RECEIVER_NOT_EXPORTED)       // our PendingIntent and the system's detach still arrive
+        ContextCompat.registerReceiver(this, receiver, IntentFilter(ACTION_PERMISSION), ContextCompat.RECEIVER_NOT_EXPORTED)
         // Connect to the media service so it runs (and becomes the active MediaSession for the steering-wheel keys)
         controller = MediaController.Builder(this, SessionToken(this, ComponentName(this, RadioService::class.java))).buildAsync()
         // head unit: the whole 1280×720 is ours; the system bars come back with a swipe from the edge

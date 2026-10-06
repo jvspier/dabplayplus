@@ -114,16 +114,19 @@ registry in `tuner-api`, so a new dongle doesn't mean editing the engine.
   nothing comes forward and nothing plays. On, `BootReceiver` also opens the app at boot; Android 10+ allows that only
   with "Display over other apps".
 - Back never leaves the app by accident (another tab → Home; Home → nothing).
-- **Planned:** USB attach/detach handling in the app process instead of `MainActivity`, so a destroyed activity can't
-  miss a detach; an in-app **diagnostics log** (engine events, reception statistics, driver messages) to pull off the
+- Unplugs are handled in the app process (`DabApp`), so they're seen with no screen open. If the dongle drops out while
+  playing (a voltage dip while cranking or at a start-stop restart, a USB hub reset), the station is remembered and
+  `UsbAttachActivity` reconnects it in the background when it's back [verified: 538 again < 1 s after the replug,
+  home screen stayed in front].
+- **Planned:** an in-app **diagnostics log** (engine events, reception statistics, driver messages) to pull off the
   head unit after a drive.
 
 ## Threads
 - `dab-usb`: the engine's command loop and all dongle I/O (blocking `bulkTransfer`).
 - `dab-audio`: `AudioPlayer`'s decoder + AudioTrack writes (urgent-audio priority, 400 ms pre-roll).
 - `station-store`: JSON writes. Logo fetching: an app-scoped coroutine on IO.
-- Si4684 only: the driver's reply reader and PCM reader threads. **Planned:** make `AudioPlayer.offer()/release()` safe
-  across threads (today the Si4684 PCM thread and the engine thread can race at a station change).
+- Si4684 only: the driver's reply reader and PCM reader threads. `AudioPlayer.offer()/release()` are synchronised, and
+  the module session lets no PCM through once it has stopped.
 
 ## Testing
 - `:dab-core` **golden tests**: `captures/raw/*.msc` / `*.fic` against the Python PoC's output. Captures stay local

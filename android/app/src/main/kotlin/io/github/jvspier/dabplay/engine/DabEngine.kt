@@ -106,13 +106,27 @@ class DabEngine(
         val old = thread
         device = dev
         old?.interrupt()
+        val resume = playingAtDetach.also { playingAtDetach = null }
         // a quick re-plug: let the old session finish its cleanup first, so it can't undo the new one's state
-        thread = Thread({ runCatching { old?.join(3000) }; run(dev) }, "dab-usb").apply { isDaemon = true; start() }
+        thread = Thread({ runCatching { old?.join(3000) }; run(dev, resume) }, "dab-usb").apply { isDaemon = true; start() }
     }
+
+    /**
+     * The station that was playing when our dongle went away (a voltage dip while cranking, a loose plug): it plays
+     * again when the dongle is back, without the app having to come to the front (UsbAttachActivity).
+     */
+    @Volatile private var playingAtDetach: ServiceKey? = null
+    /** What the reconnect loop will resume after a failed session (null once a session runs again). */
+    @Volatile private var pendingResume: ServiceKey? = null
+    val wantsDongleBack: Boolean get() = playingAtDetach != null
 
     /** A USB device went away ([deviceName]); only our dongle leaving stops the engine (a USB stick or phone doesn't). */
     fun detached(deviceName: String?) {
         if (deviceName != null && deviceName != device?.deviceName) return
+        val s = _state.value
+        // the USB read usually fails a moment before Android reports the unplug: the session has ended by then, and
+        // what was playing is the reconnect loop's pending resume
+        playingAtDetach = if (s.playing || s.tuning) s.announcement?.returnTo ?: s.current?.key else pendingResume
         device = null; thread?.interrupt()
     }
     fun scan() = commands.offer(Cmd.Scan)
@@ -143,15 +157,17 @@ class DabEngine(
      * it reconnects with the same init sequence as at startup, backing off 0.5 s → 8 s, and carries on with the
      * station that was playing. It ends only when the dongle is detached (or another attach replaces it).
      */
-    private fun run(dev: UsbDevice) {
+    private fun run(dev: UsbDevice, resumeFirst: ServiceKey? = null) {
         // the MSC reader must never fall behind the dongle (its buffer overflows: audible skips)
         runCatching { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO) }
         commands.clear()                                     // buttons pressed while there was no dongle: don't replay
         var failures = 0
-        var resume: ServiceKey? = null
+        var resume: ServiceKey? = resumeFirst
         while (device?.deviceName == dev.deviceName && !Thread.currentThread().isInterrupted) {
             val failed = session(dev, resume) ?: break          // null: stopped on purpose
-            resume = failed.resume
+            // a session that never got the dongle ready (pendingResume still set) can't know what played before: keep it
+            resume = failed.resume ?: pendingResume
+            pendingResume = resume
             failures++
             val wait = minOf(8000L, 500L shl minOf(failures - 1, 4))
             status("Dongle error, reconnecting in ${"%.1f".format(wait / 1000.0)} s")
@@ -184,6 +200,7 @@ class DabEngine(
             }
             radio = r
             _state.update { it.copy(dongle = true, error = null) }
+            pendingResume = null                                 // handed to this session (queued below)
             status("Dongle ready (${r.description})")
             when {
                 resume != null -> commands.offerFirst(Cmd.Play(resume))
@@ -252,7 +269,11 @@ class DabEngine(
         override val description get() = m.description
         @Volatile private var station: Station? = null
 
-        override fun onPcm(data: ByteArray, sampleRate: Int, channels: Int) = player.feedPcm(data, sampleRate, channels)
+        private val audioLock = Any()
+        // the driver's audio thread feeds while the engine thread may be stopping: after stopAudio() no chunk gets
+        // through (one arriving late would start a new audio worker playing the old station)
+        override fun onPcm(data: ByteArray, sampleRate: Int, channels: Int) =
+            synchronized(audioLock) { if (station != null) player.feedPcm(data, sampleRate, channels) }
         override fun onText(text: String) { station?.let { showText(text, it) } }
         override fun onSlide(bytes: ByteArray) { if (station != null) showSlide(bytes) }
         override fun onStarted() {
@@ -314,7 +335,8 @@ class DabEngine(
         }
 
         private fun stopAudio() {
-            m.stop(); station = null
+            synchronized(audioLock) { station = null }
+            m.stop()
             player.release()
             _state.update { it.copy(playing = false) }
         }

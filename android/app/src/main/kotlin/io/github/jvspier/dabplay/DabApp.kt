@@ -1,8 +1,15 @@
 package io.github.jvspier.dabplay
 
 import android.app.Application
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.media.AudioManager
+import androidx.core.content.ContextCompat
+import androidx.core.content.IntentCompat
 import io.github.jvspier.dabplay.data.LogoStore
 import io.github.jvspier.dabplay.data.SettingsStore
 import io.github.jvspier.dabplay.data.StationStore
@@ -30,5 +37,12 @@ class DabApp : Application() {
             trafficAnnouncements = { settings.state.value.trafficAnnouncements })
         logos = LogoStore(File(filesDir, "logos"))
         logoFetcher = LogoFetcher(this, store, logos, settings, current = { engine.state.value.current?.key }).also { it.start() }
+        // in the app process, not an activity: the radio plays on with no screen open, and an unplug must still stop it
+        ContextCompat.registerReceiver(this, object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                val dev = IntentCompat.getParcelableExtra(intent, UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
+                engine.detached(dev?.deviceName)                          // only our dongle stops the radio
+            }
+        }, IntentFilter(UsbManager.ACTION_USB_DEVICE_DETACHED), ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 }
