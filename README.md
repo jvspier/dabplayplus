@@ -1,7 +1,10 @@
-# DABplay+
+<p align="center"><img src="docs/banner.png" alt="DABplay+: car-friendly DAB+ radio for Android head units"></p>
 
 A car-friendly DAB+ radio app for Android head units, driving a cheap USB DAB+ dongle directly.
 Big tiles, big text, few taps: made to be used while driving.
+
+**Download:** the APK is on the [Releases](https://github.com/jvspier/dabplayplus/releases) page (pre-release until it
+has run on a real head unit, see [Status](#status)).
 
 ![Favourites](docs/screenshots/home.png)
 
