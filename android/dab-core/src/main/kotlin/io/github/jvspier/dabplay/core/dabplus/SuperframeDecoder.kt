@@ -51,28 +51,42 @@ class SuperframeDecoder(bitrateKbps: Int) {
                 val limit = maxOf(0, buf.size - pos - 11)
                 var found = -1
                 for (off in 0 until limit) if (fireOk(buf, pos + off)) { found = off; break }
-                if (found < 0) { pos += limit; unsyncedBytes += limit; break }
+                if (found < 0) { pos += limit; skipped(limit, lost); break }
                 if (found > 0) resyncs++
                 pos += found
-                unsyncedBytes += found
+                skipped(found, lost)
                 synced = true
-                // whole superframes went by while hunting: their AUs are lost too (as many as the last superframe had)
-                val skipped = (unsyncedBytes + sfLen / 2) / sfLen
+                // the rest of a superframe's worth, rounded: the time on air between the last report and the new lock
+                if (unsyncedBytes * 2 >= sfLen) reportLost(lost)
                 unsyncedBytes = 0
-                val per = format?.ausPerSuperframe
-                if (skipped > 0 && per != null) { ausBad += skipped * per; lost(skipped * per) }
             }
             if (buf.size - pos < sfLen) break
             val sf = buf.copyOfRange(pos, pos + sfLen)
             if (!fireOk(sf, 0)) {
                 correct(sf)                            // the firecode itself may have been hit by errors
-                if (!fireOk(sf, 0)) { synced = false; pos += 1; unsyncedBytes += 1; continue }
+                if (!fireOk(sf, 0)) { synced = false; pos += 1; skipped(1, lost); continue }
             } else correct(sf)
             pos += sfLen
             superframes++
             accessUnits(sf, lost, out)
         }
         buf = buf.copyOfRange(pos, buf.size)
+    }
+
+    /**
+     * Bytes that went by while hunting for the next superframe: every superframe's worth is reported as lost AUs right
+     * away, so the player fills the gap as it happens (not one long silence after the signal is back). Nothing before
+     * the first superframe: there's no format, and no audio yet to keep in time with.
+     */
+    private fun skipped(n: Int, lost: (Int) -> Unit) {
+        unsyncedBytes += n
+        while (unsyncedBytes >= sfLen) { unsyncedBytes -= sfLen; reportLost(lost) }
+    }
+
+    private fun reportLost(lost: (Int) -> Unit, count: Boolean = true) {
+        val per = format?.ausPerSuperframe ?: return
+        if (count) ausBad += per
+        lost(per)
     }
 
     private fun correct(sf: ByteArray) {
@@ -102,16 +116,21 @@ class SuperframeDecoder(bitrateKbps: Int) {
         starts[nAu] = 110 * s
         val outRate = if (dac == 1) 48000 else 32000
         val core = if (sbr == 1) outRate / 2 else outRate
-        val fmt = AudioFormat(outRate, core, sbr == 1, ps == 1, stereo == 1, nAu).also { format = it }
+        val fmt = AudioFormat(outRate, core, sbr == 1, ps == 1, stereo == 1, nAu)
         val asc = Asc.build(core, outRate, sbr == 1, ps == 1, stereo == 1)
-        for (k in 0 until nAu) {
+        val aus = (0 until nAu).map { k ->
             val a = starts[k]; val b = starts[k + 1]
-            if (!(a < b && b <= 110 * s) || b - a < 3) { ausBad++; lost(1); continue }
-            val crc = Crc.crc16Ccitt(sf, a, b - 2) xor 0xFFFF
-            if (crc != ((sf.u8(b - 2) shl 8) or sf.u8(b - 1))) { ausBad++; lost(1); continue }
-            ausOk++
-            out(AccessUnit(asc, sf.copyOfRange(a, b - 2), fmt))
+            if (!(a < b && b <= 110 * s) || b - a < 3) null
+            else if (Crc.crc16Ccitt(sf, a, b - 2) xor 0xFFFF != ((sf.u8(b - 2) shl 8) or sf.u8(b - 1))) null
+            else sf.copyOfRange(a, b - 2)
         }
+        val good = aus.count { it != null }
+        ausOk += good; ausBad += nAu - good
+        // a superframe with no valid AU may be noise that passed the firecode by chance: its header can't be trusted,
+        // so it neither sets the format nor decides how much is lost (one superframe's worth, in the known format)
+        if (good == 0) { reportLost(lost, count = false); return }
+        format = fmt
+        for (au in aus) if (au != null) out(AccessUnit(asc, au, fmt)) else lost(1)
     }
 }
 

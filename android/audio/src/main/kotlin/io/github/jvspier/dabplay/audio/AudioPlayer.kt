@@ -127,7 +127,8 @@ class AudioPlayer {
         /** Zeros at the current track's format; nothing before the first audio (no format to be silent in yet). */
         fun silence(ms: Int) {
             if (ownTrack == null || trackRate == 0) return
-            val n = trackRate * ms / 1000 * trackChannels
+            // the decoder reports per superframe (≤ 120 ms); anything longer is better left to the underrun re-buffer
+            val n = (trackRate.toLong() * ms.coerceIn(0, MAX_SILENCE_MS) / 1000 * trackChannels).toInt()
             if (shorts.size < n) shorts = ShortArray(n)
             shorts.fill(0, 0, n)
             writeShorts(n)
@@ -279,5 +280,6 @@ class AudioPlayer {
         const val BUFFER_MS = 1000
         const val QUEUE_AUS = 128       // ~2.5 s of AUs (20-60 ms each)
         const val DONGLE_PCM = "decoded by the dongle (PCM)"
+        const val MAX_SILENCE_MS = 500
     }
 }

@@ -56,8 +56,9 @@ private class FakeHighLevelStick(val fw: Int, val dual: Boolean, var sig: Int = 
 }
 
 class C100HighLevelTest {
+    @kotlin.test.BeforeTest fun freshProcess() { C100.registerLevelSeen = false }
     private var clock = 0L
-    private fun open(stick: FakeHighLevelStick) = C100.open(stick, newDriver = { Dtr100(it, sleep = {}, clockMs = { 0L }) },
+    private fun open(stick: Transport) = C100.open(stick, newDriver = { Dtr100(it, sleep = {}, clockMs = { 0L }) },
         highLevel = { tr, l -> C100HighLevel.open(tr, l, sleep = {}, clockMs = { clock }) })
 
     /** The transfers from the first high-level command (the echo) on. */
@@ -130,5 +131,33 @@ class C100HighLevelTest {
             assertEquals(bars, tuner.signal!!.bars, "sig $sig")
             assertEquals(sig >= 600, tuner.signal!!.none)
         }
+    }
+
+    /** Our DTR-100 with a voltage dip: power-on times out. That is not "a different kind of stick": no 0x02. */
+    @Test fun aTimeoutOnARegisterLevelStickNeverTriesTheHighLevelSet() {
+        val sent = ArrayList<Int>()
+        var reply: ByteArray? = null
+        val dtr = object : Transport {
+            override fun write(endpoint: Int, data: ByteArray, timeoutMs: Int): Int {
+                val c = data[0].toInt() and 0xFF; sent += c
+                reply = when (c) { 0x01 -> byteArrayOf(0x81.toByte(), 0, 0, 4); else -> null }    // 0x10: no answer
+                return data.size
+            }
+            override fun read(endpoint: Int, buffer: ByteArray, timeoutMs: Int): Int {
+                val r = reply ?: throw IOException("timeout"); reply = null
+                r.copyInto(buffer); return r.size
+            }
+            override fun close() {}
+        }
+        assertFailsWith<IOException> { open(dtr) }
+        assertEquals(listOf(0x01, 0x10), sent)
+    }
+
+    /** Once a register-level init worked in this process, a later failed register check is a glitch, not a new stick. */
+    @Test fun afterARegisterLevelSuccessTheFallbackIsOff() {
+        C100.registerLevelSeen = true
+        val stick = FakeHighLevelStick(fw = 5, dual = true)
+        assertFailsWith<Dtr100.NotRegisterLevel> { open(stick) }
+        assertTrue(stick.log.none { it.startsWith("> 02") })
     }
 }

@@ -28,7 +28,13 @@ class Dtr100(
     private var mscSize = 0                                // DAT_002025e4 / DAT_00657c38
     private var subch: Int? = null                         // active audio sub-channel
 
-    class DriverException(msg: String) : IOException(msg)
+    open class DriverException(msg: String) : IOException(msg)
+
+    /**
+     * The register write/read-back check (page 7 reg 0x7D) failed: this stick doesn't do register access over SPI. The
+     * only failure that lets [C100.open] try the high-level command set, as DABdream+ falls back exactly there.
+     */
+    class NotRegisterLevel(msg: String) : DriverException(msg)
 
     // --- transport ------------------------------------------------------------------------
 
@@ -129,7 +135,8 @@ class Dtr100(
 
     /** FUN_00073220. */
     fun systemInit() {
-        if (!checkInterface()) throw DriverException("check interface failed")
+        val registerAccess = try { checkInterface() } catch (e: IOException) { throw NotRegisterLevel("check interface: ${e.message}") }
+        if (!registerAccess) throw NotRegisterLevel("check interface failed")
         page(0x0F); wlist(0x54, 0x1C, 0x52, 0x07, 0x30, 0xF4, 0x2F, 0x71)
         clockPlanRegs(0)
         var ok = false

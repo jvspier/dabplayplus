@@ -31,4 +31,22 @@ class LostAuTest {
         assertTrue(lost >= 3 * per, "lost $lost")                       // at least the 3 fully garbled superframes
         assertEquals(refAus, ok + lost, "delivered + lost must cover every AU (per superframe: $per)")
     }
+
+    /** Silence for a long garbled stretch is reported while it lasts, a superframe at a time, not all at the end. */
+    @Test fun lostAusAreReportedWhileTheGarbageLasts() {
+        val f = Golden.raw(".*538\\.msc").firstOrNull()
+        assumeTrue("538 capture missing", f != null)
+        val clean = f!!.readBytes()
+        val sfLen = 120 * 80 / 8
+        val dec = SuperframeDecoder(80)
+        val events = ArrayList<Int>()
+        dec.feed(clean.copyOf(10 * sfLen), lost = { events += it }) { }
+        val per = dec.format!!.ausPerSuperframe
+        events.clear()
+        val garbage = Random(7).nextBytes(ByteArray(8 * sfLen))
+        for (chunk in garbage.toList().chunked(sfLen / 3)) dec.feed(chunk.toByteArray(), lost = { events += it }) { }
+        // still inside the garbage: about 8 superframes' worth reported already, none of it bigger than one superframe
+        assertTrue(events.sum() >= 6 * per, "only ${events.sum()} AUs reported during 8 garbled superframes")
+        assertTrue(events.all { it <= per }, "a report bigger than one superframe: $events")
+    }
 }
