@@ -106,8 +106,9 @@ design session.
   from the bottom edge, so a stray tap on its Back sent the radio to the launcher. Edit favorites keeps its own Back.
 
 - **Start with the car** (owner, 2026-10-01): a setting, **off by default** (many drivers start with CarPlay / Android
-  Auto). Off: when Android opens the app because the dongle appeared (the "always open" tick in the USB prompt), it
-  closes again (cold) or stays in the background (alive), without attaching the dongle. On: a boot listener opens the
+  Auto). Off: Android's "dongle appeared" (the "always open" tick in the USB prompt) lands in an invisible activity in its
+  own task, which opens the radio only when it is already on screen; nothing comes forward, nothing plays (2026-10-06,
+  after the review found that closing/sending back the main activity let a live app flash to the front and play). On: a boot listener opens the
   app; Android 10+ only allows that with "Display over other apps", so the Settings row says so and opens that screen
   until it is allowed. [verified] Android 10 and 14 emulators: opens itself after a reboot with the permission
   (BAL_ALLOW_SAW_PERMISSION), blocked without it; the setting off: nothing opens.

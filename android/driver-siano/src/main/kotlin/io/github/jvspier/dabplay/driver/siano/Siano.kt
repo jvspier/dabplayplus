@@ -44,6 +44,7 @@ class Siano internal constructor(
     private val replies = HashMap<Int, ByteArray>()
     private val buf = ByteArray(4096)
     private var warnedSplit = false
+    private var warnedLength = false
 
     /** GET_VERSION_EX, then by its label: TDMB firmware as is, DAB8 firmware with periodic statistics switched on. */
     internal fun init() {
@@ -94,7 +95,9 @@ class Siano internal constructor(
     override fun startAudio(subchannel: Int, bitrateKbps: Int) {
         val end = clockMs() + 3000
         while (fic.subchannels[subchannel] == null && clockMs() < end) pump(50)
-        val sc = fic.subchannels[subchannel] ?: throw IOException("Siano: sub-channel $subchannel not in the FIC yet")
+        // not in the FIC (yet): a reception or station problem, not a broken stick. No exception (that would reconnect
+        // the whole session); no audio comes, so the engine's reception handling and following take it from here
+        val sc = fic.subchannels[subchannel] ?: return log("Siano: sub-channel $subchannel not in the FIC, not started")
         val br = sc.bitrateKbps ?: bitrateKbps
         val prot = if (sc.uepIndex != null) 0 else if (sc.eepOption == 1) 2 else 1
         val m = msg(SUB_CHANNEL_START, 0, sc.id, sc.startCu, (sc.sizeCu ?: 0) * 64, (br * 24) and 0x1FFFC0, prot, sc.level + 1,
@@ -148,7 +151,11 @@ class Siano internal constructor(
         var off = 0
         while (off + 8 <= n) {
             val len = u16(buf, off + 4)
-            if (len < 8 || off + len > n) break
+            if (len < 8 || off + len > n) {
+                // longer than a read, or split over reads: an open question for these sticks (protocol-siano.md)
+                if (!warnedLength) { warnedLength = true; log("Siano: message 0x%04x of %d bytes in a %d-byte read dropped".format(u16(buf, off), len, n - off)) }
+                break
+            }
             if (u16(buf, off + 6) and FLAG_SPLIT != 0) {
                 if (!warnedSplit) { warnedSplit = true; log("Siano: split message (flags 0x%04x) not supported, dropped".format(u16(buf, off + 6))) }
             } else handle(u16(buf, off), buf.copyOfRange(off, off + len))

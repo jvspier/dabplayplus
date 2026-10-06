@@ -35,7 +35,8 @@ DABdream+ treats every bulk read as one message; we split a read by the length f
 | 0x0325 | interface locked | ← | logged |
 
 **SUB_CHANNEL_START** words, from the FIG 0/1 entry of the sub-channel (the driver decodes the stick's FIC for this):
-[0, SubChId, start CU, size CU × 64, bitrate × 24, protection (0 UEP, 1 EEP-A, 2 EEP-B), level + 1 (EEP: the 2-bit
+[0, SubChId, start CU, size CU × 64, bitrate × 24 (DABdream+ masks it with 0x1FFFC0, a no-op for real bitrates; we do
+the same), protection (0 UEP, 1 EEP-A, 2 EEP-B), level + 1 (EEP: the 2-bit
 level field + 1; UEP: the table's level + 1, as DABdream+ sends it), UEP table index or −1, 0, −1, −1, 0, 1, −1].
 
 ## Sequences

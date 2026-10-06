@@ -2,7 +2,8 @@ package io.github.jvspier.dabplay.core
 
 /**
  * An Extended Country Code for dongles that don't pass the FIC on (Si4684 modules), so stations still get a stable
- * ECC+SId key and RadioDNS can find their logos. The SId's first hex digit is the country id, which several countries
+ * ECC+SId key and the logo search knows the country (RadioDNS itself also needs the real ensemble id, which modules
+ * don't give, so they get their logos from the station's website or radio-browser). The SId's first hex digit is the country id, which several countries
  * share (with different ECCs; ETSI TS 101 756). So: the device's country when its country id matches, else the most
  * likely one per country id (DABdream+'s table).
  */

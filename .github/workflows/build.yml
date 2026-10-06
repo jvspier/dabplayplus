@@ -25,8 +25,9 @@ jobs:
       # the runner image ships an Android SDK with accepted licences; AGP fetches the missing platform (compileSdk 37)
       - name: Tests and release build
         run: ./gradlew test assembleRelease
+      # signed with the runner's throwaway debug key: for trying a build, not for installing over another one
       - uses: actions/upload-artifact@v7
         with:
-          name: dabplay-release-apk
+          name: dabplay-ci-apk-debug-signed
           path: android/app/build/outputs/apk/release/app-release.apk
           retention-days: 14

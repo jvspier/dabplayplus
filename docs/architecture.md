@@ -109,8 +109,10 @@ registry in `tuner-api`, so a new dongle doesn't mean editing the engine.
 - USB: `device_filter.xml` lists the supported dongles; with "always open" ticked, Android opens the app when the dongle
   appears and grants access. USB permission does **not** survive a cold boot, and a dongle present before boot
   completes isn't announced (verified on the emulator), so the first open after a cold boot shows the prompt.
-- **Start with the car** (setting, off by default): off, an open caused by the dongle appearing closes again (or stays
-  in the background). On, `BootReceiver` opens the app; Android 10+ allows that only with "Display over other apps".
+- **Start with the car** (setting, off by default): Android's "dongle appeared" goes to `UsbAttachActivity`, invisible and
+  in its own task. It opens the radio only with the setting on or when the radio is already on screen, so otherwise
+  nothing comes forward and nothing plays. On, `BootReceiver` also opens the app at boot; Android 10+ allows that only
+  with "Display over other apps".
 - Back never leaves the app by accident (another tab → Home; Home → nothing).
 - **Planned:** USB attach/detach handling in the app process instead of `MainActivity`, so a destroyed activity can't
   miss a detach; an in-app **diagnostics log** (engine events, reception statistics, driver messages) to pull off the

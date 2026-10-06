@@ -10,8 +10,6 @@ import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.Build
 import android.os.Bundle
-import android.os.SystemClock
-import android.util.Log
 import android.widget.Toast
 import io.github.jvspier.dabplay.data.StationStore
 import io.github.jvspier.dabplay.engine.DongleKind
@@ -55,24 +53,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private var closedEarly = false
-    private var inBackground = false
-    private var sentBackAt = Long.MIN_VALUE / 2           // the resume that may follow moveTaskToBack mustn't attach
-
-    /**
-     * Android opens the app whenever the dongle appears (the "always open" tick in its USB permission prompt), which on
-     * a head unit is every car start. Only when the driver asked for that (Settings → Start with the car).
-     */
-    private fun unwantedAutoStart(intent: Intent?) =
-        intent?.action == UsbManager.ACTION_USB_DEVICE_ATTACHED && !app.settings.state.value.startWithCar
-
     @OptIn(UnstableApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (savedInstanceState == null && unwantedAutoStart(intent)) {
-            Log.i(TAG, "opened because the dongle appeared; Start with the car is off: closing")
-            closedEarly = true; finish(); return
-        }
         enableEdgeToEdge()
         usb = getSystemService(UsbManager::class.java)
         ContextCompat.registerReceiver(this, receiver, IntentFilter(ACTION_PERMISSION).apply {
@@ -125,22 +108,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (intent.action != UsbManager.ACTION_USB_DEVICE_ATTACHED) return
-        // alive in the background (a head unit waking up): the dongle reappearing must not pull the radio to the front
-        // and start playing over CarPlay; back it goes, and the dongle is attached when the driver opens the app
-        if (inBackground && unwantedAutoStart(intent)) {
-            Log.i(TAG, "dongle reappeared; Start with the car is off: staying in the background")
-            sentBackAt = SystemClock.uptimeMillis(); moveTaskToBack(true); return
-        }
-        findDongle()
+        if (intent.action == UsbManager.ACTION_USB_DEVICE_ATTACHED) findDongle()   // via UsbAttachActivity
     }
 
-    override fun onStart() { super.onStart(); inBackground = false }
-    override fun onStop() { super.onStop(); inBackground = true }
+    override fun onStart() { super.onStart(); app.uiVisible = true }
+    override fun onStop() { super.onStop(); app.uiVisible = false }
 
     override fun onResume() {
         super.onResume()
-        if (SystemClock.uptimeMillis() - sentBackAt < 2000) return
         findDongle(ask = false)                              // back in front: attach if it's there and allowed
     }
 
@@ -153,13 +128,12 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        if (!closedEarly) unregisterReceiver(receiver)
+        unregisterReceiver(receiver)
         controller?.let { MediaController.releaseFuture(it) }
         super.onDestroy()
     }
 
     private companion object {
         const val ACTION_PERMISSION = "io.github.jvspier.dabplay.USB_PERMISSION"
-        const val TAG = "MainActivity"
     }
 }

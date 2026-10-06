@@ -18,6 +18,8 @@ class DabApp : Application() {
     lateinit var settings: SettingsStore; private set
     lateinit var logos: LogoStore; private set
     lateinit var logoFetcher: LogoFetcher; private set
+    /** MainActivity is on screen (started, not stopped): a dongle appearing then connects without opening anything. */
+    @Volatile var uiVisible = false
 
     override fun onCreate() {
         super.onCreate()

@@ -32,6 +32,7 @@ class LogoFinder(private val http: Http, private val dns: DnsLookup, private val
 
     /** RadioDNS: CNAME of the service's FQDN → SPI (or EPG) SRV → `SI.xml` → this service's entry. */
     private fun spiService(q: LogoQuery): SpiService? {
+        if (q.eid !in 0..0xFFFF) return null              // a Si4684 module's synthetic ensemble id: RadioDNS needs the real one
         val cname = dns.cname(RadioDns.dabFqdn(q.ecc, q.eid, q.sid, q.scids)) ?: return null
         val target = (dns.srv("_radiospi._tcp.$cname") + dns.srv("_radioepg._tcp.$cname"))
             .sortedWith(compareBy({ it.priority }, { -it.weight })).firstOrNull() ?: return null
