@@ -77,6 +77,7 @@ class DabEngine(
     private val followStation: () -> Boolean = { true },
     private val trafficAnnouncements: () -> Boolean = { false },
     private val timings: EngineTimings = EngineTimings(),
+    private val drivers: Drivers = DriverRegistry,
     /** Runs first on the USB thread (the app raises its priority: the MSC reader must never fall behind). */
     private val usbThreadSetup: () -> Unit = {},
 ) {
@@ -182,8 +183,8 @@ class DabEngine(
             conn = dev.open()                                   // also checks a shared USB id's manufacturer
             val transport = conn.transport
             val log: (String) -> Unit = { events.i(TAG, it) }
-            val r: RadioSession = DriverRegistry.rawTuner(kind, transport, log)?.let { Session(it, player) }
-                ?: ModuleSession({ listener -> DriverRegistry.moduleTuner(kind, transport, listener, log) ?: error("no driver for $kind") }, player)
+            val r: RadioSession = drivers.rawTuner(kind, transport, log)?.let { Session(it, player) }
+                ?: ModuleSession({ listener -> drivers.moduleTuner(kind, transport, listener, log) ?: error("no driver for $kind") }, player)
             radio = r
             _state.update { it.copy(dongle = true, error = null) }
             pendingResume = null                                 // handed to this session (queued below)

@@ -19,11 +19,19 @@ enum class DongleKind {
     SIANO,
 }
 
+/** Opening a dongle's driver by family: [DriverRegistry] in the app, scripted tuners in tests. */
+interface Drivers {
+    /** The family's driver if it hands over the raw ensemble (the host decodes); null for module dongles. */
+    fun rawTuner(kind: DongleKind, t: Transport, log: (String) -> Unit): RawTuner?
+    /** The family's driver if the dongle decodes by itself; null for raw ones. */
+    fun moduleTuner(kind: DongleKind, t: Transport, listener: ModuleListener, log: (String) -> Unit): ModuleTuner?
+}
+
 /**
  * The one place that knows the drivers: which USB ids are which family, and how to open each. A new dongle family is
  * a new [DongleKind] and a line here; the engine only sees [RawTuner] / [ModuleTuner].
  */
-object DriverRegistry {
+object DriverRegistry : Drivers {
     fun kindOf(vendorId: Int, productId: Int): DongleKind? = when {
         vendorId == Dtr100.VID && productId == Dtr100.PID -> DongleKind.C100
         vendorId == Si4684.VID && productId == Si4684.PID -> DongleKind.SI4684
@@ -34,15 +42,13 @@ object DriverRegistry {
     /** A manufacturer string the device must report too, for USB ids shared with other devices (null: none). */
     fun requiredManufacturer(kind: DongleKind): String? = if (kind == DongleKind.C100) Dtr100.MANUFACTURER else null
 
-    /** The family's driver if it hands over the raw ensemble (the host decodes); null for module dongles. */
-    fun rawTuner(kind: DongleKind, t: Transport, log: (String) -> Unit): RawTuner? = when (kind) {
+    override fun rawTuner(kind: DongleKind, t: Transport, log: (String) -> Unit): RawTuner? = when (kind) {
         DongleKind.C100 -> C100.open(t, log = log)
         DongleKind.SIANO -> Siano.open(t, log = log)
         DongleKind.SI4684 -> null
     }
 
-    /** The family's driver if the dongle decodes by itself; null for raw ones. */
-    fun moduleTuner(kind: DongleKind, t: Transport, listener: ModuleListener, log: (String) -> Unit): ModuleTuner? = when (kind) {
+    override fun moduleTuner(kind: DongleKind, t: Transport, listener: ModuleListener, log: (String) -> Unit): ModuleTuner? = when (kind) {
         DongleKind.SI4684 -> Si4684.open(t, listener, log)
         else -> null
     }
