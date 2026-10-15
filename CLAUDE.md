@@ -8,7 +8,7 @@ safely use while driving. This is a personal hobby / interoperability project.
 Why: the owner used DABdream+ in a previous car. It worked fine, but the UI is not
 car-friendly: lots of swiping, small buttons, small text. DAB-Z works but feels dated.
 
-## Current phase: 5 — Android app (v1 features complete; Dudu3 run next)
+## Current phase: 5 — Android app (1.0.0 released 2026-10-15, in use on the Dudu3)
 The PoC (phase 4) is complete. The Android project lives in `android/` (see `android/README.md`); design and
 architecture are decided and approved. Read these before starting any task:
 - `docs/architecture.md` (modules, driver interfaces, playback/USB/boot) and `docs/design-notes.md` (UI decisions).
@@ -16,11 +16,13 @@ architecture are decided and approved. Read these before starting any task:
 - `docs/protocol.md`: the DTR-100's USB/chip protocol; `docs/protocol-*.md` for the other dongles. `tools/`: the Python
   reference implementation.
 
-Status in short (2026-10-06): everything in the README's feature list works with the real DTR-100 in the API 34
-emulator (USB passthrough). That covers DAB+ and MP2, logos, reception handling and service following, traffic
-announcements, calls and navigation, Start with the car, and performance tuning for the Dudu3's budget SoC. Three more
-dongle families are implemented but untested (no hardware). The engine is a plain-Kotlin module with JVM tests against a
-scripted tuner; CI runs all unit tests and the release build. Next: the Dudu3 run (findings.md Status).
+Status in short (2026-10-15): 1.0.0 is out (GitHub Releases, signed with the release key) and in daily use on the
+Dudu3: the first drive (over an hour, a tunnel) went without bugs. Before that, everything in the README's feature list
+was verified with the real DTR-100 in the API 34 emulator (USB passthrough): DAB+ and MP2, logos, reception handling
+and service following, traffic announcements, calls and navigation, Start with the car, and performance tuning for the
+Dudu3's budget SoC. Three more dongle families are implemented but untested (no hardware). The engine is a plain-Kotlin module with JVM tests against a
+scripted tuner; CI runs all unit tests and the release build. Next: the remaining Dudu3 checks, then going public
+(findings.md Status).
 
 ## Hardware summary
 - **Dongle:** DollaTek "DAB+ Receiver for Android Navigation", model **DTR-100**
@@ -35,13 +37,13 @@ scripted tuner; CI runs all unit tests and the release build. Next: the Dudu3 ru
   DAB decoding (FIC parsing, DAB+ superframes, AAC) happens on the host.** Firmware level 4.
 - **Access:** the udev rule `/etc/udev/rules.d/60-dab-dongle.rules` (uaccess) is installed,
   so no root is needed.
-- **Target:** Dudu3 Android head unit (not installed yet): Unisoc **UIS8581** (8× Cortex-A55, no big cores; PowerVR
+- **Target:** Dudu3 Android head unit (installed, October 2026): Unisoc **UIS8581** (8× Cortex-A55, no big cores; PowerVR
   GE8322 GPU), 4 GB RAM / 64 GB eMMC, 1280×720, Android 10 (API 29). A budget-phone class SoC: see findings.md "Performance".
 
 ## Roadmap
 Progress: 0 done. 1 not done (not needed). 2 done: the protocol lives in the unpacked native
-`libdab.so`; the Java side is Tencent Legu-packed and wasn't needed. 3 not needed. 4 done. 5 in progress (v1 features
-complete, Dudu3 run next).
+`libdab.so`; the Java side is Tencent Legu-packed and wasn't needed. 3 not needed. 4 done. 5: 1.0.0 released (2026-10-15),
+in use on the Dudu3.
 
 0. **Identify.** Run `lsusb`, `lsusb -v -d VID:PID` and `dmesg -w` while plugging in. Is it
    USB Audio Class, mass storage, or vendor-specific bulk/control? Record the answer in

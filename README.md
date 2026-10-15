@@ -3,8 +3,7 @@
 A car-friendly DAB+ radio app for Android head units, driving a cheap USB DAB+ dongle directly.
 Big tiles, big text, few taps: made to be used while driving.
 
-**Download:** the APK is on the [Releases](https://github.com/jvspier/dabplayplus/releases) page (pre-release until it
-has run on a real head unit, see [Status](#status)).
+**Download:** the APK is on the [Releases](https://github.com/jvspier/dabplayplus/releases) page.
 
 ![Favourites](docs/screenshots/home.png)
 
@@ -58,10 +57,11 @@ has run on a real head unit, see [Status](#status)).
 
 ## Status
 
-Work in progress, not on the Play Store yet. Runs with the real DTR-100 dongle in the Android emulator (USB
-passthrough): scan, playback, switching, text, slides, logos, reception loss and recovery. The first run on a real
-head unit (a Dudu3, Android 10, budget-class hardware) is next; the app has been tuned for such hardware (one cached
-background layer, a baseline profile, decoding that costs well under 1 % of a core).
+**1.0.0**, not on the Play Store yet. In daily use in a car on a Dudu3 head unit (Android 10, budget-class hardware)
+with the DTR-100 dongle: quick and responsive, and through a tunnel it shows "No signal" and is back quickly after
+it. Before that it was tested with the same dongle in the Android emulator (USB passthrough): scan, playback,
+switching, text, slides, logos, reception loss and recovery, dongle dropouts. The app is tuned for budget head units
+(one cached background layer, a baseline profile, decoding that costs well under 1 % of a core).
 
 Not yet verified on air: MP2 (the Netherlands has no MP2 stations; tested against reference files), a real traffic
 announcement switch, and following a station to another multiplex while driving (both are covered by tests against

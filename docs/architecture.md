@@ -160,7 +160,8 @@ dongle family is a new kind and a line there.
 - Hardware: the emulator with USB passthrough (android/README.md); the Dudu3 over ADB on Wi-Fi.
 
 ## Open items / risks
-- First run on the Dudu3: frame times on its GPU, steering-wheel keys, calls/navigation, sleep vs cold boot and USB.
+- The Dudu3 runs it smoothly (first drive, 2026-10-15). Still to check there: steering-wheel keys, calls/navigation,
+  sleep vs cold boot and USB, signal-bar calibration.
 - Untested on air: MP2 (no MP2 in NL), a real announcement switch, following a station while driving.
 - Three of four dongle families are untested on hardware (README).
 - Dongle firmware levels other than 4: code paths from the decompile, untested.

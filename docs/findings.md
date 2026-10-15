@@ -3,9 +3,9 @@
 Every claim is tagged **[verified]** (seen directly) or **[hypothesis]** (inferred). Update
 this file as work progresses.
 
-## Status (2026-10-06)
-- **Phase 5, Android app**: feature-complete for v1 and verified with the real DTR-100 in the API 34 emulator (USB
-  passthrough). What's in it: README "Features"; how it's built: `docs/architecture.md`.
+## Status (2026-10-15)
+- **Phase 5, Android app: 1.0.0 released** (2026-10-15) after the first run on the Dudu3. Before that it was verified
+  with the real DTR-100 in the API 34 emulator (USB passthrough). What's in it: README "Features"; how it's built: `docs/architecture.md`.
 - **Since the 09-27/28 log below** [verified on hw unless noted]:
   - Bug + security review in four parts (engine survives errors and detach; everything from the air or the internet is
     bounded; storage survives power cuts; UI robustness), RAON signal-bar thresholds.
@@ -31,9 +31,15 @@ this file as work progresses.
     (playback, following, announcements, reconnecting, dropout resume, scan) [verified: 10 tests, stable on one CPU
     core]. Hardware regression after each of the steps [verified, DTR-100: scan 7 ensembles / 74 stations, 538 in
     0.6–0.8 s, 11C → 12C, pause/play, an unplug with resume in 0.97 s].
-- **Next**: (1) the Dudu3 run (frame times, steering wheel, calls/navigation, sleep vs cold boot, signal bars from the
-  `rx30` lines); 0.9.0 is the build for it (pre-release on GitHub, signed with the release key, 2026-10-06); (2) 1.0.0
-  once the Dudu3 run passes, then the repo goes public.
+  - App icon and README banner; 0.9.0 / 0.9.1 as GitHub pre-releases, signed with the release key (2026-10-06).
+  - **First run on the Dudu3** (2026-10-15, owner, a 0.9.x build, DTR-100 behind the head unit): over an hour of
+    driving with no bugs seen, quick and responsive [verified, owner report]. A tunnel did what it should: "No signal"
+    inside, audio back quickly after it [verified, owner report]. The head unit's own media widget in its system bar
+    shows station, DLS and artwork from the media session, and slides show on air [verified, owner photo]. Logos weren't
+    downloaded yet (the initials tile showed); the head unit hadn't been online.
+- **Next**: (1) still to check on the Dudu3: steering-wheel keys, a phone call and navigation ducking, sleep vs cold
+  boot (and the USB prompt after a cold boot), Start with the car, logos once it's online, and the diagnostics log
+  (`rx30` lines) to calibrate the signal bars; (2) the repo goes public when the owner decides.
 
 ## Work log: phase 5, 2026-09-27 … 09-28
 - **Android app, phase 5** (`android/`, see `android/README.md`). Done and verified on the API 34 head-unit emulator
