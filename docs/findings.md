@@ -35,9 +35,10 @@ this file as work progresses.
   - **First run on the Dudu3** (2026-10-15, owner, a 0.9.x build, DTR-100 behind the head unit): over an hour of
     driving with no bugs seen, quick and responsive [verified, owner report]. A tunnel did what it should: "No signal"
     inside, audio back quickly after it [verified, owner report]. The head unit's own media widget in its system bar
-    shows station, DLS and artwork from the media session, and slides show on air [verified, owner photo]. Logos weren't
+    shows station, DLS and artwork from the media session, and slides show on air [verified, owner photo]. The
+    steering-wheel buttons work through the media session [verified, owner report]. Logos weren't
     downloaded yet (the initials tile showed); the head unit hadn't been online.
-- **Next**: (1) still to check on the Dudu3: steering-wheel keys, a phone call and navigation ducking, sleep vs cold
+- **Next**: (1) still to check on the Dudu3: a phone call and navigation ducking, sleep vs cold
   boot (and the USB prompt after a cold boot), Start with the car, logos once it's online, and the diagnostics log
   (`rx30` lines) to calibrate the signal bars; (2) the repo goes public when the owner decides.
 
