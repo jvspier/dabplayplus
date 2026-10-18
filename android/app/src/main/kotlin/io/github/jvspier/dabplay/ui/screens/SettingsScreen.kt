@@ -44,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -61,6 +62,7 @@ import com.adamglin.phosphoricons.fill.CaretUp
 import com.adamglin.phosphoricons.fill.Clock
 import com.adamglin.phosphoricons.fill.CircleHalf
 import com.adamglin.phosphoricons.fill.DownloadSimple
+import com.adamglin.phosphoricons.fill.ImageSquare
 import com.adamglin.phosphoricons.fill.Heart
 import com.adamglin.phosphoricons.fill.Layout
 import com.adamglin.phosphoricons.fill.Moon
@@ -144,8 +146,23 @@ private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Bo
             SettingRow(PhosphorIcons.Fill.SignIn, Accent.blue, tile, "Resume last station", "Start playing when DABplay+ opens") {
                 DabSwitch(s.resumeOnStart) { v -> a.updateSettings { it.copy(resumeOnStart = v) } }
             }
-            SettingRow(PhosphorIcons.Fill.DownloadSimple, Accent.green, tile, "Download station logos", logoLine(s.downloadLogos, logoStatus, db)) {
+            SettingRow(PhosphorIcons.Fill.DownloadSimple, Accent.green, tile, "Download station logos",
+                when {
+                    !s.downloadLogos -> "Off · stations show their initials"
+                    db.stations.isEmpty() -> "Automatic when online · scan for stations first"
+                    else -> "Automatic when online"
+                }) {
                 DabSwitch(s.downloadLogos) { v -> a.updateSettings { it.copy(downloadLogos = v) } }
+            }
+            if (s.downloadLogos && db.stations.isNotEmpty()) {
+                // the downloads are automatic; these are for when it should try now (owner, 2026-10-18)
+                val canAct = logoStatus.online && !logoStatus.running
+                SettingRow(PhosphorIcons.Fill.ImageSquare, Accent.green, tile, "Station logos", logoLine(logoStatus, db), subtitleLines = 2) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        ActionButton("Retry missing", canAct, a.retryLogos)
+                        ActionButton("Refresh all", canAct, a.refreshLogos)
+                    }
+                }
             }
             SettingRow(PhosphorIcons.Fill.ArrowsClockwise, Accent.orange, tile, "Follow station", "Switch to a stronger signal of the same station") {
                 DabSwitch(s.followStation) { v -> a.updateSettings { it.copy(followStation = v) } }
@@ -161,24 +178,36 @@ private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Bo
     }
 }
 
-/** Tells what the logo download is doing: it's automatic, so the row shows its state instead of a button. */
+/** What the logo download did: how many have a logo, how many have none online, and progress while it looks them up. */
 @Composable
-private fun logoLine(enabled: Boolean, st: LogoStatus, db: Snapshot): String {
+private fun logoLine(st: LogoStatus, db: Snapshot): String {
     val logos = LocalLogos.current
     val total = db.stations.size
     val have = db.stations.count { it.key in logos }
+    val notFound = db.stations.count { it.key !in logos && it.key in st.missed }
+    val unchecked = total - have - notFound                    // no answer last time: tried again by itself
     return when {
-        !enabled -> "Off · stations show their initials"
-        total == 0 -> "Automatic when online · scan for stations first"
-        st.running && st.online -> "Downloading… $have of $total"
-        !st.online -> "Automatic when online · no internet now · $have of $total have a logo"
-        else -> "Automatic when online · $have of $total have a logo"
+        !st.online -> "No internet now · $have of $total have a logo"
+        st.running -> "Looking up logos… ${st.checked} of ${st.todo}"
+        have == total -> "All $total have a logo"
+        else -> "$have of $total have a logo" + (if (notFound > 0) " · $notFound not found online" else "") +
+            (if (unchecked > 0) " · $unchecked couldn't be checked" else "")
+    }
+}
+
+/** A secondary action in a settings row: a quiet button on the page colour, faded while it can't be used. */
+@Composable
+private fun ActionButton(label: String, enabled: Boolean, onClick: () -> Unit) {
+    val c = LocalDabColors.current
+    Box(Modifier.height(64.dp).clip(RoundedCornerShape(12.dp)).background(c.bg).pressable(onClick, enabled = enabled)
+        .graphicsLayer { alpha = if (enabled) 1f else 0.4f }.padding(horizontal = 20.dp), contentAlignment = Alignment.Center) {
+        Text(label, color = c.text, fontSize = 20.sp, fontWeight = FontWeight.Medium, maxLines = 1)
     }
 }
 
 @Composable
 private fun SettingRow(icon: ImageVector, color: Color, tile: Dp, title: String, subtitle: String, onClick: (() -> Unit)? = null,
-                       control: @Composable () -> Unit) {
+                       subtitleLines: Int = 1, control: @Composable () -> Unit) {
     val c = LocalDabColors.current
     Row(Modifier.fillMaxWidth().heightIn(min = 96.dp).clip(RoundedCornerShape(14.dp)).background(c.surface)
         .then(if (onClick != null) Modifier.pressable(onClick) else Modifier).padding(horizontal = 18.dp, vertical = 12.dp),
@@ -186,7 +215,7 @@ private fun SettingRow(icon: ImageVector, color: Color, tile: Dp, title: String,
         IconTile(icon, color, tile)
         Column(Modifier.weight(1f).padding(horizontal = 18.dp)) {
             Text(title, color = c.text, fontSize = 24.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(subtitle, color = c.neutral400, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(subtitle, color = c.neutral400, fontSize = 17.sp, maxLines = subtitleLines, overflow = TextOverflow.Ellipsis)
         }
         control()
     }

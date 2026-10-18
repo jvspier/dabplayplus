@@ -33,9 +33,12 @@ design session.
   Edit favourites, Download station logos (when online), Follow station when the signal drops. Later: traffic announcements.
 - **Clock** (owner, 2026-09-27): Settings → Clock System / 12h / 24h; System follows Android's setting. Applies to the
   rail clock and the Recent times.
-- **Logo download is automatic** (owner asked how people would know, 2026-09-27): no button; the Settings row shows
-  what it's doing instead: "Automatic when online · 41 of 55 have a logo", "Downloading… 23 of 55",
-  "… no internet now …", or "Off · stations show their initials".
+- **Logo download is automatic** (owner asked how people would know, 2026-09-27); the Settings row says so.
+  **Plus control** (owner, 2026-10-18: "92 of 160" alone felt like zero control): a "Station logos" row under it with
+  what happened ("92 of 160 have a logo · 68 not found online", "Looking up logos… 12 of 68", "No internet now …")
+  and two buttons, **Retry missing** (the stations without a logo, now) and **Refresh all** (every station again; a
+  logo stays until a new one replaces it). A lookup that went unanswered (timeout, hotspot gone) isn't a "not found":
+  it's tried again next pass; a real "not found" after 3 days.
 - **Reorder favourites by dragging** (owner, 2026-09-27): long-press a Home tile, drag it to another slot, drop.
   Head units have no vibration motor, so the pickup is visual and subtle: a small springy pop (scale 1.05) with a
   soft shadow; the other tiles dim to 82 %. Settings → Edit favourites keeps big up/down buttons as the alternative.
@@ -86,6 +89,8 @@ design session.
   stay cached, so switching it back on shows them again at once.
 - **README screenshots** (owner, 2026-09-28): station logos may show (they only identify the stations; the README says
   they belong to their broadcasters); no slides with album covers or people, and no presenter names.
+- **Now playing tab: a play triangle** (owner, 2026-10-18): someone new to the app didn't read the waveform as "now
+  playing". The animated waveform stays where it marks the station playing (lists, tiles, Recent).
 - **Rail icons in their tab colours in both themes** (owner, 2026-09-28); by day 22 % darker, so amber and green read
   on white.
 - **Calls and navigation** (owner, 2026-09-28): a phone call / voice assistant (transient focus loss) silences the

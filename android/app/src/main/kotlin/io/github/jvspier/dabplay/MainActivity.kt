@@ -85,6 +85,8 @@ class MainActivity : ComponentActivity() {
                         restoreRecents = app.store::restoreRecents,
                         updateSettings = app.settings::update,
                         skipAnnouncement = e::skipAnnouncement,
+                        retryLogos = app.logoFetcher::retryMissing,
+                        refreshLogos = app.logoFetcher::refreshAll,
                     )
                 }
                 val logos by app.logos.state.collectAsStateWithLifecycle()

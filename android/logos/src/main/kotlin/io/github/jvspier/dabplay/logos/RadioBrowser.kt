@@ -23,9 +23,10 @@ class RadioBrowser(private val http: Http, private val fallbackHosts: List<Strin
     /**
      * Stations whose name matches [label] after normalising (case, spaces, punctuation), or failing that without
      * generic words like "radio"; exact matches first, then most voted.
-     * [country] (ISO 3166 alpha-2) narrows the search when known.
+     * [country] (ISO 3166 alpha-2) narrows the search when known. [via] carries the search request (the logo finder
+     * passes its own, to see whether it was answered).
      */
-    fun find(label: String, country: String?): List<RbStation> {
+    fun find(label: String, country: String?, via: Http = http): List<RbStation> {
         val want = normalise(label).ifEmpty { return emptyList() }
         val wantLoose = loose(label)
         val q = buildString {
@@ -34,7 +35,7 @@ class RadioBrowser(private val http: Http, private val fallbackHosts: List<Strin
             append("&hidebroken=true&order=votes&reverse=true&limit=30")
         }
         for (h in hosts()) {
-            val r = http.get("https://$h$q", 512 * 1024) ?: continue
+            val r = via.get("https://$h$q", 512 * 1024) ?: continue
             if (r.code != 200) continue
             val arr = runCatching { JSONArray(String(r.body)) }.getOrNull() ?: continue
             return (0 until arr.length()).map { arr.getJSONObject(it) }

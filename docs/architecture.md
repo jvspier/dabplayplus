@@ -38,7 +38,8 @@ agreed but not built yet is marked **planned**.
          │ usb-android: AndroidUsbTransport (UsbDeviceConnection.bulkTransfer)
        dongle
  data: StationStore (one JSON file) · LogoStore (files + index)    app: SettingsStore (SharedPreferences)
- logos: LogoFetcher → RadioDNS SPI → website manifest / touch icon → radio-browser (only when online)
+ logos: LogoFetcher → RadioDNS SPI → website manifest / touch icon → radio-browser (only when online; Settings:
+        Retry missing / Refresh all; an unanswered lookup is retried next pass, "no logo anywhere" after 3 days)
 ```
 
 ## Modules (Gradle)

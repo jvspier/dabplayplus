@@ -19,7 +19,8 @@ Big tiles, big text, few taps: made to be used while driving.
 - **Now playing**: "Artist – Title" from the broadcast (DLS / DL Plus), and the station's slideshow (cover cards,
   shown whole, never cropped) or its logo, standing on a soft reflection.
 - **Station logos**, downloaded automatically when online (RadioDNS, then the station's website, then
-  radio-browser.info) and cached. Offline, everything else still works.
+  radio-browser.info) and cached; Settings shows how many were found, with Retry missing and Refresh all. Offline,
+  everything else still works.
 - **DAB+ and DAB (MP2)** stations; DAB uses the app's own MPEG Layer II decoder.
 - **Reception handling**: live signal bars, "No signal" while in a tunnel, resumes by itself. Short errors become a
   brief mute instead of a stutter.

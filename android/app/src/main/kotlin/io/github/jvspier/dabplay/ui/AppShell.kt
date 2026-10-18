@@ -71,7 +71,7 @@ import com.adamglin.phosphoricons.fill.House
 import com.adamglin.phosphoricons.fill.Radio
 import com.adamglin.phosphoricons.fill.SkipBack
 import com.adamglin.phosphoricons.fill.SkipForward
-import com.adamglin.phosphoricons.fill.Waveform
+import com.adamglin.phosphoricons.fill.Play
 import io.github.jvspier.dabplay.core.Reception
 import io.github.jvspier.dabplay.data.DriverSide
 import io.github.jvspier.dabplay.data.LayoutVariant
@@ -102,7 +102,7 @@ import kotlinx.coroutines.withContext
 enum class Tab(val label: String, val color: Color, val icon: ImageVector) {
     HOME("Home", Accent.blue, PhosphorIcons.Fill.House),
     STATIONS("Stations", Accent.amber, PhosphorIcons.Fill.Radio),
-    PLAYING("Playing", Accent.orange, PhosphorIcons.Fill.Waveform),
+    PLAYING("Playing", Accent.orange, PhosphorIcons.Fill.Play),        // a play triangle: a waveform wasn't read as "now playing" (owner, 2026-10-18)
     RECENT("Recent", Accent.green, PhosphorIcons.Fill.ClockCounterClockwise),
     SETTINGS("Settings", Accent.lavender, PhosphorIcons.Fill.GearSix),
 }
@@ -119,6 +119,8 @@ class RadioActions(
     val restoreRecents: (List<Recent>) -> Unit,
     val updateSettings: ((Settings) -> Settings) -> Unit,
     val skipAnnouncement: () -> Unit = {},
+    val retryLogos: () -> Unit = {},
+    val refreshLogos: () -> Unit = {},
 )
 
 @Composable

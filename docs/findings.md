@@ -32,6 +32,10 @@ this file as work progresses.
     core]. Hardware regression after each of the steps [verified, DTR-100: scan 7 ensembles / 74 stations, 538 in
     0.6–0.8 s, 11C → 12C, pause/play, an unplug with resume in 0.97 s].
   - App icon and README banner; 0.9.0 / 0.9.1 as GitHub pre-releases, signed with the release key (2026-10-06).
+  - 1.1.0 (2026-10-18, owner requests after the first drives): logo control in Settings (Retry missing, Refresh all,
+    what was found) [verified, API 34 emulator online: retry of 20 → 19 not found + 1 no answer; refresh of 67 kept
+    all 47 logos]; an unanswered lookup is no longer a 3-day "not found" [verified: unit tests, and live: "YOURSAFE: no
+    answer" became "no usable logo" on the next pass]; the Now playing tab is a play triangle (both themes checked).
   - **First run on the Dudu3** (2026-10-15, owner, a 0.9.x build, DTR-100 behind the head unit): over an hour of
     driving with no bugs seen, quick and responsive [verified, owner report]. A tunnel did what it should: "No signal"
     inside, audio back quickly after it [verified, owner report]. The head unit's own media widget in its system bar
@@ -41,8 +45,8 @@ this file as work progresses.
     elsewhere: about 160 stations, 92 with a logo; many local stations have none online) [verified, owner report]. Logos weren't
     downloaded yet (the initials tile showed); the head unit hadn't been online.
 - **Next**: (1) still to check on the Dudu3: a phone call, Start with the car, and the diagnostics log (`rx30` lines)
-  to calibrate the signal bars; (2) owner request: more control over logo downloads (design in progress); (3) the repo
-  goes public when the owner decides.
+  to calibrate the signal bars; (2) the README screenshots retaken (new icon, play-triangle tab); (3) the repo goes
+  public when the owner decides.
 
 ## Work log: phase 5, 2026-09-27 … 09-28
 - **Android app, phase 5** (`android/`, see `android/README.md`). Done and verified on the API 34 head-unit emulator

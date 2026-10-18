@@ -1,7 +1,9 @@
 package io.github.jvspier.dabplay.logos
 
+import java.io.IOException
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
@@ -12,7 +14,11 @@ class LogoFinderTest {
         byteArrayOf((w shr 24).toByte(), (w shr 16).toByte(), (w shr 8).toByte(), w.toByte(), (h shr 24).toByte(), (h shr 16).toByte(), (h shr 8).toByte(), h.toByte()) +
         ByteArray(16)
 
-    private class FakeHttp(val pages: Map<String, Any>) : Http {
+    /** A page that doesn't answer (timeout, connection dropped). */
+    private object Timeout
+
+    private class FakeHttp(pages: Map<String, Any>) : Http {
+        val pages = pages.toMutableMap()
         val asked = mutableListOf<String>()
         override fun get(url: String, maxBytes: Int): HttpResult? {
             asked += url
@@ -21,14 +27,16 @@ class LogoFinderTest {
                 is Int -> HttpResult(url, v, null, ByteArray(0))
                 is String -> HttpResult(url, 200, "text/html", v.toByteArray())
                 is ByteArray -> HttpResult(url, 200, "image/png", v)
+                Timeout -> null
                 else -> error("bad fixture")
             }
         }
     }
 
-    private class FakeDns(val cnames: Map<String, String> = emptyMap(), val srvs: Map<String, List<SrvTarget>> = emptyMap()) : DnsLookup {
-        override fun cname(name: String) = cnames[name]
-        override fun srv(name: String) = srvs[name].orEmpty()
+    private class FakeDns(val cnames: Map<String, String> = emptyMap(), val srvs: Map<String, List<SrvTarget>> = emptyMap(),
+                          val down: Boolean = false) : DnsLookup {
+        override fun cname(name: String) = if (down) throw IOException("DNS timeout") else cnames[name]
+        override fun srv(name: String) = if (down) throw IOException("DNS timeout") else srvs[name].orEmpty()
     }
 
     private val rbServers = "https://all.api.radio-browser.info/json/servers" to """[{"name":"rb1.example"}]"""
@@ -107,12 +115,42 @@ class LogoFinderTest {
         assertEquals(LogoSource.WEB_MANIFEST, LogoFinder(FakeHttp(site), dns).find(LogoQuery(0xE3, 0x8018, 0x8358, "KINK"))?.source)
     }
 
+    private val tinySite = mapOf(rbServers,
+        "https://rb1.example/json/stations/search?name=Tiny+FM&countrycode=NL&hidebroken=true&order=votes&reverse=true&limit=30" to
+            """[{"name":"Tiny FM","homepage":"","favicon":"https://tiny.example/favicon.ico","votes":3}]""",
+        "https://tiny.example/favicon.ico" to ByteArray(64))
+    private val tiny = LogoQuery(0xE3, 0x8018, 0x8999, "Tiny FM")
+
     @Test fun nothingUsableMeansNoLogo() {
-        val site = mapOf(rbServers,
-            "https://rb1.example/json/stations/search?name=Tiny+FM&countrycode=NL&hidebroken=true&order=votes&reverse=true&limit=30" to
-                """[{"name":"Tiny FM","homepage":"","favicon":"https://tiny.example/favicon.ico","votes":3}]""",
-            "https://tiny.example/favicon.ico" to ByteArray(64))
-        assertNull(LogoFinder(FakeHttp(site), FakeDns()).find(LogoQuery(0xE3, 0x8018, 0x8999, "Tiny FM")))
+        assertNull(LogoFinder(FakeHttp(tinySite), FakeDns()).find(tiny))
+    }
+
+    @Test fun everySourceAnsweredMeansNotFound() {
+        assertIs<LogoResult.NotFound>(LogoFinder(FakeHttp(tinySite), FakeDns()).lookup(tiny))
+    }
+
+    @Test fun aTimeoutMeansTryAgainNotNotFound() {
+        val http = FakeHttp(tinySite + ("https://tiny.example/favicon.ico" to Timeout))
+        assertIs<LogoResult.Unreachable>(LogoFinder(http, FakeDns()).lookup(tiny))
+    }
+
+    @Test fun aDnsFailureMeansTryAgain() {
+        assertIs<LogoResult.Unreachable>(LogoFinder(FakeHttp(tinySite), FakeDns(down = true)).lookup(tiny))
+    }
+
+    @Test fun aLogoFoundElsewhereWinsOverADnsFailure() {
+        val r = assertIs<LogoResult.Found>(LogoFinder(FakeHttp(kinkSite), FakeDns(down = true)).lookup(LogoQuery(0xE3, 0x8018, 0x8358, "KINK")))
+        assertEquals(LogoSource.WEB_MANIFEST, r.logo.source)
+    }
+
+    @Test fun aFailedSpiFileIsTriedAgainForTheNextStation() {
+        val si = "http://talpa.radiodns.example/radiodns/spi/3.1/SI.xml"
+        val http = FakeHttp(mapOf(si to Timeout, "http://logos.example/538/300.png" to png(300, 300)))
+        val f = LogoFinder(http, talpaDns)
+        val q = LogoQuery(0xE3, 0x8008, 0x83C7, "538")
+        assertIs<LogoResult.Unreachable>(f.lookup(q))
+        http.pages[si] = spiXml("dab:8e3.8008.83c7.0")
+        assertEquals(LogoSource.RADIODNS, assertIs<LogoResult.Found>(f.lookup(q)).logo.source)
     }
 
     @Test fun spiFileIsFetchedOncePerHost() {
