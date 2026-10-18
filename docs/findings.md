@@ -36,11 +36,13 @@ this file as work progresses.
     driving with no bugs seen, quick and responsive [verified, owner report]. A tunnel did what it should: "No signal"
     inside, audio back quickly after it [verified, owner report]. The head unit's own media widget in its system bar
     shows station, DLS and artwork from the media session, and slides show on air [verified, owner photo]. The
-    steering-wheel buttons work through the media session [verified, owner report]. Logos weren't
+    steering-wheel buttons work through the media session [verified, owner report]. Later (2026-10-18, owner report):
+    navigation prompts duck the radio, sleep and cold boot behave as intended, logos download once online (a scan
+    elsewhere: about 160 stations, 92 with a logo; many local stations have none online) [verified, owner report]. Logos weren't
     downloaded yet (the initials tile showed); the head unit hadn't been online.
-- **Next**: (1) still to check on the Dudu3: a phone call and navigation ducking, sleep vs cold
-  boot (and the USB prompt after a cold boot), Start with the car, logos once it's online, and the diagnostics log
-  (`rx30` lines) to calibrate the signal bars; (2) the repo goes public when the owner decides.
+- **Next**: (1) still to check on the Dudu3: a phone call, Start with the car, and the diagnostics log (`rx30` lines)
+  to calibrate the signal bars; (2) owner request: more control over logo downloads (design in progress); (3) the repo
+  goes public when the owner decides.
 
 ## Work log: phase 5, 2026-09-27 … 09-28
 - **Android app, phase 5** (`android/`, see `android/README.md`). Done and verified on the API 34 head-unit emulator
