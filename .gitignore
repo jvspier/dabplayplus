@@ -21,3 +21,4 @@ android/local.properties
 # design material, kept locally: the Claude Design export and the owner's mockups
 design_handoff_radio_head_unit/
 /mockup*.png
+_site/

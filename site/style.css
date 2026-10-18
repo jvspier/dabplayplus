@@ -1,0 +1,99 @@
+/* DABplay+ website: the app's night theme (docs/design-notes.md). Fonts from the app; nothing loaded from elsewhere. */
+@font-face { font-family: Inter; src: url(fonts/inter_regular.ttf); font-weight: 400; font-display: swap; }
+@font-face { font-family: Inter; src: url(fonts/inter_medium.ttf); font-weight: 500; font-display: swap; }
+@font-face { font-family: Inter; src: url(fonts/inter_semibold.ttf); font-weight: 600; font-display: swap; }
+:root {
+  --bg: #161826; --surface: #232532; --surface-2: #1C1E2B; --text: #E9E9ED; --muted: #B2B6CA; --dim: #9397AB; --line: rgba(255,255,255,.08);
+  --orange: #FF6A3D; --play-from: #FF8A4C; --play-to: #FF5A36; --pink: #FF4D8A; --amber: #FFB547; --green: #34D27B; --blue: #4C8DFF; --lavender: #A99CF0;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn { transition: none; } }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 18px/1.55 Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+a:focus-visible, .btn:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; border-radius: 8px; }
+img { max-width: 100%; height: auto; }
+.i { width: 1em; height: 1em; fill: currentColor; flex: none; }
+.glow { position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background: radial-gradient(ellipse 60% 50% at 10% 0%, #232846, transparent 70%), radial-gradient(ellipse 55% 50% at 95% 100%, #3D2244, transparent 70%); }
+.wrap { position: relative; z-index: 1; max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+nav { position: sticky; top: 0; z-index: 5; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); background: rgba(22,24,38,.72); border-bottom: 1px solid var(--line); }
+nav .wrap { display: flex; align-items: center; gap: 28px; height: 68px; }
+.brand { display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 20px; text-decoration: none; }
+.brand img { width: 36px; height: 36px; border-radius: 9px; }
+.brand b, h1 span { color: var(--orange); font-weight: 600; }
+nav .links { display: flex; align-items: center; gap: 24px; margin-left: auto; font-size: 16px; color: var(--muted); }
+nav .links a { text-decoration: none; } nav .links a:hover { color: var(--text); }
+
+.btn { display: inline-flex; align-items: center; gap: 10px; height: 56px; padding: 0 26px; border-radius: 999px; font-weight: 600; font-size: 18px; text-decoration: none; transition: transform .12s; }
+.btn:active { transform: scale(.96); }
+.btn-play { background: linear-gradient(135deg, var(--play-from), var(--play-to)); color: #FFF5F0; box-shadow: 0 10px 34px rgba(255,106,61,.35); }
+.btn-ghost { background: rgba(255,255,255,.06); border: 1px solid var(--line); }
+.btn .i { font-size: 22px; }
+nav .btn { height: 42px; padding: 0 18px; font-size: 15px; box-shadow: none; color: #FFF5F0 !important; }
+
+.hero { display: grid; grid-template-columns: 1.1fr 1.2fr; gap: 52px; align-items: center; padding: 88px 0 96px; }
+.hero h1 { margin: 0; font-size: 60px; line-height: 1.04; letter-spacing: -1.8px; font-weight: 600; }
+.hero .lead { margin: 22px 0 32px; font-size: 21px; color: var(--muted); max-width: 30em; }
+.hero .cta { display: flex; gap: 14px; flex-wrap: wrap; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 28px; font-size: 15px; color: var(--dim); }
+.facts span::before { content: "●"; margin-right: 8px; font-size: 9px; vertical-align: 3px; }
+.facts span:nth-child(1)::before { color: var(--green); } .facts span:nth-child(2)::before { color: var(--blue); } .facts span:nth-child(3)::before { color: var(--amber); }
+.unit { position: relative; border-radius: 26px; padding: 14px; background: linear-gradient(160deg, #2A2D3D, #12131B); box-shadow: 0 40px 100px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.07); }
+.unit img { display: block; width: 100%; border-radius: 14px; }
+
+section { padding: 72px 0; }
+.kicker { font-size: 15px; font-weight: 600; letter-spacing: 1.4px; text-transform: uppercase; color: var(--orange); }
+h2 { margin: 8px 0 14px; font-size: 42px; letter-spacing: -1px; line-height: 1.12; font-weight: 600; }
+.sub { color: var(--muted); max-width: 40em; margin: 0 0 40px; }
+
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 24px; }
+.ic { width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center; font-size: 28px; margin-bottom: 18px; }
+.tile h3 { margin: 0 0 6px; font-size: 20px; font-weight: 600; }
+.tile p { margin: 0; font-size: 16px; color: var(--muted); }
+/* the role colours of the app: icon in the colour, tile at 14 % */
+.blue { color: var(--blue); background: rgba(76,141,255,.14); } .pink { color: var(--pink); background: rgba(255,77,138,.14); }
+.green { color: var(--green); background: rgba(52,210,123,.14); } .amber { color: var(--amber); background: rgba(255,181,71,.14); }
+.orange { color: var(--orange); background: rgba(255,106,61,.14); } .lavender { color: var(--lavender); background: rgba(169,156,240,.14); }
+.grey { color: var(--muted); background: rgba(255,255,255,.08); }
+
+.gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px; }
+figure { margin: 0; }
+figure img { display: block; width: 100%; border-radius: 16px; box-shadow: 0 24px 60px rgba(0,0,0,.45), 0 0 0 1px var(--line); }
+figcaption { margin-top: 12px; font-size: 15px; color: var(--dim); }
+
+.dongles { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 16px; }
+.dongle { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 24px; }
+.badge { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 600; padding: 5px 12px; border-radius: 999px; margin-bottom: 14px; }
+.dongle h3 { margin: 0 0 8px; font-size: 19px; font-weight: 600; } .dongle p { margin: 0; font-size: 16px; color: var(--muted); }
+code { font: 500 14px ui-monospace, monospace; background: rgba(255,255,255,.07); padding: 2px 7px; border-radius: 6px; }
+
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; counter-reset: s; list-style: none; margin: 32px 0 0; padding: 0; }
+.steps li { position: relative; background: var(--surface-2); border: 1px solid var(--line); border-radius: 18px; padding: 26px 24px 24px 78px; }
+.steps li::before { counter-increment: s; content: counter(s); position: absolute; left: 22px; top: 22px; width: 40px; height: 40px; border-radius: 50%;
+  display: grid; place-items: center; font-weight: 600; background: linear-gradient(135deg, var(--play-from), var(--play-to)); color: #FFF5F0; }
+.steps h3 { margin: 0 0 4px; font-size: 19px; font-weight: 600; } .steps p { margin: 0; font-size: 16px; color: var(--muted); }
+.final { text-align: center; padding: 56px 24px; margin-top: 40px; border-radius: 26px; background: linear-gradient(135deg, rgba(255,138,76,.14), rgba(169,156,240,.10)); border: 1px solid var(--line); }
+.final h2 { margin-top: 0; } .final .sub { margin: 0 auto 28px; }
+
+footer { position: relative; z-index: 1; border-top: 1px solid var(--line); margin-top: 72px; padding: 32px 0 48px; font-size: 15px; color: var(--dim); }
+footer .wrap { display: flex; gap: 24px; flex-wrap: wrap; justify-content: space-between; }
+
+/* the privacy page */
+.doc { max-width: 760px; padding: 72px 24px 24px; }
+.doc h1 { font-size: 46px; letter-spacing: -1.2px; line-height: 1.1; margin: 8px 0 12px; font-weight: 600; }
+.doc h2 { font-size: 26px; letter-spacing: -.4px; margin: 40px 0 10px; }
+.doc p, .doc li { color: var(--muted); } .doc strong { color: var(--text); font-weight: 600; }
+.doc .card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 22px 26px; margin: 26px 0; color: var(--text); font-size: 20px; }
+
+@media (max-width: 900px) {
+  nav .links a:not(.btn) { display: none; }
+  .hero { grid-template-columns: 1fr; padding: 48px 0 56px; gap: 40px; }
+  .hero h1 { font-size: 44px; } .hero .lead { font-size: 19px; }
+  h2 { font-size: 32px; } .doc h1 { font-size: 36px; }
+  .tiles { grid-template-columns: repeat(2, 1fr); } .gallery, .dongles, .steps { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) { .tiles { grid-template-columns: 1fr; } .wrap, .doc { padding-left: 16px; padding-right: 16px; } .btn { width: 100%; justify-content: center; } nav .btn { width: auto; } }

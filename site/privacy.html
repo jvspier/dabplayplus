@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy · DABplay+</title>
+<meta name="description" content="DABplay+ collects no personal data. What the app sends over the internet, and what stays on the head unit.">
+<meta name="theme-color" content="#161826">
+<link rel="icon" type="image/png" href="img/icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="glow"></div>
+<nav><div class="wrap">
+  <a class="brand" href="./"><img src="img/icon.png" alt="" width="36" height="36"><span>DABplay<b>+</b></span></a>
+</div></nav>
+
+<main class="wrap doc">
+  <div class="kicker">Privacy</div>
+  <h1>DABplay+ collects no personal data</h1>
+  <p>Last updated 18 October 2026.</p>
+
+  <div class="card">No account, no ads, no analytics, no crash reports. Nothing is ever sent to the developer.</div>
+
+  <h2>What goes over the internet</h2>
+  <p>Radio itself comes from the DAB broadcast and needs no internet. The app only goes online for <strong>station logos</strong>,
+    when Settings → "Download station logos" is on and the head unit has a connection. To find a station's logo it asks:</p>
+  <ul>
+    <li><strong>RadioDNS</strong> (DNS lookups) and the broadcaster's service information, using the station's DAB identifiers
+      (country, ensemble and service codes);</li>
+    <li><strong>the station's own website</strong>, for its icon;</li>
+    <li><strong>radio-browser.info</strong>, a community station directory, searched by the station's name.</li>
+  </ul>
+  <p>These requests contain only the station's identifiers or name, plus what every internet request carries: the head unit's
+    IP address and the app's name and version. Each of these services handles that under its own privacy policy. Turn the
+    setting off and the app doesn't go online at all.</p>
+
+  <h2>What stays on the head unit</h2>
+  <p>Your station list, favourites, recently played stations, settings and the downloaded logos are stored in the app's own
+    storage. So is a small diagnostics log of app events and reception (no song titles), kept for troubleshooting; it never
+    leaves the device unless you copy it off yourself. Uninstalling the app, or clearing its storage, removes all of it.</p>
+
+  <h2>Permissions</h2>
+  <ul>
+    <li><strong>USB</strong>: to use the DAB dongle. Android asks you first.</li>
+    <li><strong>Internet and network state</strong>: for the station logos, and to know when the head unit is online.</li>
+    <li><strong>Foreground service and notifications</strong>: to keep playing in the background, with the usual media notification.</li>
+    <li><strong>Start at boot and "Display over other apps"</strong>: only for the optional "Start with the car" setting, which is off by default.</li>
+  </ul>
+
+  <h2>This website</h2>
+  <p>This page sets no cookies and has no analytics or third-party scripts. It's hosted on GitHub Pages; GitHub may log visitors'
+    IP addresses, as described in the <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub
+    privacy statement</a>.</p>
+
+  <h2>Questions</h2>
+  <p>Open an issue on <a href="https://github.com/jvspier/dabplayplus/issues">GitHub</a>. The app's source code is public, so all of the above can be checked there.</p>
+</main>
+
+<footer><div class="wrap">
+  <span>DABplay+ is free software under the MIT licence.</span>
+  <span><a href="./">Home</a> · <a href="https://github.com/jvspier/dabplayplus">GitHub</a></span>
+</div></footer>
+</body>
+</html>

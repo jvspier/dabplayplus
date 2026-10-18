@@ -1,0 +1,46 @@
+# The website (site/, see site/build.sh) on GitHub Pages: https://jvspier.github.io/dabplayplus/
+# Republished when the pages, the screenshots, the icon or the app's version change.
+name: Website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - site/**
+      - docs/screenshots/**
+      - docs/social-preview.png
+      - android/app/build.gradle.kts
+      - android/app/src/main/ic_launcher-playstore.png
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/configure-pages@v6
+      - run: site/build.sh _site
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

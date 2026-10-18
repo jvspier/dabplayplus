@@ -124,3 +124,7 @@ design session.
 - **Going public** (owner, 2026-10-04): no history rewrite. The old design export and mockups may stay in git history,
   and the Co-Authored-By trailers stay (it is how the app was made). The vendor-derived register tables stay in
   (reconfirms 2026-09-25). Distribution: APKs via GitHub Releases after 1-2 weeks of Dudu3 use, one release key.
+- **Website** (owner, 2026-10-18): one page on GitHub Pages in the app's night theme (draft "A · Night drive" of three),
+  plus the privacy page Google Play needs. `site/` + `site/build.sh` (assembles from the repo's screenshots, icon, font and
+  social preview; fills in the version), published by `.github/workflows/pages.yml`. Loads nothing from elsewhere: the
+  Phosphor icons are inline, the font is the app's; no cookies, no analytics.
