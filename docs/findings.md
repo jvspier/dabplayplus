@@ -45,8 +45,9 @@ this file as work progresses.
     elsewhere: about 160 stations, 92 with a logo; many local stations have none online) [verified, owner report]. Logos weren't
     downloaded yet (the initials tile showed); the head unit hadn't been online.
 - **Next**: (1) still to check on the Dudu3: a phone call, Start with the car, and the diagnostics log (`rx30` lines)
-  to calibrate the signal bars; (2) the README screenshots retaken (new icon, play-triangle tab); (3) the repo goes
-  public when the owner decides.
+  to calibrate the signal bars; (2) the Google Play listing (owner, later). Done 2026-10-18: the repo is public, README
+  screenshots carry the play-triangle tab (strip from the emulator; real retakes with the dongle when convenient),
+  GitHub social preview uploaded.
 
 ## Work log: phase 5, 2026-09-27 … 09-28
 - **Android app, phase 5** (`android/`, see `android/README.md`). Done and verified on the API 34 head-unit emulator
