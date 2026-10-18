@@ -1,0 +1,54 @@
+<!doctype html>
+<!-- GitHub's social preview (docs/social-preview.png, 1280×640), in the app's night theme. Render with render.sh. -->
+<html><head><meta charset="utf-8">
+<style>
+  @font-face { font-family: Inter; src: url(../../android/app/src/main/res/font/inter_regular.ttf); font-weight: 400; }
+  @font-face { font-family: Inter; src: url(../../android/app/src/main/res/font/inter_medium.ttf); font-weight: 500; }
+  @font-face { font-family: Inter; src: url(../../android/app/src/main/res/font/inter_semibold.ttf); font-weight: 600; }
+  html, body { margin: 0; background: #161826; }
+  .card {
+    position: relative; overflow: hidden; width: 1280px; height: 640px;
+    font-family: Inter, sans-serif; color: #E9E9ED;
+    background:
+      radial-gradient(ellipse 55% 80% at 0% 0%, #232846 0%, transparent 70%),
+      radial-gradient(ellipse 60% 85% at 100% 100%, #3D2244 0%, transparent 70%),
+      #161826;
+  }
+  /* the icon's play triangle, large and faint, behind everything */
+  .deco { position: absolute; left: -150px; top: 50%; transform: translateY(-50%); width: 900px; height: 900px; }
+  .text { position: absolute; left: 72px; top: 0; bottom: 0; width: 470px; display: flex; flex-direction: column; justify-content: center; }
+  .icon { width: 132px; height: 132px; border-radius: 23%; overflow: hidden;
+          box-shadow: 0 16px 44px rgba(0, 0, 0, .45), 0 0 0 1px rgba(255, 255, 255, .06); }
+  .icon img { width: 100%; height: 100%; display: block; }
+  h1 { margin: 34px 0 0; font-size: 84px; font-weight: 600; letter-spacing: -2px; line-height: 1; }
+  h1 span { color: #FF6A3D; }
+  .tag { margin: 16px 0 0; font-size: 28px; line-height: 1.3; color: #B2B6CA; letter-spacing: -.2px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+  .chip { display: flex; align-items: center; gap: 9px; padding: 9px 16px 9px 13px; border-radius: 999px;
+          background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .08);
+          font-size: 18px; font-weight: 500; color: #E4E7F5; }
+  .chip i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+  /* the app: Favourites, night theme, the whole 1280 × 720 screen at 0.53 */
+  .shot { position: absolute; left: 572px; top: 129px; width: 680px; height: 382px; border-radius: 20px; overflow: hidden;
+          box-shadow: 0 30px 80px rgba(0, 0, 0, .55), 0 0 0 1px rgba(255, 255, 255, .08); }
+  .shot img { width: 100%; height: 100%; display: block; }
+</style></head>
+<body>
+<div class="card">
+  <svg class="deco" viewBox="0 0 108 108">
+    <path d="M37,30 A4,4 0 0,1 43.1,26.59 L82.1,50.59 A4,4 0 0,1 82.1,57.41 L43.1,81.41 A4,4 0 0,1 37,78 Z" fill="#FFFFFF" fill-opacity=".035"/>
+  </svg>
+  <div class="text">
+    <div class="icon"><img src="../../android/app/src/main/ic_launcher-playstore.png" alt=""></div>
+    <h1>DABplay<span>+</span></h1>
+    <p class="tag">Car-friendly DAB+ radio for Android head units</p>
+    <div class="chips">
+      <div class="chip"><i style="background:#4C8DFF"></i>Big tiles, big text</div>
+      <div class="chip"><i style="background:#FFB547"></i>DAB+ and DAB</div>
+      <div class="chip"><i style="background:#34D27B"></i>Works offline</div>
+      <div class="chip"><i style="background:#A99CF0"></i>Modern UI</div>
+    </div>
+  </div>
+  <div class="shot"><img src="../../docs/screenshots/home.png" alt=""></div>
+</div>
+</body></html>
