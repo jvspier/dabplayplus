@@ -16,13 +16,13 @@ architecture are decided and approved. Read these before starting any task:
 - `docs/protocol.md`: the DTR-100's USB/chip protocol; `docs/protocol-*.md` for the other dongles. `tools/`: the Python
   reference implementation.
 
-Status in short (2026-10-15): 1.0.0 is out (GitHub Releases, signed with the release key) and in daily use on the
-Dudu3: the first drive (over an hour, a tunnel) went without bugs. Before that, everything in the README's feature list
-was verified with the real DTR-100 in the API 34 emulator (USB passthrough): DAB+ and MP2, logos, reception handling
-and service following, traffic announcements, calls and navigation, Start with the car, and performance tuning for the
-Dudu3's budget SoC. Three more dongle families are implemented but untested (no hardware). The engine is a plain-Kotlin module with JVM tests against a
-scripted tuner; CI runs all unit tests and the release build. The repo is public since 2026-10-18 (latest: 1.1.0).
-Next: the remaining Dudu3 checks and, later, Google Play (findings.md Status).
+Status in short (2026-10-18): the repo is public; the latest release is 1.1.0 (GitHub Releases, signed with the release
+key), in daily use on the Dudu3 since the first drive (over an hour, a tunnel) went without bugs. Before that, everything
+in the README's feature list was verified with the real DTR-100 in the API 34 emulator (USB passthrough): DAB+ and MP2,
+logos, reception handling and service following, traffic announcements, calls and navigation, Start with the car, and
+performance tuning for the Dudu3's budget SoC. Three more dongle families are implemented but untested (no hardware).
+The engine is a plain-Kotlin module with JVM tests against a scripted tuner; CI runs all unit tests and the release
+build. Next: the remaining Dudu3 checks and, later, Google Play (findings.md Status).
 
 ## Hardware summary
 - **Dongle:** DollaTek "DAB+ Receiver for Android Navigation", model **DTR-100**
