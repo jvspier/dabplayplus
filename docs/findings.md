@@ -36,6 +36,9 @@ this file as work progresses.
     what was found) [verified, API 34 emulator online: retry of 20 → 19 not found + 1 no answer; refresh of 67 kept
     all 47 logos]; an unanswered lookup is no longer a 3-day "not found" [verified: unit tests, and live: "YOURSAFE: no
     answer" became "no usable logo" on the next pass]; the Now playing tab is a play triangle (both themes checked).
+  - 1.2.0 (2026-10-19, owner idea): background tints (Dusk, Ocean, Ember, Aurora; day and night versions) and an
+    optional Pure black at night [verified, API 34 emulator: all 9 variants on Favorites and Now playing, Settings in
+    both layouts; the unit tests check that only the background colours change and Dusk is unchanged].
   - **First run on the Dudu3** (2026-10-15, owner, a 0.9.x build, DTR-100 behind the head unit): over an hour of
     driving with no bugs seen, quick and responsive [verified, owner report]. A tunnel did what it should: "No signal"
     inside, audio back quickly after it [verified, owner report]. The head unit's own media widget in its system bar

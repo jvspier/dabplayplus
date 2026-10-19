@@ -3,6 +3,8 @@ package io.github.jvspier.dabplay.ui.theme
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import io.github.jvspier.dabplay.data.BackgroundStyle
 
 /** Design tokens from the Claude Design export (design_handoff_radio_head_unit/README.md, kept locally; "Nocturne"). Night is the default theme. */
 @Immutable
@@ -59,3 +61,42 @@ val DayColors = DabColors(
 
 val LocalDabColors = staticCompositionLocalOf { NightColors }
 val LocalNight = staticCompositionLocalOf { true }
+
+/**
+ * One background in one theme (Settings → Background, owner 2026-10-19): the base colour, the glow top left
+ * ([DabColors.glow2]), the glow bottom right ([DabColors.glow1]) and the one behind the Now playing artwork.
+ */
+private class Backdrop(val bg: Long, val topLeft: Long, val bottomRight: Long, val nowPlaying: Long)
+
+private val NightBackdrops = mapOf(
+    BackgroundStyle.DUSK to Backdrop(0xFF161826, 0xFF232846, 0xFF3D2244, 0xFF43264A),     // blue and plum
+    BackgroundStyle.OCEAN to Backdrop(0xFF131A21, 0xFF1B3045, 0xFF133B3F, 0xFF154247),    // steel blue and teal
+    BackgroundStyle.EMBER to Backdrop(0xFF19161D, 0xFF2A2236, 0xFF47271D, 0xFF4D2A20),    // violet and copper
+    BackgroundStyle.AURORA to Backdrop(0xFF141A1C, 0xFF1A3A34, 0xFF2C2448, 0xFF2F2850),   // green-teal and violet
+)
+private val DayBackdrops = mapOf(
+    BackgroundStyle.DUSK to Backdrop(0xFFF3F2F7, 0xFFE4E6FF, 0xFFFFDCCB, 0xFFFFDCCB),     // lavender blue and peach
+    BackgroundStyle.OCEAN to Backdrop(0xFFF1F4F7, 0xFFDCE8F7, 0xFFD6EEEC, 0xFFD6EEEC),    // pale steel blue and teal
+    BackgroundStyle.EMBER to Backdrop(0xFFF8F2F1, 0xFFFBDDE3, 0xFFFFD8BF, 0xFFFFD8BF),    // rose and apricot
+    BackgroundStyle.AURORA to Backdrop(0xFFF2F5F3, 0xFFD8F0E6, 0xFFE7E1F7, 0xFFE7E1F7),   // green-teal and violet
+)
+
+/**
+ * The theme's colours with the chosen background. Only what's behind everything changes (base, glows, the side panel's
+ * gradient, the list headers); tiles, text, icons and accents stay. Dusk is the theme as designed. Pure black only
+ * applies at night: black, no glows, a neutral panel.
+ */
+fun dabColors(night: Boolean, style: BackgroundStyle, pureBlackAtNight: Boolean): DabColors {
+    val base = if (night) NightColors else DayColors
+    if (night && pureBlackAtNight) return base.copy(bg = Color.Black, glow1 = Color.Transparent, glow2 = Color.Transparent,
+        npGlow = Color.Transparent, panelFrom = Color(0xFF18181D), panelMid = Color(0xFF101013), panelTo = Color(0xFF0B0B0D),
+        sticky = Color.Black.copy(alpha = base.sticky.alpha))
+    if (style == BackgroundStyle.DUSK) return base
+    val b = (if (night) NightBackdrops else DayBackdrops).getValue(style)
+    val bg = Color(b.bg); val np = Color(b.nowPlaying)
+    return base.copy(bg = bg, glow1 = Color(b.bottomRight), glow2 = Color(b.topLeft), npGlow = np,
+        panelFrom = if (night) np else lerp(np, Color.White, 0.3f),
+        panelMid = if (night) lerp(np, bg, 0.5f) else lerp(lerp(Color(b.topLeft), np, 0.5f), Color.White, 0.5f),
+        panelTo = if (night) lerp(bg, base.surface, 0.5f) else Color.White,
+        sticky = bg.copy(alpha = base.sticky.alpha))
+}

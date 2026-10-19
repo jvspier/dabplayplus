@@ -65,7 +65,7 @@ class MainActivity : ComponentActivity() {
         window.setBackgroundDrawable(null)
         setContent {
             val settings by app.settings.state.collectAsStateWithLifecycle()
-            DabPlayTheme(settings.display) {
+            DabPlayTheme(settings.display, settings.background, settings.pureBlackAtNight) {
                 val s by app.engine.state.collectAsStateWithLifecycle()
                 val db by app.store.state.collectAsStateWithLifecycle()
                 // one stable instance: the lambdas read current state when called, so nothing below recomposes because of them

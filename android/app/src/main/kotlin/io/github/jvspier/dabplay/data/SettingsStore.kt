@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 
 enum class DisplayMode { DAY, AUTO, NIGHT }
+/** The tint behind everything (Settings → Background); each has a day and a night version (owner, 2026-10-19). */
+enum class BackgroundStyle { DUSK, OCEAN, EMBER, AURORA }
 enum class LayoutVariant { BAR, PANEL }          // design 1a (mini player bar) / 1b (docked player panel)
 enum class DriverSide { LEFT, RIGHT }
 enum class ClockFormat { SYSTEM, H12, H24 }      // SYSTEM follows Android's 12/24-hour setting
@@ -26,6 +28,10 @@ data class Settings(
      * drivers start with CarPlay / Android Auto, and the radio shouldn't take over the screen.
      */
     val startWithCar: Boolean = false,
+    /** The tint behind everything, one choice for day and night (owner, 2026-10-19). Dusk: the design as it was. */
+    val background: BackgroundStyle = BackgroundStyle.DUSK,
+    /** Black behind everything while the night theme is on, whatever [background]; off by default (not for everyone). */
+    val pureBlackAtNight: Boolean = false,
 )
 
 /** Countries that drive on the left, so the driver sits on the right and the controls belong on the right. */
@@ -47,7 +53,8 @@ class SettingsStore(context: Context) {
             .putString("driverSide", s.driverSide.name).putBoolean("resumeOnStart", s.resumeOnStart)
             .putBoolean("downloadLogos", s.downloadLogos).putBoolean("followStation", s.followStation)
             .putString("clock", s.clock.name).putBoolean("trafficAnnouncements", s.trafficAnnouncements)
-            .putBoolean("startWithCar", s.startWithCar).apply()
+            .putBoolean("startWithCar", s.startWithCar).putString("background", s.background.name)
+            .putBoolean("pureBlackAtNight", s.pureBlackAtNight).apply()
     }
 
     private fun load(): Settings {
@@ -63,6 +70,8 @@ class SettingsStore(context: Context) {
             clock = e("clock", d.clock, ClockFormat::valueOf),
             trafficAnnouncements = prefs.getBoolean("trafficAnnouncements", d.trafficAnnouncements),
             startWithCar = prefs.getBoolean("startWithCar", d.startWithCar),
+            background = e("background", d.background, BackgroundStyle::valueOf),
+            pureBlackAtNight = prefs.getBoolean("pureBlackAtNight", d.pureBlackAtNight),
         )
     }
 }

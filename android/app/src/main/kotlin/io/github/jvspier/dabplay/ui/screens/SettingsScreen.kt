@@ -1,6 +1,14 @@
 package io.github.jvspier.dabplay.ui.screens
 
 import androidx.compose.runtime.remember
+import io.github.jvspier.dabplay.ui.theme.dabColors
+import io.github.jvspier.dabplay.ui.theme.LocalNight
+import io.github.jvspier.dabplay.data.BackgroundStyle
+import com.adamglin.phosphoricons.fill.Palette
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -116,6 +124,15 @@ private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Bo
                     { v -> a.updateSettings { it.copy(display = v) } }, optionWidth = segW,
                     icons = mapOf(DisplayMode.DAY to PhosphorIcons.Fill.Sun, DisplayMode.AUTO to PhosphorIcons.Fill.CircleHalf, DisplayMode.NIGHT to PhosphorIcons.Fill.Moon))
             }
+            val pureBlackNow = s.pureBlackAtNight && LocalNight.current
+            SettingRow(PhosphorIcons.Fill.Palette, Accent.lavender, tile, "Background",
+                if (pureBlackNow) "Used by day; at night Pure black is on" else "The tint behind everything, by day and by night") {
+                BackgroundSwatches(s.background, compact) { v -> a.updateSettings { it.copy(background = v) } }
+            }
+            SettingRow(PhosphorIcons.Fill.Moon, Accent.blue, tile, "Pure black at night",
+                if (s.pureBlackAtNight) "On · black behind everything when it's dark" else "Off · each background has its own night colours") {
+                DabSwitch(s.pureBlackAtNight) { v -> a.updateSettings { it.copy(pureBlackAtNight = v) } }
+            }
             SettingRow(PhosphorIcons.Fill.Layout, Accent.orange, tile, "Layout", "Player bar at the bottom, or a panel at the side") {
                 Segmented(listOf(LayoutVariant.BAR to "Bar", LayoutVariant.PANEL to "Panel"), s.layout, Accent.amber, ON_AMBER,
                     { v -> a.updateSettings { it.copy(layout = v) } }, optionWidth = segW,
@@ -194,6 +211,35 @@ private fun logoLine(st: LogoStatus, db: Snapshot): String {
             (if (unchecked > 0) " · $unchecked couldn't be checked" else "")
     }
 }
+
+/**
+ * Settings → Background: one tile per background, drawn like the page behind everything (base and its two glows), in
+ * the theme that's on now. The chosen one has an amber border and name.
+ */
+@Composable
+private fun BackgroundSwatches(selected: BackgroundStyle, compact: Boolean, onSelect: (BackgroundStyle) -> Unit) {
+    val c = LocalDabColors.current
+    val night = LocalNight.current
+    val side = if (compact) 52.dp else 64.dp
+    val shape = RoundedCornerShape(14.dp)
+    Row(horizontalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 14.dp)) {
+        for (style in BackgroundStyle.entries) {
+            val on = style == selected
+            val look = remember(night, style) { dabColors(night, style, pureBlackAtNight = false) }
+            Column(Modifier.pressable({ onSelect(style) }), horizontalAlignment = Alignment.CenterHorizontally) {
+                Canvas(Modifier.size(side).clip(shape).border(if (on) 3.dp else 2.dp, if (on) Accent.amber else c.neutral800, shape)) {
+                    drawRect(look.bg)
+                    drawRect(Brush.radialGradient(listOf(look.glow2, Color.Transparent), center = Offset(size.width * 0.2f, -size.height * 0.1f), radius = size.width * 0.9f))
+                    drawRect(Brush.radialGradient(listOf(look.glow1, Color.Transparent), center = Offset(size.width * 0.9f, size.height * 1.15f), radius = size.width * 0.75f))
+                }
+                Text(style.label, color = if (on) c.az else c.neutral400, fontSize = 15.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
+                    modifier = Modifier.padding(top = 4.dp))
+            }
+        }
+    }
+}
+
+private val BackgroundStyle.label get() = name.lowercase().replaceFirstChar { it.uppercase() }
 
 /** A secondary action in a settings row: a quiet button on the page colour, faded while it can't be used. */
 @Composable
