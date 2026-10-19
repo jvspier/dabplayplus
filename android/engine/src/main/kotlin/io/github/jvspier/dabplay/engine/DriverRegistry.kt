@@ -31,7 +31,21 @@ interface Drivers {
  * The one place that knows the drivers: which USB ids are which family, and how to open each. A new dongle family is
  * a new [DongleKind] and a line here; the engine only sees [RawTuner] / [ModuleTuner].
  */
+/** One endpoint of a dongle's interface 0, from its USB descriptors. */
+data class EndpointInfo(val address: Int, val bulk: Boolean)
+
 object DriverRegistry : Drivers {
+    /**
+     * Whether a device with the family's USB id has what its driver talks to. 16c0:05dc is a shared V-USB id (USBasp
+     * programmers and other hobby devices use it too): a C100 has bulk OUT 0x02 and bulk IN 0x82, which low-speed V-USB
+     * devices can't have. The manufacturer name differs between C100 makers, and the vendor apps and DABdream+ don't
+     * look at it (issue #1). The other families have ids of their own.
+     */
+    fun fits(kind: DongleKind, endpoints: List<EndpointInfo>): Boolean = when (kind) {
+        DongleKind.C100 -> listOf(Dtr100.EP_OUT, Dtr100.EP_IN).all { ep -> endpoints.any { it.bulk && it.address == ep } }
+        else -> true
+    }
+
     fun kindOf(vendorId: Int, productId: Int): DongleKind? = when {
         vendorId == Dtr100.VID && productId == Dtr100.PID -> DongleKind.C100
         vendorId == Si4684.VID && productId == Si4684.PID -> DongleKind.SI4684
@@ -39,8 +53,6 @@ object DriverRegistry : Drivers {
         else -> null
     }
 
-    /** A manufacturer string the device must report too, for USB ids shared with other devices (null: none). */
-    fun requiredManufacturer(kind: DongleKind): String? = if (kind == DongleKind.C100) Dtr100.MANUFACTURER else null
 
     override fun rawTuner(kind: DongleKind, t: Transport, log: (String) -> Unit): RawTuner? = when (kind) {
         DongleKind.C100 -> C100.open(t, log = log)

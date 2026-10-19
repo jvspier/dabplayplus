@@ -115,6 +115,7 @@ private fun nowLine(e: EngineState, st: Station?): Pair<String, Color> {
     val problem = e.problem                    // a local: EngineState lives in another module (no smart cast)
     val text = when {
         st == null -> "Nothing playing"
+        e.unsupportedDongle -> "USB device not supported"
         !e.dongle && !e.playing -> "DAB dongle not connected"
         problem != null -> problem
         e.tuning -> "Tuning…"

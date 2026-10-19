@@ -79,7 +79,9 @@ interface ModuleTuner {                    // the dongle decodes: scan, list, PC
 All calls come from the engine's one USB thread (the Si4684 driver runs its own reader threads and calls back through
 a `ModuleListener`). Drivers only see `Transport`, so their tests replay or simulate USB traffic on the JVM.
 
-Selection (`DongleKind`, `C100.open`): 16c0:05dc with manufacturer `dabusb@126.com` → the register-level DTR-100 driver;
+Selection (`DongleKind`, `C100.open`): 16c0:05dc with bulk endpoints 0x02 / 0x82 on interface 0 (`DriverRegistry.fits`:
+the id is a shared V-USB one, but low-speed V-USB devices can't have bulk endpoints; the manufacturer name differs between
+C100 makers, issue #1) → the register-level DTR-100 driver;
 only if its init fails, the YHX high-level set. 187f:0700/0800/0802 → Siano. 1a86:5537 → Si4684. `DriverRegistry` is
 the one place that knows this (USB ids → `DongleKind` → driver); the engine sees only its `Drivers` interface, so a new
 dongle family is a new kind and a line there.

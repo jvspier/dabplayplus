@@ -11,9 +11,14 @@ interface Dongle {
     val name: String
     /** The family, from the USB id ([DriverRegistry]); null: not one of ours. */
     val kind: DongleKind?
-    /** Open and claim it. Throws when that fails (the engine then retries, as after any dongle error). */
+    /** For the log: USB id, manufacturer and product, so a report from someone else's dongle says what it is. */
+    val details: String get() = name
+    /** Open and claim it. Throws when that fails (the engine then retries, as after any dongle error), or [UnsupportedDongle]. */
     fun open(): OpenDongle
 }
+
+/** A device with a dongle's USB id that isn't one its driver can talk to ([DriverRegistry.fits]): reported, not retried. */
+class UnsupportedDongle(message: String) : Exception(message)
 
 /** An opened dongle: its transport, and closing the connection afterwards. */
 interface OpenDongle {

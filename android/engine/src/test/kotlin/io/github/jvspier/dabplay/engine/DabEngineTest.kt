@@ -164,6 +164,23 @@ class DabEngineTest {
         assertFalse(e.wantsDongleBack)
     }
 
+    @Test fun aDeviceThatIsntADongleIsReportedAndNotRetried() {
+        val tries = java.util.concurrent.atomic.AtomicInteger()
+        val notADongle = object : Dongle {
+            override val name = "usb-9"
+            override val kind = DongleKind.C100
+            override fun open(): OpenDongle { tries.incrementAndGet(); throw UnsupportedDongle("16c0:05dc without bulk endpoints") }
+        }
+        val e = engine(FakeDrivers { ScriptedTuner(mutableMapOf()) })
+        e.attach(notADongle)
+        await("the report") { e.state.value.unsupportedDongle }
+        Thread.sleep(800)                                       // the reconnect back-off (50–200 ms here) would have retried
+        assertEquals(1, tries.get())
+        assertFalse(e.state.value.dongle)
+        e.attach(FakeDongle("usb-1"))                           // a real one plugged in afterwards
+        await("the real dongle") { e.state.value.dongle && !e.state.value.unsupportedDongle }
+    }
+
     @Test fun aBandScanStoresWhatItFinds() {
         // an empty store: the first connection scans by itself
         val tuner = ScriptedTuner(mutableMapOf(

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- wRadio C100 / DTR-100 family (vendor-specific bulk). 16c0:05dc is a shared V-USB ID, so match the
-         manufacturer string too (the engine checks it again before claiming the interface). -->
-    <usb-device vendor-id="5824" product-id="1500" manufacturer-name="dabusb@126.com" />
+    <!-- wRadio C100 / DTR-100 family (vendor-specific bulk). 16c0:05dc is a shared V-USB ID; the manufacturer name
+         differs between makers (issue #1), so AndroidDongle checks the interface instead (bulk 0x02 / 0x82). -->
+    <usb-device vendor-id="5824" product-id="1500" />
     <!-- Si4684 modules (Eonon A503, XFA-DAB220): 1a86:5537, untested -->
     <usb-device vendor-id="6790" product-id="21815" />
     <!-- Siano with firmware on board: Denver TDMB 187f:0700 / 0802, Rhine800 187f:0800; untested. Not the Rio (0600). -->

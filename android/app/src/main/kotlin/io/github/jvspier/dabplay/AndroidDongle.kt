@@ -6,7 +6,9 @@ import android.hardware.usb.UsbManager
 import io.github.jvspier.dabplay.engine.Dongle
 import io.github.jvspier.dabplay.engine.DongleKind
 import io.github.jvspier.dabplay.engine.DriverRegistry
+import io.github.jvspier.dabplay.engine.EndpointInfo
 import io.github.jvspier.dabplay.engine.OpenDongle
+import io.github.jvspier.dabplay.engine.UnsupportedDongle
 import io.github.jvspier.dabplay.tuner.Transport
 import io.github.jvspier.dabplay.usb.AndroidUsbTransport
 
@@ -17,11 +19,18 @@ fun usbDongleKind(dev: UsbDevice): DongleKind? = DriverRegistry.kindOf(dev.vendo
 class AndroidDongle(private val usb: UsbManager, private val dev: UsbDevice) : Dongle {
     override val name: String = dev.deviceName
     override val kind: DongleKind? = usbDongleKind(dev)
+    override val details: String
+        get() = "%04x:%04x '%s' / '%s'".format(dev.vendorId, dev.productId, dev.manufacturerName, dev.productName)
 
     override fun open(): OpenDongle {
-        // check before claiming: 16c0:05dc is a shared V-USB id, don't grab someone else's device
-        kind?.let(DriverRegistry::requiredManufacturer)?.let { m ->
-            check(dev.manufacturerName == m) { "unsupported dongle (manufacturer '${dev.manufacturerName}')" }
+        // check before claiming: 16c0:05dc is a shared V-USB id, don't grab someone else's device. What's behind the id
+        // decides, not the manufacturer name (it differs between C100 makers: issue #1).
+        if (dev.interfaceCount == 0) throw UnsupportedDongle("$details: no USB interface")
+        val endpoints = dev.getInterface(0).let { i -> (0 until i.endpointCount).map { i.getEndpoint(it) } }
+        kind?.let { k ->
+            val seen = endpoints.map { EndpointInfo(it.address, it.type == UsbConstants.USB_ENDPOINT_XFER_BULK) }
+            if (!DriverRegistry.fits(k, seen))
+                throw UnsupportedDongle("$details: interface 0 has ${seen.joinToString { "%02x%s".format(it.address, if (it.bulk) " bulk" else "") }.ifEmpty { "no endpoints" }}, not a $k dongle's")
         }
         val conn = usb.openDevice(dev) ?: error("cannot open the USB device")
         try {

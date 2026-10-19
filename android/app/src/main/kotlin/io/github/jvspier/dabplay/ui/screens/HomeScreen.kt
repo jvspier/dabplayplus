@@ -66,6 +66,7 @@ import io.github.jvspier.dabplay.data.Snapshot
 import io.github.jvspier.dabplay.data.Station
 import io.github.jvspier.dabplay.engine.EngineState
 import io.github.jvspier.dabplay.ui.EmptyHint
+import io.github.jvspier.dabplay.ui.UNSUPPORTED_DONGLE
 import io.github.jvspier.dabplay.ui.RadioActions
 import io.github.jvspier.dabplay.ui.ScreenTitle
 import io.github.jvspier.dabplay.ui.components.HeartIcon
@@ -83,6 +84,7 @@ fun HomeScreen(e: EngineState, db: Snapshot, a: RadioActions, compactTitle: Bool
         val favs = db.favouriteStations
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
+                db.stations.isEmpty() && e.unsupportedDongle -> EmptyHint(UNSUPPORTED_DONGLE)
                 db.stations.isEmpty() && !e.dongle -> EmptyHint("Connect the DAB dongle to find stations")
                 db.stations.isEmpty() -> EmptyHint(e.scan?.let { "Scanning ${it.channel}…" } ?: "No stations yet: tap Scan on the Stations tab")
                 else -> FavouritesGrid(favs, db.favourites, e, a, listTiles = compactTitle, onBrowse = onBrowse)

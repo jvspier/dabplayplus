@@ -464,6 +464,7 @@ class Dtr100(
     companion object {
         const val VID = 0x16C0
         const val PID = 0x05DC
+        /** What the DTR-100 reports; other C100 makers report other names, so nothing depends on it (issue #1). */
         const val MANUFACTURER = "dabusb@126.com"
         const val EP_OUT = 0x02
         const val EP_IN = 0x82

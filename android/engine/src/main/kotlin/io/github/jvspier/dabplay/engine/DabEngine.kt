@@ -61,6 +61,8 @@ data class EngineState(
     val following: String? = null,
     val problem: String? = null,
     val error: String? = null,
+    /** A device with a dongle's USB id is connected, but it isn't one we can use: the screen says so. */
+    val unsupportedDongle: Boolean = false,
 )
 
 /**
@@ -123,6 +125,7 @@ class DabEngine(
         // what was playing is the reconnect loop's pending resume
         playingAtDetach = if (s.playing || s.tuning) s.announcement?.returnTo ?: s.current?.key else pendingResume
         device = null; thread?.interrupt()
+        _state.update { it.copy(unsupportedDongle = false) }
     }
     fun scan() = commands.offer(Cmd.Scan)
     fun play(key: ServiceKey) = commands.offer(Cmd.Play(key))
@@ -156,6 +159,7 @@ class DabEngine(
         // the MSC reader must never fall behind the dongle (its buffer overflows: audible skips)
         runCatching { usbThreadSetup() }
         commands.clear()                                     // buttons pressed while there was no dongle: don't replay
+        events.i(TAG, "USB device: ${dev.details}")
         var failures = 0
         var resume: ServiceKey? = resumeFirst
         while (device?.name == dev.name && !Thread.currentThread().isInterrupted) {
@@ -186,7 +190,7 @@ class DabEngine(
             val r: RadioSession = drivers.rawTuner(kind, transport, log)?.let { Session(it, player) }
                 ?: ModuleSession({ listener -> drivers.moduleTuner(kind, transport, listener, log) ?: error("no driver for $kind") }, player)
             radio = r
-            _state.update { it.copy(dongle = true, error = null) }
+            _state.update { it.copy(dongle = true, error = null, unsupportedDongle = false) }
             pendingResume = null                                 // handed to this session (queued below)
             status("Dongle ready (${r.description})")
             when {
@@ -205,6 +209,10 @@ class DabEngine(
         } catch (e: InterruptedException) {
             events.i(TAG, "engine stopped")
             return null
+        } catch (e: UnsupportedDongle) {
+            events.w(TAG, "not a dongle we can use: ${e.message}")
+            _state.update { it.copy(unsupportedDongle = true, error = e.message) }
+            return null                                          // trying again won't change what it is
         } catch (e: Exception) {
             events.e(TAG, "engine error", e)
             val s = _state.value
