@@ -41,7 +41,8 @@ this file as work progresses.
     com.ex.dabplayer 1.3 (Java and libdab.so) and the native libraries of 3.26 / YHX H3.23.8 match on 16c0:05dc alone].
     The name check is replaced by the interface's shape (bulk 0x02 + 0x82; V-USB hobby devices on the same id are low
     speed and can't have bulk endpoints); a device with the id that doesn't fit is reported on screen and not retried; the
-    log names every dongle's id, manufacturer and product. Cause for the reporter's stick [hypothesis] until they confirm.
+    log names every dongle's id, manufacturer and product. The DTR-100 still works with it [verified, owner, Dudu3, 1.2.1].
+    Cause for the reporter's stick [hypothesis] until they confirm.
   - 1.2.0 (2026-10-19, owner idea): background tints (Dusk, Ocean, Ember, Aurora; day and night versions) and an
     optional Pure black at night [verified, API 34 emulator: all 9 variants on Favorites and Now playing, Settings in
     both layouts; the unit tests check that only the background colours change and Dusk is unchanged].
