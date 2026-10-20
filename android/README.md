@@ -55,6 +55,8 @@ and underruns, unplugs, a signal line every 30 s while playing, every second whi
 `adb pull /sdcard/Android/data/io.github.jvspier.dabplay/files/diagnostics/` (`dabplay.log`, plus `dabplay.1.log` once
 the first reaches 2 MB). Song texts (DLS) stay out of the file, in logcat only: on Android 10 other apps with storage
 permission can read this folder, and the songs heard with their times would be a listening history.
+On the device itself, Settings → Diagnostics log → Save or Share makes one file of it, with the USB devices connected at
+that moment on top (also unknown ones: that's how a report about a new dongle shows its id).
 
 ## Emulators
 Two AVDs mimic the head unit (1280×720, 160 dpi, landscape):

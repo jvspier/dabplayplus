@@ -138,7 +138,10 @@ dongle family is a new kind and a line there.
   home screen stayed in front].
 - **Diagnostics log** (`diag/Diagnostics`): engine events, driver and audio-player messages, unplugs, and a signal line
   every 30 s while playing (`rx30`; every second while reception isn't good), in logcat and in two rolling files of up
-  to 2 MB: `adb pull /sdcard/Android/data/io.github.jvspier.dabplay/files/diagnostics/`.
+  to 2 MB: `adb pull /sdcard/Android/data/io.github.jvspier.dabplay/files/diagnostics/`. Without adb: Settings →
+  Diagnostics log → Save / Share (`DiagnosticsExport`) gives one file with a header, every USB device connected now
+  (id, names, endpoints, what the app makes of it; unknown ones too) and both log parts; GitHub's "Dongle report"
+  issue form asks for it.
 
 ## Threads
 - `dab-usb`: the engine's command loop and all dongle I/O (blocking `bulkTransfer`).

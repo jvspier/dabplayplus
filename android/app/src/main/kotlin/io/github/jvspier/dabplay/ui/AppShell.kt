@@ -121,6 +121,10 @@ class RadioActions(
     val skipAnnouncement: () -> Unit = {},
     val retryLogos: () -> Unit = {},
     val refreshLogos: () -> Unit = {},
+    val shareDiagnostics: () -> Unit = {},
+    /** A name for the file, and saving it where the user picked (Storage Access Framework). */
+    val diagnosticsFileName: () -> String = { "dabplay-diagnostics.txt" },
+    val saveDiagnostics: (android.net.Uri) -> Unit = {},
 )
 
 @Composable

@@ -1,6 +1,9 @@
 package io.github.jvspier.dabplay.ui.screens
 
 import androidx.compose.runtime.remember
+import com.adamglin.phosphoricons.fill.Lifebuoy
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
 import io.github.jvspier.dabplay.ui.theme.dabColors
 import io.github.jvspier.dabplay.ui.theme.LocalNight
 import io.github.jvspier.dabplay.data.BackgroundStyle
@@ -187,6 +190,14 @@ private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Bo
             SettingRow(PhosphorIcons.Fill.TrafficCone, Accent.amber, tile, "Traffic announcements",
                 if (s.trafficAnnouncements) "On · switches to traffic news on the same multiplex" else "Off · alarm announcements still come through") {
                 DabSwitch(s.trafficAnnouncements) { v -> a.updateSettings { it.copy(trafficAnnouncements = v) } }
+            }
+            val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri -> uri?.let(a.saveDiagnostics) }
+            SettingRow(PhosphorIcons.Fill.Lifebuoy, Accent.blue, tile, "Diagnostics log", "For a problem report: app and dongle events, no song titles",
+                subtitleLines = 2) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ActionButton("Save", true) { save.launch(a.diagnosticsFileName()) }
+                    ActionButton("Share", true, a.shareDiagnostics)
+                }
             }
             SettingRow(PhosphorIcons.Fill.Heart, Accent.pink, tile, "Edit favorites", "${db.favourites.size} of ${StationStore.MAX_FAVOURITES} · or long-press a tile on Home and drag it", onClick = onEditFavourites) {
                 Icon(PhosphorIcons.Fill.CaretRight, null, tint = LocalDabColors.current.neutral400, modifier = Modifier.size(30.dp))

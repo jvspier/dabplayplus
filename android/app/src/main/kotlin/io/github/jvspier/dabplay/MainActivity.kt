@@ -87,6 +87,9 @@ class MainActivity : ComponentActivity() {
                         skipAnnouncement = e::skipAnnouncement,
                         retryLogos = app.logoFetcher::retryMissing,
                         refreshLogos = app.logoFetcher::refreshAll,
+                        shareDiagnostics = { app.diagnosticsExport.share(this) },
+                        diagnosticsFileName = app.diagnosticsExport::fileName,
+                        saveDiagnostics = app.diagnosticsExport::saveTo,
                     )
                 }
                 val logos by app.logos.state.collectAsStateWithLifecycle()

@@ -134,3 +134,7 @@ design session.
   neutral side panel, whatever the background. Only the page background, the Now playing glow, the side panel's
   gradient and the A–Z headers change; tiles, text, icons, accents and the playing tile stay. `dabColors()` in
   ui/theme/Tokens.kt (unit-tested).
+- **Diagnostics log in Settings** (2026-10-20, after issue #1): Save (Storage Access Framework: Downloads, a USB stick)
+  and Share (share sheet), because head units often have no mail app and Android 11+ hides the log folder without adb.
+  The file lists every USB device connected at that moment, so reports about unknown dongles carry their id. Still no
+  song titles. GitHub has a "Dongle report" issue form; README and website link to it.

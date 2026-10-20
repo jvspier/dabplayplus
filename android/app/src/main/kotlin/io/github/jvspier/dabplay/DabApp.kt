@@ -14,6 +14,7 @@ import androidx.core.content.IntentCompat
 import io.github.jvspier.dabplay.audio.AudioPlayer
 import io.github.jvspier.dabplay.data.LogoStore
 import io.github.jvspier.dabplay.diag.Diagnostics
+import io.github.jvspier.dabplay.diag.DiagnosticsExport
 import io.github.jvspier.dabplay.data.SettingsStore
 import io.github.jvspier.dabplay.data.StationStore
 import io.github.jvspier.dabplay.engine.AudioFocus
@@ -30,6 +31,7 @@ class DabApp : Application() {
     lateinit var logoFetcher: LogoFetcher; private set
     /** The event log (logcat + a file to pull after a drive). */
     lateinit var events: Diagnostics; private set
+    val diagnosticsExport by lazy { DiagnosticsExport(this, events) }
     /** MainActivity is on screen (started, not stopped): a dongle appearing then connects without opening anything. */
     @Volatile var uiVisible = false
 

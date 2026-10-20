@@ -55,8 +55,8 @@ Big tiles, big text, few taps: made to be used while driving.
 > **About "untested":** only the first dongle has been tested on real hardware. Support for the others is written
 > from public sources and from how other apps talk to them, with automated tests against that description, but
 > nobody has run it with the real dongle yet. It may work, partly work or not work at all. If you have one of these
-> dongles, please [open an issue](https://github.com/jvspier/dabplayplus/issues) and say how it went (the app's
-> log helps: `adb logcat -s DabEngine`), and this table gets updated. Other dongle families are catalogued in
+> dongles, please send a [dongle report](https://github.com/jvspier/dabplayplus/issues/new?template=dongle-report.yml) and say how it went, with the file from **Settings → Diagnostics log**
+> (Save or Share; it lists the USB devices and what the app did, no song titles), and this table gets updated. Other dongle families are catalogued in
 > [docs/dongles.md](docs/dongles.md).
 
 ## Status

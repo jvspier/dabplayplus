@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Files other apps may read through FileProvider: only the diagnostics report being shared (DiagnosticsExport). -->
+<paths>
+    <cache-path name="reports" path="reports/" />
+</paths>

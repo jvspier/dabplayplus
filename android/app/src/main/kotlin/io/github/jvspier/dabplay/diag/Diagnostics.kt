@@ -40,5 +40,13 @@ class Diagnostics(private val dir: File) : EngineLog {
         }
     }
 
+    /**
+     * Both log files as they are now (older part, current part), read on the writer thread so no line is cut off
+     * halfway. For the report a user shares ([DiagnosticsExport]).
+     */
+    fun snapshot(): Pair<String?, String> = writer.submit<Pair<String?, String>> {
+        File(dir, "dabplay.1.log").takeIf { it.exists() }?.readText() to (file.takeIf { it.exists() }?.readText() ?: "")
+    }.get(10, java.util.concurrent.TimeUnit.SECONDS)
+
     companion object { const val MAX_BYTES = 2L * 1024 * 1024 }
 }

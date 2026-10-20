@@ -36,6 +36,9 @@ this file as work progresses.
     what was found) [verified, API 34 emulator online: retry of 20 → 19 not found + 1 no answer; refresh of 67 kept
     all 47 logos]; an unanswered lookup is no longer a 3-day "not found" [verified: unit tests, and live: "YOURSAFE: no
     answer" became "no usable logo" on the next pass]; the Now playing tab is a play triangle (both themes checked).
+  - 1.3.0 (2026-10-20): Settings → Diagnostics log (Save / Share) and a "Dongle report" issue form, so owners of the
+    untested dongles can report without adb [verified, API 34 emulator: saved to Downloads with header, USB list and
+    log; the share sheet opens with the file; the USB list's format is unit-tested, a real device in it is not yet].
   - 1.2.1 (2026-10-19, GitHub issue #1, a CAMECHO "C100 based" stick not detected on Android 16 and 8.1 while other
     apps use it): DABplay+ was the only app requiring the manufacturer name "dabusb@126.com" [verified: DABdream+ 26.9.1,
     com.ex.dabplayer 1.3 (Java and libdab.so) and the native libraries of 3.26 / YHX H3.23.8 match on 16c0:05dc alone].
