@@ -1,6 +1,7 @@
 package io.github.jvspier.dabplay.ui.screens
 
 import androidx.compose.runtime.remember
+import com.adamglin.phosphoricons.fill.CornersOut
 import com.adamglin.phosphoricons.fill.Lifebuoy
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -140,6 +141,11 @@ private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Bo
                 Segmented(listOf(LayoutVariant.BAR to "Bar", LayoutVariant.PANEL to "Panel"), s.layout, Accent.amber, ON_AMBER,
                     { v -> a.updateSettings { it.copy(layout = v) } }, optionWidth = segW,
                     icons = mapOf(LayoutVariant.BAR to PhosphorIcons.Fill.Rows, LayoutVariant.PANEL to PhosphorIcons.Fill.Sidebar))
+            }
+            SettingRow(PhosphorIcons.Fill.CornersOut, Accent.orange, tile, "Full screen",
+                if (s.fullScreen) "On · the head unit's bars are hidden; swipe from an edge to show them"
+                else "Off · the head unit's bars stay, the app fits next to them") {
+                DabSwitch(s.fullScreen) { v -> a.updateSettings { it.copy(fullScreen = v) } }
             }
             SettingRow(PhosphorIcons.Fill.SteeringWheel, Accent.lavender, tile, "Driver side", "Puts the controls nearest to you") {
                 Segmented(listOf(DriverSide.LEFT to "Left", DriverSide.RIGHT to "Right"), s.driverSide, Accent.amber, ON_AMBER,

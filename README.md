@@ -33,7 +33,8 @@ Big tiles, big text, few taps: made to be used while driving.
   through a proper media session; auto-resume of the last station; Back never leaves the radio by accident.
 - **Start with the car** (optional, off by default): opens DABplay+ when the car starts; off, it stays out of the way
   of CarPlay / Android Auto even though the dongle is always connected.
-- Two layouts (player bar or side panel), day/night theme, controls on the driver's side (left or right).
+- Two layouts (player bar or side panel), day/night theme, controls on the driver's side (left or right), full screen
+  or next to the head unit's own bars.
 - **Backgrounds**: four tints for the page behind everything (Dusk, Ocean, Ember, Aurora), each with a day and a night
   version, plus an optional **Pure black at night** for driving in the dark. Tiles, text and icons stay the same.
 

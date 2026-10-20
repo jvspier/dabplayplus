@@ -36,6 +36,14 @@ this file as work progresses.
     what was found) [verified, API 34 emulator online: retry of 20 → 19 not found + 1 no answer; refresh of 67 kept
     all 47 logos]; an unanswered lookup is no longer a 3-day "not found" [verified: unit tests, and live: "YOURSAFE: no
     answer" became "no usable logo" on the next pass]; the Now playing tab is a play triangle (both themes checked).
+  - 1.3.1 (2026-10-20, GitHub issue #2: the system bar covered the title and clock): the bars were hidden only once,
+    at start; Android shows them again after another app or a system screen and doesn't hide them on return
+    [verified: reproduced on the Android 10 emulator by leaving via Home and coming back]. Now hidden again whenever
+    the window gets focus back, plus Settings → Full screen to keep the bars, with the app fitted next to them
+    [verified on emulators Android 8.0, 10 and 14: start, Home and back, the notification shade, both settings, and
+    switching while the app is open]. The Android 8.0 emulator (a phone) needs ~60 s to open any app, also the system
+    Settings; not the app. Seen there too: in a phone's landscape height (387 dp) the rail shows only 3 of its 5 tabs
+    [verified, open item: small screens].
   - 1.3.0 (2026-10-20): Settings → Diagnostics log (Save / Share) and a "Dongle report" issue form, so owners of the
     untested dongles can report without adb [verified, API 34 emulator: saved to Downloads with header, USB list and
     log; the share sheet opens with the file; the USB list's format is unit-tested, a real device in it is not yet].

@@ -132,6 +132,10 @@ dongle family is a new kind and a line there.
   nothing comes forward and nothing plays. On, `BootReceiver` also opens the app at boot; Android 10+ allows that only
   with "Display over other apps".
 - Back never leaves the app by accident (another tab → Home; Home → nothing).
+- System bars (Settings → Full screen, `MainActivity.applySystemBars`): on, they're hidden, and hidden again whenever the
+  window gets focus back, because Android shows them after another app, the USB prompt or a share screen and doesn't
+  hide them on return (issue #2); a swipe from an edge shows them for a moment. Off, they stay and AppShell pads the
+  content by the system-bar insets, so nothing is covered; their icons follow the app's day/night theme.
 - Unplugs are handled in the app process (`DabApp`), so they're seen with no screen open. If the dongle drops out while
   playing (a voltage dip while cranking or at a start-stop restart, a USB hub reset), the station is remembered and
   `UsbAttachActivity` reconnects it in the background when it's back [verified: 538 again < 1 s after the replug,

@@ -32,6 +32,8 @@ data class Settings(
     val background: BackgroundStyle = BackgroundStyle.DUSK,
     /** Black behind everything while the night theme is on, whatever [background]; off by default (not for everyone). */
     val pureBlackAtNight: Boolean = false,
+    /** The head unit's own bars hidden (on, the default) or kept, with the app fitted next to them (owner, issue #2). */
+    val fullScreen: Boolean = true,
 )
 
 /** Countries that drive on the left, so the driver sits on the right and the controls belong on the right. */
@@ -54,7 +56,7 @@ class SettingsStore(context: Context) {
             .putBoolean("downloadLogos", s.downloadLogos).putBoolean("followStation", s.followStation)
             .putString("clock", s.clock.name).putBoolean("trafficAnnouncements", s.trafficAnnouncements)
             .putBoolean("startWithCar", s.startWithCar).putString("background", s.background.name)
-            .putBoolean("pureBlackAtNight", s.pureBlackAtNight).apply()
+            .putBoolean("pureBlackAtNight", s.pureBlackAtNight).putBoolean("fullScreen", s.fullScreen).apply()
     }
 
     private fun load(): Settings {
@@ -72,6 +74,7 @@ class SettingsStore(context: Context) {
             startWithCar = prefs.getBoolean("startWithCar", d.startWithCar),
             background = e("background", d.background, BackgroundStyle::valueOf),
             pureBlackAtNight = prefs.getBoolean("pureBlackAtNight", d.pureBlackAtNight),
+            fullScreen = prefs.getBoolean("fullScreen", d.fullScreen),
         )
     }
 }

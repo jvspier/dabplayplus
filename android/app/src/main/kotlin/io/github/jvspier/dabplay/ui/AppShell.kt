@@ -31,6 +31,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -145,6 +148,8 @@ fun AppShell(engine: EngineState, db: Snapshot, settings: Settings, actions: Rad
     CompositionLocalProvider(LocalClockFormat provides settings.clock, LocalNow provides rememberNow()) {
     Box(Modifier.fillMaxSize()) {
         PageBackground { npGlow.value }
+        // Full screen off: the head unit's bars stay and everything fits next to them; the background still fills it all
+    Box(Modifier.fillMaxSize().then(if (settings.fullScreen) Modifier else Modifier.windowInsetsPadding(WindowInsets.systemBars))) {
         Row(Modifier.fillMaxSize()) {
             val parts = buildList<@Composable RowScope.() -> Unit> {
                 add { Rail(tab, right) { tab = it } }
@@ -174,6 +179,7 @@ fun AppShell(engine: EngineState, db: Snapshot, settings: Settings, actions: Rad
             (if (right) parts.reversed() else parts).forEach { it() }
         }
         AnnouncementBanner(engine.announcement.takeIf { engine.dongle }, actions.skipAnnouncement, Modifier.align(Alignment.TopCenter))
+    }
     }
     }
 }

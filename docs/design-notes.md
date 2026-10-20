@@ -138,3 +138,6 @@ design session.
   and Share (share sheet), because head units often have no mail app and Android 11+ hides the log folder without adb.
   The file lists every USB device connected at that moment, so reports about unknown dongles carry their id. Still no
   song titles. GitHub has a "Dongle report" issue form; README and website link to it.
+- **Full screen setting** (owner, 2026-10-20, from issue #2): on by default (as before, now also after returning from
+  another app); off keeps the head unit's own bars (a Dudu navbar can be handy) with the app fitted next to them. The
+  owner hadn't decided which he prefers, so it's the user's choice.

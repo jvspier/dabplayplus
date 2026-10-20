@@ -15,6 +15,9 @@ import io.github.jvspier.dabplay.data.StationStore
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import io.github.jvspier.dabplay.ui.theme.LocalNight
+import androidx.compose.runtime.LaunchedEffect
+import androidx.activity.SystemBarStyle
 import androidx.annotation.OptIn
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -56,16 +59,22 @@ class MainActivity : ComponentActivity() {
         ContextCompat.registerReceiver(this, receiver, IntentFilter(ACTION_PERMISSION), ContextCompat.RECEIVER_NOT_EXPORTED)
         // Connect to the media service so it runs (and becomes the active MediaSession for the steering-wheel keys)
         controller = MediaController.Builder(this, SessionToken(this, ComponentName(this, RadioService::class.java))).buildAsync()
-        // head unit: the whole 1280×720 is ours; the system bars come back with a swipe from the edge
-        WindowCompat.getInsetsController(window, window.decorView).apply {
-            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            hide(WindowInsetsCompat.Type.systemBars())
-        }
+        fullScreen = app.settings.state.value.fullScreen
+        applySystemBars()
         // Compose paints the whole window itself: the theme's window background would be one more full-screen layer per frame
         window.setBackgroundDrawable(null)
         setContent {
             val settings by app.settings.state.collectAsStateWithLifecycle()
             DabPlayTheme(settings.display, settings.background, settings.pureBlackAtNight) {
+                val night = LocalNight.current
+                LaunchedEffect(settings.fullScreen, night) {
+                    // icons in the head unit's bars readable on our background (the app's theme, not the system's)
+                    val style = if (night) SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                                else SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+                    enableEdgeToEdge(style, style)
+                    fullScreen = settings.fullScreen
+                    applySystemBars()
+                }
                 val s by app.engine.state.collectAsStateWithLifecycle()
                 val db by app.store.state.collectAsStateWithLifecycle()
                 // one stable instance: the lambdas read current state when called, so nothing below recomposes because of them
@@ -107,6 +116,26 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.action == UsbManager.ACTION_USB_DEVICE_ATTACHED) findDongle()   // via UsbAttachActivity
+    }
+
+    /**
+     * Settings → Full screen. On: the whole screen is ours, the head unit's bars come back with a swipe from an edge.
+     * Off: they stay, and AppShell fits the app next to them. Android shows them again whenever our window loses focus
+     * (another app, the USB prompt, a share screen, a notification) and doesn't hide them on return: hide them again
+     * whenever the window has focus back (issue #2).
+     */
+    private var fullScreen = true
+
+    private fun applySystemBars() = WindowCompat.getInsetsController(window, window.decorView).run {
+        if (fullScreen) {
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            hide(WindowInsetsCompat.Type.systemBars())
+        } else show(WindowInsetsCompat.Type.systemBars())
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && fullScreen) applySystemBars()
     }
 
     override fun onStart() { super.onStart(); app.uiVisible = true }
