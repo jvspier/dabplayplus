@@ -128,6 +128,8 @@ design session.
   plus the privacy page Google Play needs. `site/` + `site/build.sh` (assembles from the repo's screenshots, icon, font and
   social preview; fills in the version), published by `.github/workflows/pages.yml`. Loads nothing from elsewhere: the
   Phosphor icons are inline, the font is the app's; no cookies, no analytics.
+  Changelog (2026-10-20): CHANGELOG.md is the source; the site shows the latest version under "What's new" and all
+  versions on changelog.html (site/changelog.py + fill.py at build time), so the two can't disagree.
 - **Backgrounds** (owner, 2026-10-19, for other users' taste; no redesign): Settings → Background under Display, four
   swatches: Dusk (the original), Ocean, Ember, Aurora. One choice covers day and night (each has a light and a dark
   version; Ember by day is the rose one). Separate switch **Pure black at night**, off by default: black, no glows, a

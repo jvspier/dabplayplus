@@ -82,6 +82,23 @@ code { font: 500 14px ui-monospace, monospace; background: rgba(255,255,255,.07)
 footer { position: relative; z-index: 1; border-top: 1px solid var(--line); margin-top: 72px; padding: 32px 0 48px; font-size: 15px; color: var(--dim); }
 footer .wrap { display: flex; gap: 24px; flex-wrap: wrap; justify-content: space-between; }
 
+/* the changelog: generated from CHANGELOG.md (changelog.py): the latest version on the home page, all on changelog.html */
+.releases { display: grid; gap: 16px; }
+.release { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 22px 26px 12px; }
+.releases .release h2, .releases .release h3 { margin: 0 0 12px; font-size: 26px; letter-spacing: -.4px; font-weight: 600; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.release h2 a, .release h3 a { text-decoration: none; }
+.release h2 a:hover, .release h3 a:hover { text-decoration: underline; }
+.release time { font-size: 16px; font-weight: 400; color: var(--dim); letter-spacing: 0; }
+.release p { margin: 0 0 14px; color: var(--muted); font-size: 17px; }
+.release .badge { margin: 4px 0 6px; }
+.release ul { margin: 0 0 14px; padding-left: 22px; color: var(--muted); font-size: 17px; }
+.release li { margin: 6px 0; } .release li strong { color: var(--text); font-weight: 600; }
+.release a { color: var(--text); }
+.releases.latest .release { max-width: 860px; padding-top: 18px; }
+.releases.latest .release h3 { display: none; }                 /* the section's heading names the version already */
+.more { margin: 18px 0 0; font-size: 17px; } .more a { color: var(--orange); font-weight: 600; text-decoration: none; }
+.final .sub a { color: inherit; }
+
 /* the privacy page */
 .doc { max-width: 760px; padding: 72px 24px 24px; }
 .doc h1 { font-size: 46px; letter-spacing: -1.2px; line-height: 1.1; margin: 8px 0 12px; font-weight: 600; }

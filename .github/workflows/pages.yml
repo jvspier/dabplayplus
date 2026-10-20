@@ -1,5 +1,5 @@
 # The website (site/, see site/build.sh) on GitHub Pages: https://jvspier.github.io/dabplayplus/
-# Republished when the pages, the screenshots, the icon or the app's version change.
+# Republished when the pages, the changelog, the screenshots, the icon or the app's version change.
 name: Website
 
 on:
@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - site/**
+      - CHANGELOG.md
       - docs/screenshots/**
       - docs/social-preview.png
       - android/app/build.gradle.kts
