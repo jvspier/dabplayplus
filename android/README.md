@@ -35,6 +35,10 @@ adb shell cmd package compile -m speed-profile -f io.github.jvspier.dabplay   # 
 adb shell dumpsys gfxinfo io.github.jvspier.dabplay reset   # then interact, and read it back without "reset"
 ```
 
+**Releasing:** raise `versionCode` by one and `versionName` (small steps: the last number for fixes and small
+additions), add the version to `../CHANGELOG.md`, build with the release key, then tag `vX.Y.Z` and publish the APK as a
+GitHub release whose notes say the same as the changelog.
+
 The baseline profile (`app/src/release/generated/baselineProfiles/`) is regenerated after bigger UI changes, with the
 head-unit emulator running: `./gradlew :app:generateReleaseBaselineProfile` (module `:baselineprofile`; the app is left
 installed afterwards, see `gradle.properties`).
