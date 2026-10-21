@@ -36,7 +36,7 @@ this file as work progresses.
     what was found) [verified, API 34 emulator online: retry of 20 → 19 not found + 1 no answer; refresh of 67 kept
     all 47 logos]; an unanswered lookup is no longer a 3-day "not found" [verified: unit tests, and live: "YOURSAFE: no
     answer" became "no usable logo" on the next pass]; the Now playing tab is a play triangle (both themes checked).
-  - After 1.3.1 (2026-10-21, not released yet), GitHub issues #2 and #3, both from the same reporter's unit ("alps
+  - 1.3.2 (2026-10-21), GitHub issues #2 and #3, both from the same reporter's unit ("alps
     B9520B": it says Android 10, but `SDK_INT` is 27, so Android 8.1 underneath):
     - #2 again: the bars came back after leaving the app and returning, until Full screen was switched off and on.
       Before Android 11 the compat controller's hide() is `decorView.setSystemUiVisibility(current | flags)`

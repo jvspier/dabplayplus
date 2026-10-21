@@ -4,6 +4,20 @@ What changed in each version of DABplay+, newest first. Each version's APK is on
 [release page](https://github.com/jvspier/dabplayplus/releases); every version installs over the previous one and keeps
 your stations, favourites and settings.
 
+## [1.3.2] - 2026-10-21
+
+### Fixed
+- On some head units the system bars still came back after leaving the app and returning, until Full screen was
+  switched off and on again ([#2](https://github.com/jvspier/dabplayplus/issues/2)). Older Android versions (8 to 10)
+  ignored the request to hide them again; DABplay+ now makes sure it takes.
+- Some C100 sticks often didn't work when the app started ([#3](https://github.com/jvspier/dabplayplus/issues/3)):
+  their DAB chip needs a moment after power-on, and DABplay+ asked only once. It now waits for it, the way other DAB
+  apps do. A failed switch to another channel no longer resets the whole dongle either.
+
+### Changed
+- While a connected dongle doesn't respond, the app says "DAB dongle not responding, retrying…" instead of "not
+  connected".
+
 ## [1.3.1] - 2026-10-20
 
 ### Fixed
@@ -83,6 +97,7 @@ The first release, as a pre-release before the first run on a real head unit.
 - Dongles: the wRadio C100 / DTR-100 type (tested); C100 Dual Antenna, Si4684 modules and Siano sticks (written from
   public sources, untested).
 
+[1.3.2]: https://github.com/jvspier/dabplayplus/releases/tag/v1.3.2
 [1.3.1]: https://github.com/jvspier/dabplayplus/releases/tag/v1.3.1
 [1.3.0]: https://github.com/jvspier/dabplayplus/releases/tag/v1.3.0
 [1.2.1]: https://github.com/jvspier/dabplayplus/releases/tag/v1.2.1
