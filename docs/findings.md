@@ -41,7 +41,7 @@ this file as work progresses.
     [verified: reproduced on the Android 10 emulator by leaving via Home and coming back]. Now hidden again whenever
     the window gets focus back, plus Settings → Full screen to keep the bars, with the app fitted next to them
     [verified on emulators Android 8.0, 10 and 14: start, Home and back, the notification shade, both settings, and
-    switching while the app is open]. The Android 8.0 emulator (a phone) needs ~60 s to open any app, also the system
+    switching while the app is open; the Full screen switch on the Dudu3 in the car: owner, 2026-10-21]. The Android 8.0 emulator (a phone) needs ~60 s to open any app, also the system
     Settings; not the app. Seen there too: in a phone's landscape height (387 dp) the rail shows only 3 of its 5 tabs
     [verified, open item: small screens].
   - 1.3.0 (2026-10-20): Settings → Diagnostics log (Save / Share) and a "Dongle report" issue form, so owners of the
