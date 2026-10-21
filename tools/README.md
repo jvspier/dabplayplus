@@ -8,7 +8,7 @@
   **Don't run it**: the FM register state survives power-off and degrades DAB until the dongle is replugged.
 - `switch_test.py`: play A, proper stop, switch to B on the same ensemble without re-init; measures the switch time.
 - `branding/`: the README banner (`banner.html`) and GitHub's social preview (`social.html`, upload it under Settings →
-  General → Social preview), rendered to docs/ by `render.sh` with headless Chrome; re-run after new screenshots.
+  General → Social preview) and Google Play's feature graphic (`feature.html`, 1024 × 500), rendered to docs/ by `render.sh` with headless Chrome; re-run after new screenshots.
 - `gen_app_icon.py`: the app icon (adaptive icon layers, themed and notification icons, 512 px store PNG) from one drawing;
   needs `pip install fonttools uharfbuzz` and ImageMagick.
 - `gen_kotlin_tables.py`: generates the Kotlin register/PLL tables for the Android dtr100 driver (DAB only, no FM).

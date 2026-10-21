@@ -1,0 +1,42 @@
+<!doctype html>
+<!-- Google Play's feature graphic (docs/feature-graphic.png, exactly 1024 × 500, no transparency), in the banner's style.
+     Large type only: Play shows it small, and sometimes with a play button over the middle. Render with render.sh. -->
+<html><head><meta charset="utf-8">
+<style>
+  @font-face { font-family: Inter; src: url(../../android/app/src/main/res/font/inter_regular.ttf); font-weight: 400; }
+  @font-face { font-family: Inter; src: url(../../android/app/src/main/res/font/inter_semibold.ttf); font-weight: 600; }
+  html, body { margin: 0; background: #161826; }
+  .card {
+    position: relative; overflow: hidden; width: 1024px; height: 500px; box-sizing: border-box; padding: 0 70px;
+    display: flex; align-items: center; gap: 46px; font-family: Inter, sans-serif; color: #E9E9ED;
+    background:
+      radial-gradient(ellipse 60% 85% at 5% 0%, #232846 0%, transparent 70%),
+      radial-gradient(ellipse 60% 90% at 100% 100%, #3D2244 0%, transparent 70%),
+      #161826;
+  }
+  /* the icon's play triangle, large and faint, sending its arcs out to the right */
+  .deco { position: absolute; right: -10px; top: 50%; transform: translateY(-50%); width: 640px; height: 640px; }
+  .icon { flex: none; width: 200px; height: 200px; border-radius: 23%; overflow: hidden;
+          box-shadow: 0 20px 56px rgba(0, 0, 0, .5), 0 0 0 1px rgba(255, 255, 255, .06); }
+  .icon img { width: 100%; height: 100%; display: block; }
+  .text { position: relative; }
+  h1 { margin: 0; font-size: 100px; font-weight: 600; letter-spacing: -2.5px; line-height: 1; }
+  h1 span { color: #FF6A3D; }
+  .tag { margin: 20px 0 0; font-size: 36px; line-height: 1.25; color: #B2B6CA; letter-spacing: -.3px; }
+</style></head>
+<body>
+<div class="card">
+  <svg class="deco" viewBox="0 0 108 108">
+    <path d="M37,30 A4,4 0 0,1 43.1,26.59 L82.1,50.59 A4,4 0 0,1 82.1,57.41 L43.1,81.41 A4,4 0 0,1 37,78 Z" fill="#FFFFFF" fill-opacity=".045"/>
+    <g fill="none" stroke="#FF8A4C" stroke-linecap="round" stroke-width="1.6">
+      <path d="M88.4 46.3 A10 10 0 0 1 88.4 61.7" opacity=".22"/>
+      <path d="M93.6 40.2 A18 18 0 0 1 93.6 67.8" opacity=".12"/>
+    </g>
+  </svg>
+  <div class="icon"><img src="../../android/app/src/main/ic_launcher-playstore.png" alt=""></div>
+  <div class="text">
+    <h1>DABplay<span>+</span></h1>
+    <p class="tag">DAB+ radio,<br>made for the car</p>
+  </div>
+</div>
+</body></html>
