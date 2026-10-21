@@ -1,0 +1,112 @@
+<!doctype html>
+<!-- Made-up station logos for the debug-only DemoActivity (store screenshots). Twelve 512 × 512 cells, rendered and cut
+     by render-demo-logos.sh into android/app/src/debug/assets/demo-logos/. Square ones fill their tile in the app (opaque
+     corners); the transparent ones sit on its light "paper" tile, like real logos made for web pages. Fictional: any
+     likeness to a real station is accidental. -->
+<html><head><meta charset="utf-8">
+<style>
+  html, body { margin: 0; background: transparent; }
+  .grid { display: grid; grid-template-columns: repeat(4, 512px); grid-auto-rows: 512px; }
+  .l { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .l svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .t { position: relative; text-align: center; line-height: 1; }
+</style></head>
+<body><div class="grid">
+
+<!-- 1 Lumen Radio: opaque, blue to cyan, rays -->
+<div class="l" style="background:linear-gradient(145deg,#1B3FA8,#19B6E6)">
+  <svg viewBox="0 0 512 512"><g stroke="#FFFFFF" stroke-opacity=".22" stroke-width="10" stroke-linecap="round">
+    <line x1="256" y1="70" x2="256" y2="120"/><line x1="140" y1="110" x2="168" y2="150"/><line x1="372" y1="110" x2="344" y2="150"/>
+    <line x1="80" y1="200" x2="128" y2="214"/><line x1="432" y1="200" x2="384" y2="214"/></g>
+    <circle cx="256" cy="210" r="62" fill="#FFE66D"/></svg>
+  <div class="t" style="margin-top:150px;font:800 104px Montserrat;color:#fff;letter-spacing:-3px">lumen</div>
+  <div class="t" style="margin-top:10px;font:600 34px Montserrat;color:#DDF3FF;letter-spacing:14px">RADIO</div>
+</div>
+
+<!-- 2 Night Drive: opaque, night sky, moon, road -->
+<div class="l" style="background:linear-gradient(180deg,#0E1030,#2A1450)">
+  <svg viewBox="0 0 512 512"><circle cx="362" cy="130" r="54" fill="#F7E7B0"/><circle cx="386" cy="112" r="50" fill="#16123A"/>
+    <circle cx="120" cy="90" r="4" fill="#fff"/><circle cx="200" cy="140" r="3" fill="#fff" opacity=".7"/><circle cx="90" cy="180" r="3" fill="#fff" opacity=".6"/>
+    <path d="M196 512 L248 330 L264 330 L316 512 Z" fill="#FF5E8A" opacity=".35"/><rect x="252" y="350" width="8" height="26" fill="#FFC24B"/><rect x="250" y="410" width="12" height="40" fill="#FFC24B"/></svg>
+  <div class="t" style="margin-top:-40px;font:900 78px Montserrat;letter-spacing:-1px;background:linear-gradient(90deg,#FF5E8A,#FFB547);-webkit-background-clip:text;color:transparent">NIGHT<br>DRIVE</div>
+</div>
+
+<!-- 3 Velvet Jazz: transparent, serif -->
+<div class="l">
+  <div class="t" style="font:italic 400 132px P052;color:#7A1236;letter-spacing:-3px">Velvet</div>
+  <div class="t" style="margin-top:18px;font:700 52px Montserrat;color:#C99A2E;letter-spacing:30px;padding-left:30px">JAZZ</div>
+  <svg viewBox="0 0 512 512" style="pointer-events:none"><path d="M120 360 Q256 420 392 360" stroke="#C99A2E" stroke-width="6" fill="none"/></svg>
+</div>
+
+<!-- 4 Harbour Hits: opaque teal, waves -->
+<div class="l" style="background:#0F6E77">
+  <svg viewBox="0 0 512 512"><g fill="none" stroke="#7FE3E0" stroke-width="14" stroke-linecap="round">
+    <path d="M70 390 Q120 360 170 390 T270 390 T370 390 T470 390"/><path d="M70 440 Q120 410 170 440 T270 440 T370 440 T470 440" opacity=".55"/></g></svg>
+  <div class="t" style="margin-top:-70px;font:800 84px Montserrat;color:#fff;letter-spacing:2px">HARBOUR</div>
+  <div class="t" style="margin-top:8px;font:900 120px Montserrat;color:#FFD166;letter-spacing:6px">HITS</div>
+</div>
+
+<!-- 5 Echo Rock: opaque black, red echo rings -->
+<div class="l" style="background:#111111">
+  <svg viewBox="0 0 512 512"><g fill="none" stroke="#E63946"><circle cx="256" cy="256" r="120" stroke-width="12" opacity=".45"/>
+    <circle cx="256" cy="256" r="175" stroke-width="8" opacity=".28"/><circle cx="256" cy="256" r="226" stroke-width="5" opacity=".16"/></g></svg>
+  <div class="t" style="font:bold 150px 'Nimbus Sans Narrow';color:#fff;letter-spacing:-2px">ECHO</div>
+  <div class="t" style="margin-top:4px;font:bold 78px 'Nimbus Sans Narrow';color:#FF4D5A;letter-spacing:22px;padding-left:22px;text-shadow:0 0 0 #111,0 0 14px #111">ROCK</div>
+</div>
+
+<!-- 6 Atlas News: transparent, globe and red bar -->
+<div class="l">
+  <svg viewBox="0 0 512 512"><g fill="none" stroke="#1F2A44" stroke-width="10"><circle cx="256" cy="170" r="86"/>
+    <ellipse cx="256" cy="170" rx="38" ry="86"/><line x1="170" y1="170" x2="342" y2="170"/><path d="M182 126 Q256 146 330 126"/><path d="M182 214 Q256 194 330 214"/></g>
+    <rect x="96" y="388" width="320" height="16" fill="#D62839"/></svg>
+  <div class="t" style="margin-top:220px;font:800 86px Montserrat;color:#1F2A44;letter-spacing:6px">ATLAS</div>
+  <div class="t" style="margin-top:56px;font:700 40px Montserrat;color:#1F2A44;letter-spacing:18px;padding-left:18px">NEWS</div>
+</div>
+
+<!-- 7 Sunset Classics: opaque sunset gradient, half sun -->
+<div class="l" style="background:linear-gradient(180deg,#FF8A3D 0%,#E0457B 55%,#5B2A86 100%)">
+  <svg viewBox="0 0 512 512"><path d="M126 330 A130 130 0 0 1 386 330 Z" fill="#FFE29A" opacity=".9"/>
+    <g fill="#5B2A86" opacity=".55"><rect x="120" y="300" width="272" height="8"/><rect x="120" y="318" width="272" height="10"/></g></svg>
+  <div class="t" style="margin-top:-150px;font:italic 700 104px Georgia;color:#fff">Sunset</div>
+  <div class="t" style="margin-top:250px;position:absolute;font:600 46px Montserrat;color:#FFE29A;letter-spacing:16px;padding-left:16px">CLASSICS</div>
+</div>
+
+<!-- 8 Metro Talk: transparent, yellow speech bubble -->
+<div class="l">
+  <svg viewBox="0 0 512 512"><path d="M150 80 H362 Q412 80 412 130 V250 Q412 300 362 300 H250 L180 360 L190 300 H150 Q100 300 100 250 V130 Q100 80 150 80 Z" fill="#FFC400"/></svg>
+  <div class="t" style="margin-top:-118px;font:900 150px Montserrat;color:#1A1A1A">M</div>
+  <div class="t" style="position:absolute;top:385px;font:800 72px Montserrat;color:#1A1A1A;letter-spacing:-1px">metro talk</div>
+</div>
+
+<!-- 9 Ember Beats: opaque dark, flame -->
+<div class="l" style="background:radial-gradient(circle at 50% 70%,#3A1408,#120808 70%)">
+  <svg viewBox="0 0 512 512"><path d="M256 70 C300 130 340 160 320 230 C350 210 356 190 352 170 C392 220 380 290 330 320 C300 340 212 340 182 320 C132 290 130 220 170 180 C172 210 188 226 204 232 C192 170 220 120 256 70 Z" fill="url(#f)"/>
+    <defs><linearGradient id="f" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#FF3D00"/><stop offset="1" stop-color="#FFC24B"/></linearGradient></defs></svg>
+  <div class="t" style="position:absolute;top:350px;font:900 84px Montserrat;color:#fff;letter-spacing:4px">EMBER</div>
+  <div class="t" style="position:absolute;top:438px;font:700 40px Montserrat;color:#FF8A3D;letter-spacing:22px;padding-left:22px">BEATS</div>
+</div>
+
+<!-- 10 Polar Pop: opaque icy blue, bubbly type -->
+<div class="l" style="background:linear-gradient(160deg,#E8F7FF,#A9DDF8)">
+  <svg viewBox="0 0 512 512"><g fill="#FFFFFF"><circle cx="400" cy="110" r="34"/><circle cx="445" cy="170" r="16"/><circle cx="96" cy="400" r="26"/></g></svg>
+  <div class="t" style="font:bold 150px Comfortaa;color:#FF3E8E;letter-spacing:-6px">polar</div>
+  <div class="t" style="margin-top:-6px;font:bold 150px Comfortaa;color:#2B59C3;letter-spacing:-4px">pop</div>
+</div>
+
+<!-- 11 Coastline 80s: opaque retro grid -->
+<div class="l" style="background:linear-gradient(180deg,#1A0638 0%,#3B0A5E 55%,#12052A 100%)">
+  <svg viewBox="0 0 512 512"><g stroke="#FF4FD8" stroke-width="3" opacity=".55">
+    <line x1="0" y1="360" x2="512" y2="360"/><line x1="0" y1="400" x2="512" y2="400"/><line x1="0" y1="450" x2="512" y2="450"/><line x1="0" y1="510" x2="512" y2="510"/>
+    <line x1="256" y1="360" x2="256" y2="512"/><line x1="200" y1="360" x2="80" y2="512"/><line x1="312" y1="360" x2="432" y2="512"/><line x1="150" y1="360" x2="-60" y2="512"/><line x1="362" y1="360" x2="572" y2="512"/></g></svg>
+  <div class="t" style="margin-top:-120px;font:800 62px Montserrat;color:#2EE6FF;letter-spacing:8px">COASTLINE</div>
+  <div class="t" style="margin-top:6px;font:italic 900 170px Montserrat;color:#FF4FD8;letter-spacing:-6px;text-shadow:0 0 22px rgba(255,79,216,.6)">80s</div>
+</div>
+
+<!-- 12 Dune Dance: transparent, dunes -->
+<div class="l">
+  <svg viewBox="0 0 512 512"><path d="M40 330 Q170 220 300 300 T480 280 L480 352 L40 352 Z" fill="#E9A23B"/>
+    <path d="M40 352 Q200 290 330 340 T480 330 L480 360 L40 360 Z" fill="#C46A1C"/><circle cx="360" cy="170" r="44" fill="#E9A23B" opacity=".85"/></svg>
+  <div class="t" style="position:absolute;top:392px;font:600 66px 'URW Gothic';color:#5A3A14;letter-spacing:3px;white-space:nowrap">DUNE DANCE</div>
+</div>
+
+</div></body></html>

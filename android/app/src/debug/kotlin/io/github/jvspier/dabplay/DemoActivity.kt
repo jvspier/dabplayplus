@@ -13,6 +13,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import io.github.jvspier.dabplay.core.pad.NowPlaying
 import io.github.jvspier.dabplay.data.DisplayMode
+import io.github.jvspier.dabplay.data.LogoStore
 import io.github.jvspier.dabplay.data.Recent
 import io.github.jvspier.dabplay.data.ServiceKey
 import io.github.jvspier.dabplay.data.Settings
@@ -24,10 +25,12 @@ import io.github.jvspier.dabplay.ui.AppShell
 import io.github.jvspier.dabplay.ui.RadioActions
 import io.github.jvspier.dabplay.ui.components.LocalLogos
 import io.github.jvspier.dabplay.ui.theme.DabPlayTheme
+import java.io.File
 
 /**
  * Debug builds only (src/debug): the real UI with made-up stations, playing, for store screenshots without
- * broadcasters' names or logos. No dongle, no engine: AppShell gets a hand-made EngineState and Snapshot.
+ * broadcasters' names or logos. No dongle, no engine: AppShell gets a hand-made EngineState and Snapshot, and the
+ * made-up logos (assets/demo-logos, from tools/branding/demo-logos.html) stand in for downloaded ones.
  *
  *     adb shell am start -n io.github.jvspier.dabplay/.DemoActivity --es theme night|day
  */
@@ -39,6 +42,7 @@ class DemoActivity : ComponentActivity() {
             hide(WindowInsetsCompat.Type.systemBars())
         }
         val display = if (intent.getStringExtra("theme") == "day") DisplayMode.DAY else DisplayMode.NIGHT
+        val logos = demoLogos()
         setContent {
             var settings by remember { mutableStateOf(Settings(display = display)) }
             var playingKey by remember { mutableStateOf(STATIONS[1].key) }
@@ -54,11 +58,23 @@ class DemoActivity : ComponentActivity() {
                 updateSettings = { f -> settings = f(settings) },
             )
             DabPlayTheme(settings.display, settings.background, settings.pureBlackAtNight) {
-                CompositionLocalProvider(LocalLogos provides emptyMap()) {   // initials tiles: no broadcaster logos
+                CompositionLocalProvider(LocalLogos provides logos) {
                     AppShell(engine, db, settings, actions)
                 }
             }
         }
+    }
+
+    /** The made-up logos as if downloaded: copied out of the assets once, one per station (file named after it). */
+    private fun demoLogos(): Map<ServiceKey, LogoStore.Entry> {
+        val dir = File(filesDir, "demo-logos").apply { mkdirs() }
+        return STATIONS.mapNotNull { s ->
+            val name = s.label.lowercase().replace(' ', '-') + ".png"
+            val f = File(dir, name)
+            runCatching { if (!f.exists()) assets.open("demo-logos/$name").use { i -> f.outputStream().use { i.copyTo(it) } } }
+                .getOrNull() ?: return@mapNotNull null
+            s.key to LogoStore.Entry(f, "DEMO", "", 1L)
+        }.toMap()
     }
 
     private companion object {
