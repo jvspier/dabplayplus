@@ -37,7 +37,8 @@ adb shell dumpsys gfxinfo io.github.jvspier.dabplay reset   # then interact, and
 
 **Releasing:** raise `versionCode` by one and `versionName` (small steps: the last number for fixes and small
 additions), add the version to `../CHANGELOG.md` (the website shows it, and its build stops without it), build with the release key, then tag `vX.Y.Z` and publish the APK as a
-GitHub release whose notes say the same as the changelog.
+GitHub release whose notes say the same as the changelog. For Google Play: `./gradlew bundleRelease` gives
+`app/build/outputs/bundle/release/app-release.aab`, signed with the same key.
 
 The baseline profile (`app/src/release/generated/baselineProfiles/`) is regenerated after bigger UI changes, with the
 head-unit emulator running: `./gradlew :app:generateReleaseBaselineProfile` (module `:baselineprofile`; the app is left
