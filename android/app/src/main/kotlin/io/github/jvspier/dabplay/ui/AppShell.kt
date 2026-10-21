@@ -299,6 +299,7 @@ fun nowLines(e: EngineState): NowLines {
     return when {
         st == null -> NowLines("No station", "Pick a station to start")
         e.unsupportedDongle -> NowLines(st.label, "USB device not supported")
+        !e.dongle && e.notResponding -> NowLines(st.label, NOT_RESPONDING)
         !e.dongle && !e.playing -> NowLines(st.label, "DAB dongle not connected")
         e.problem != null -> NowLines(st.label, e.problem)
         e.tuning -> NowLines(st.label, "Tuning…")
@@ -396,6 +397,8 @@ fun ScreenTitle(text: String, compact: Boolean, trailing: @Composable RowScope.(
 
 /** A device with the DAB dongle's USB id that isn't one DABplay+ can use (the log has its details: issue #1). */
 const val UNSUPPORTED_DONGLE = "This USB device has a DAB dongle's ID, but DABplay+ can't use it"
+/** Plugged in, but it doesn't answer (yet): the engine keeps reconnecting. */
+const val NOT_RESPONDING = "DAB dongle not responding, retrying…"
 
 @Composable
 fun BoxScope.EmptyHint(text: String) {

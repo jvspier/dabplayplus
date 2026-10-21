@@ -63,6 +63,8 @@ data class EngineState(
     val error: String? = null,
     /** A device with a dongle's USB id is connected, but it isn't one we can use: the screen says so. */
     val unsupportedDongle: Boolean = false,
+    /** The dongle is plugged in, but its last init or session failed: reconnecting (not "not connected", issue #3). */
+    val notResponding: Boolean = false,
 )
 
 /**
@@ -169,9 +171,11 @@ class DabEngine(
             pendingResume = resume
             failures++
             val wait = minOf(timings.reconnectMaxMs, timings.reconnectBaseMs shl minOf(failures - 1, 4))
+            _state.update { it.copy(notResponding = true) }
             status("Dongle error, reconnecting in ${"%.1f".format(wait / 1000.0)} s")
             try { Thread.sleep(wait) } catch (_: InterruptedException) { break }
         }
+        _state.update { it.copy(notResponding = false) }
         runCatching { focus.abandon() }
     }
 
@@ -190,7 +194,7 @@ class DabEngine(
             val r: RadioSession = drivers.rawTuner(kind, transport, log)?.let { Session(it, player) }
                 ?: ModuleSession({ listener -> drivers.moduleTuner(kind, transport, listener, log) ?: error("no driver for $kind") }, player)
             radio = r
-            _state.update { it.copy(dongle = true, error = null, unsupportedDongle = false) }
+            _state.update { it.copy(dongle = true, error = null, unsupportedDongle = false, notResponding = false) }
             pendingResume = null                                 // handed to this session (queued below)
             status("Dongle ready (${r.description})")
             when {

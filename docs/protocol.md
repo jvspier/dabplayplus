@@ -67,10 +67,11 @@ Firmware-level dependent behaviour (`DAT_002025ec` = version reply byte 3):
 ## DAB chip register interface
 - 8-bit registers, **page select = write reg 0x03**. Pages seen: 4, 6, 7, 9, 0x0A, 0x0C, 0x0F.
 - Init sanity check ("check interface", `FUN_00077b70`/`FUN_000788a0`): page 7, write reg
-  0x7D = 0x06, read reg 0x7D, expect 0x06. **[verified on hw]**
+  0x7D = 0x06, read reg 0x7D, expect 0x06. **[verified on hw]** The vendor library tries it once; DABdream+ up to
+  100 times 5 ms apart (`RaonTunerInput::tunerPowerUp`), and so do we since issue #3 (a stick that needed time).
 - Page 0x0F = RF/tuner: PLL word in regs 0x23..0x26, start with reg 0x20 = 0, lock/readback
   in regs 0x12..0x15 (reg 0x15 bit 1 = lock). Clock plan in regs 0xE8..0xEE (reg 0x15 bit 0 =
-  plan applied).
+  plan applied; polled 10 × 10 ms, else `FUN_00078b20` returns -14 and the tune fails with it, the plan unchanged).
 - Page 6 reg 0x10: `0x48` then `0xC9` = demodulator restart (after every tune).
 - Page 9 = buffers/interrupts: reg 0x33 = status (bit 0 = FIC ready, bits 4..6 = MSC
   ready/overflow), reg 0x35 = ack/clear bits, reg 0x3A = audio sub-channel select

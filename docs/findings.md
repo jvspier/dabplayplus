@@ -36,6 +36,30 @@ this file as work progresses.
     what was found) [verified, API 34 emulator online: retry of 20 → 19 not found + 1 no answer; refresh of 67 kept
     all 47 logos]; an unanswered lookup is no longer a 3-day "not found" [verified: unit tests, and live: "YOURSAFE: no
     answer" became "no usable logo" on the next pass]; the Now playing tab is a play triangle (both themes checked).
+  - After 1.3.1 (2026-10-21, not released yet), GitHub issues #2 and #3, both from the same reporter's unit ("alps
+    B9520B": it says Android 10, but `SDK_INT` is 27, so Android 8.1 underneath):
+    - #2 again: the bars came back after leaving the app and returning, until Full screen was switched off and on.
+      Before Android 11 the compat controller's hide() is `decorView.setSystemUiVisibility(current | flags)`
+      [verified: core 1.19.1 `WindowInsetsControllerCompat$Impl20` bytecode], and a View ignores a value it already
+      has, so re-hiding with the flags still set does nothing. That unit shows its bars again without clearing them
+      [hypothesis: fits "off and on fixes it"; not seen on our emulators]. Now, before Android 11, 0.6 s after focus
+      returns: if the system reports the bars shown (`OnSystemUiVisibilityChangeListener`) while our flags say hidden,
+      clear and set them again 150 ms apart. The insets can't tell: with LAYOUT_STABLE they always include the bars
+      [verified: the first version, using insets, fired on every return on the Android 10 emulator]. No false trigger
+      and still full screen on the 8.0 and 10 emulators (start, Home and back, the shade, Recents, a cold start)
+      [verified]; on the reporter's unit [not yet tested].
+    - #3 (a C100 stick, manufacturer "wshtyr@126.com", often not working on first start). The log shows the stick is
+      found every time, and the MCU answers (version 4, power on); the DAB chip behind it fails the interface check
+      (page 7 reg 0x7D written 6, read back ≠ 6) [verified, from the log]. 1.2.1: twice in use, a switch to 11B failed
+      at the clock plan (reg 0x15 bit 0 not set within 100 ms), the engine re-initialised, and the check then failed
+      for 50 s and 9 min before it worked again by itself. 1.3.1: failing from the first start for 3+ minutes. Cause
+      unknown [hypothesis: the chip is slow or unstable after power on, maybe its clock; or the supply]. Changes, all
+      with transfers we already send: the interface check is repeated up to 100 times 5 ms apart, as DABdream+ does
+      (`RaonTunerInput::tunerPowerUp`) [verified in its decompile]; a clock plan that doesn't apply is a failed tune
+      (-14), as in the vendor's FUN_00078b20 / FUN_00072400, instead of an error that re-inits the stick [verified in
+      the decompile]; the log says how many checks the chip needed and what it read back; the screen says "DAB dongle
+      not responding, retrying…" instead of "not connected". Unit tests for all three [verified]; on a stick
+      [not yet tested]. The vendor library never sends power off (`10 00 00 00`) or reset (`10 00 00 02`): no callers.
   - 1.3.1 (2026-10-20, GitHub issue #2: the system bar covered the title and clock): the bars were hidden only once,
     at start; Android shows them again after another app or a system screen and doesn't hide them on return
     [verified: reproduced on the Android 10 emulator by leaving via Home and coming back]. Now hidden again whenever

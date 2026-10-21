@@ -26,6 +26,7 @@ object C100 {
         try {
             d.powerOn()
             d.systemInit()
+            if (d.interfaceChecks > 1) log("chip answered after ${d.interfaceChecks} interface checks")
             registerLevelSeen = true
             return Dtr100Tuner(d, fw)
         } catch (e: Dtr100.NotRegisterLevel) {

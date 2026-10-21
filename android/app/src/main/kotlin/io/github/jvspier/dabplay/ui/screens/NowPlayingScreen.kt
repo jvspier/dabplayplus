@@ -55,6 +55,7 @@ import io.github.jvspier.dabplay.core.Reception
 import io.github.jvspier.dabplay.data.Snapshot
 import io.github.jvspier.dabplay.data.Station
 import io.github.jvspier.dabplay.engine.EngineState
+import io.github.jvspier.dabplay.ui.NOT_RESPONDING
 import io.github.jvspier.dabplay.ui.RadioActions
 import io.github.jvspier.dabplay.ui.noSignalText
 import io.github.jvspier.dabplay.ui.statusColor
@@ -116,6 +117,7 @@ private fun nowLine(e: EngineState, st: Station?): Pair<String, Color> {
     val text = when {
         st == null -> "Nothing playing"
         e.unsupportedDongle -> "USB device not supported"
+        !e.dongle && e.notResponding -> NOT_RESPONDING
         !e.dongle && !e.playing -> "DAB dongle not connected"
         problem != null -> problem
         e.tuning -> "Tuning…"

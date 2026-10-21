@@ -124,6 +124,24 @@ class DabEngineTest {
         assertFalse(tuner.calls.any { it.startsWith("start 7") })
     }
 
+    /** Issue #3: while a plugged-in dongle fails its init, the screen says it isn't responding, not "not connected". */
+    @Test fun aDongleThatFailsItsInitIsNotRespondingUntilItWorks() {
+        val dongle = FakeDongle("usb-1", failOpens = 3)
+        val e = engine(FakeDrivers { ScriptedTuner(mutableMapOf()) })
+        e.attach(dongle)
+        await("not responding") { e.state.value.notResponding && !e.state.value.dongle }
+        await("the dongle") { e.state.value.dongle }
+        assertFalse(e.state.value.notResponding)
+    }
+
+    @Test fun unpluggingADongleThatDoesNotRespondClearsIt() {
+        val e = engine(FakeDrivers { ScriptedTuner(mutableMapOf()) })
+        e.attach(FakeDongle("usb-1", failOpens = Int.MAX_VALUE))
+        await("not responding") { e.state.value.notResponding }
+        e.detached(null)
+        await("cleared") { !e.state.value.notResponding }
+    }
+
     @Test fun reconnectsAfterAUsbErrorAndCarriesOn() {
         store.applyScan(listOf(stored(0x8008, "11C", k11C, radio538)), setOf("11C"))
         val fic = Broadcast.fic(0x8008, "Mux 11C", listOf(radio538))

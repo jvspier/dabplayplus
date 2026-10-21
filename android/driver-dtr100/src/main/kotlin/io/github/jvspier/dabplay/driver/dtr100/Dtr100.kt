@@ -27,6 +27,8 @@ class Dtr100(
     private var mscSeq = 0                                 // DAT_002025e0: rolling counter in cmd 0x42
     private var mscSize = 0                                // DAT_002025e4 / DAT_00657c38
     private var subch: Int? = null                         // active audio sub-channel
+    /** How many interface checks the last [systemInit] needed (1 = answered straight away). */
+    var interfaceChecks = 0; private set
 
     open class DriverException(msg: String) : IOException(msg)
 
@@ -109,8 +111,24 @@ class Dtr100(
     fun page(p: Int) = wreg(0x03, p)
     private fun wlist(vararg p: Int) { var i = 0; while (i < p.size) { wreg(p[i], p[i + 1]); i += 2 } }
 
-    /** FUN_000788a0 / FUN_00077b70. */
-    fun checkInterface(): Boolean { page(7); wreg(0x7D, 0x06); return r1(0x7D) == 0x06 }
+    /** FUN_000788a0 / FUN_00077b70: page 7 reg 0x7D written and read back; returns what came back (0x06 = ok). */
+    fun checkInterface(): Int { page(7); wreg(0x7D, 0x06); return r1(0x7D) }
+
+    /**
+     * [checkInterface] until the chip answers, up to 100 times 5 ms apart, as DABdream+ does after opening this stick
+     * (RaonTunerInput::tunerPowerUp): on some sticks the chip isn't ready the moment the MCU acks power on, and one try
+     * failed every time (issue #3). The same three transfers each time, nothing else.
+     */
+    private fun awaitInterface() {
+        val seen = sortedSetOf<Int>()
+        for (k in 1..INTERFACE_TRIES) {
+            val v = try { checkInterface() } catch (e: IOException) { throw NotRegisterLevel("check interface: ${e.message}") }
+            if (v == 0x06) { interfaceChecks = k; return }
+            seen += v
+            sleep(5)
+        }
+        throw NotRegisterLevel("check interface failed $INTERFACE_TRIES times (read back ${seen.joinToString { "0x%02x".format(it) }})")
+    }
 
     // --- DAB chip driver (band III) ---------------------------------------------------------
 
@@ -121,22 +139,27 @@ class Dtr100(
         wlist(0xE8, c[0] or 0x40, 0xE9, c[1] or 0x50, 0xEA, c[2], 0xEB, c[3], 0xEC, c[4], 0xED, c[5], 0xEE, c[6])
     }
 
-    private fun setClockPlan(p: Int) {                  // FUN_00078b20(band 1, plan)
-        if (p == plan) return
+    /**
+     * FUN_00078b20(band 1, plan): 0, or -14 when reg 0x15 bit 0 doesn't come up. Like the vendor's, a failure is a
+     * failed tune, not a dead dongle: the plan stays unset, so the next tune writes it again (it used to throw, and the
+     * engine re-initialised the stick, issue #3).
+     */
+    private fun setClockPlan(p: Int): Int {
+        if (p == plan) return 0
         clockPlanRegs(p)
         var ok = false
         for (k in 0 until 10) { if (r1(0x15) and 1 != 0) { ok = true; break }; sleep(10) }
-        if (!ok) throw DriverException("clock plan not applied (reg 0x15 bit 0)")
+        if (!ok) return CLOCK_PLAN_FAILED
         val (r6a, p6, r4041, r42) = PLAN_REGS.getValue(p)
         page(4); wreg(0x6A, r6a)
         page(6); wlist(*p6); wlist(0x54, 0x58, 0x40, r4041.first, 0x41, r4041.second, 0x42, r42, 0x43, 0x00)
         plan = p
+        return 0
     }
 
     /** FUN_00073220. */
     fun systemInit() {
-        val registerAccess = try { checkInterface() } catch (e: IOException) { throw NotRegisterLevel("check interface: ${e.message}") }
-        if (!registerAccess) throw NotRegisterLevel("check interface failed")
+        awaitInterface()
         page(0x0F); wlist(0x54, 0x1C, 0x52, 0x07, 0x30, 0xF4, 0x2F, 0x71)
         clockPlanRegs(0)
         var ok = false
@@ -182,7 +205,7 @@ class Dtr100(
     private fun demodRestart() { page(6); wreg(0x10, 0x48); sleep(1); wreg(0x10, 0xC9) }
     private fun demodRestartNoWait() { page(6); wreg(0x10, 0x48); wreg(0x10, 0xC9) }
 
-    private fun pllBand3(f: Int): Int {                 // FUN_00079080(1, 0, f); 0 or -13
+    private fun pllBand3(f: Int): Int {                 // FUN_00079080(1, 0, f); 0, -13 (no PLL lock) or -14 (clock plan)
         if (bandMode != 1) { page(0x0F); wlist(*Dtr100Tables.RF_BAND3); bandMode = 1 }
         val i = band3Index(f)
         if (i !in Dtr100Tables.BAND3_PLL.indices) throw DriverException("$f kHz is not a band III channel")
@@ -190,7 +213,7 @@ class Dtr100(
         val p = Dtr100Tables.BAND3_PLAN[i]
         val ratio = w.toDouble() / f
         if (ratio !in 341.0..341.8) throw DriverException("PLL word 0x%x implausible for $f kHz (index $i)".format(w))
-        setClockPlan(p)
+        setClockPlan(p).let { if (it != 0) return it }
         page(0x0F)
         wlist(0x23, (w shr 22 and 0xFF).toInt(), 0x24, (w shr 14 and 0xFF).toInt(), 0x25, (w shr 6 and 0xFF).toInt())
         for (r in intArrayOf(0x23, 0x24, 0x25)) rreg(r)
@@ -215,7 +238,7 @@ class Dtr100(
                         var u1: Int? = null, var u21: Int? = null, var loopBRounds: Int? = null, var u15: Int? = null,
                         var q: Int? = null)
 
-    /** Result of [tune]: rc 0 = locked (and quality accepted), -4 = rejected (see info.why), -13 = PLL. */
+    /** Result of [tune]: rc 0 = locked (and quality accepted), -4 = rejected (see info.why), -13 = PLL, -14 = clock plan. */
     data class TuneOutcome(val rc: Int, val info: TuneInfo) { val locked get() = rc == 0 }
 
     private fun thresholds(p: Int?, mode: Int, f: Int): IntArray? {   // (u15, u17, lo, hi, u20, u22)
@@ -237,7 +260,7 @@ class Dtr100(
         fun fail(why: String) = TuneOutcome(-4, info.also { it.why = why })
 
         val rc = pllBand3(f)
-        if (rc != 0) return TuneOutcome(rc, info.also { it.why = "pll" })
+        if (rc != 0) return TuneOutcome(rc, info.also { it.why = if (rc == CLOCK_PLAN_FAILED) "clock plan not applied" else "pll" })
         page(4); wreg(0x55, 0x0D)
         page(6); wreg(0x54, when (plan) { 0 -> 0x7B; 1 -> 0x78; 3 -> 0x7A; else -> 0x78 }); wreg(0x5A, 0x1B)
         page(0x0F); wreg(0x4B, 0x8F)
@@ -468,6 +491,9 @@ class Dtr100(
         const val MANUFACTURER = "dabusb@126.com"
         const val EP_OUT = 0x02
         const val EP_IN = 0x82
+        /** [awaitInterface]: DABdream+'s count. */
+        const val INTERFACE_TRIES = 100
+        private const val CLOCK_PLAN_FAILED = -14
 
         /** [mcuSignal] value meaning nothing receivable (antenna pulled, 2026-09-27: it jumps straight to 2000). */
         const val SIGNAL_NONE = 2000

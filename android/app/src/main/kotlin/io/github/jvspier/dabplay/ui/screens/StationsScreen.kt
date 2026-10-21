@@ -72,6 +72,7 @@ import io.github.jvspier.dabplay.data.Snapshot
 import io.github.jvspier.dabplay.data.Station
 import io.github.jvspier.dabplay.engine.EngineState
 import io.github.jvspier.dabplay.ui.EmptyHint
+import io.github.jvspier.dabplay.ui.NOT_RESPONDING
 import io.github.jvspier.dabplay.ui.UNSUPPORTED_DONGLE
 import io.github.jvspier.dabplay.ui.RadioActions
 import io.github.jvspier.dabplay.ui.ScreenTitle
@@ -115,7 +116,7 @@ fun StationsScreen(e: EngineState, db: Snapshot, a: RadioActions, compactTitle: 
             trailing = { ScanButton(e, a) })
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (stations.isEmpty()) {
-                EmptyHint(if (e.unsupportedDongle) UNSUPPORTED_DONGLE else if (!e.dongle) "Connect the DAB dongle, then tap Scan" else if (e.scan != null) "Looking for stations…" else "Tap Scan to find stations")
+                EmptyHint(if (e.unsupportedDongle) UNSUPPORTED_DONGLE else if (!e.dongle && e.notResponding) NOT_RESPONDING else if (!e.dongle) "Connect the DAB dongle, then tap Scan" else if (e.scan != null) "Looking for stations…" else "Tap Scan to find stations")
                 return@Box
             }
             val list = rememberLazyListState()
