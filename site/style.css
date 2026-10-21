@@ -98,6 +98,7 @@ footer .wrap { display: flex; gap: 24px; flex-wrap: wrap; justify-content: space
 .releases.latest .release h3 { display: none; }                 /* the section's heading names the version already */
 .more { margin: 18px 0 0; font-size: 17px; } .more a { color: var(--orange); font-weight: 600; text-decoration: none; }
 .final .sub a { color: inherit; }
+.playtest { color: var(--muted); max-width: 34em; margin: 26px auto 0; font-size: 16px; } .playtest a { color: var(--orange); font-weight: 600; text-decoration: none; }
 
 /* the privacy page */
 .doc { max-width: 760px; padding: 72px 24px 24px; }

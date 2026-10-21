@@ -6,6 +6,10 @@ Big tiles, big text, few taps: made to be used while driving.
 **Download:** the APK is on the [Releases](https://github.com/jvspier/dabplayplus/releases) page; what changed in each
 version is in the [changelog](CHANGELOG.md). Website: [jvspier.github.io/dabplayplus](https://jvspier.github.io/dabplayplus/).
 
+**Google Play:** DABplay+ is in a closed test before it goes public, and Google wants 12 testers for 14 days. Want to
+help? Join the [tester group](https://groups.google.com/g/dabplay-testers), then open the [test page](https://play.google.com/apps/testing/io.github.jvspier.dabplay) with the same Google
+account, tap "Become a tester" and install it from Play. No dongle needed: without one you can still open every screen.
+
 ![Favourites](docs/screenshots/home.png)
 
 | Now playing (night) | Now playing (day) |
@@ -62,7 +66,7 @@ version is in the [changelog](CHANGELOG.md). Website: [jvspier.github.io/dabplay
 
 ## Status
 
-Released (the [changelog](CHANGELOG.md) has the latest version), not on the Play Store yet. In daily use in a car on a Dudu3 head unit (Android 10, budget-class hardware)
+Released (the [changelog](CHANGELOG.md) has the latest version), in a closed test on Google Play (see above). In daily use in a car on a Dudu3 head unit (Android 10, budget-class hardware)
 with the DTR-100 dongle: quick and responsive, and through a tunnel it shows "No signal" and is back quickly after
 it. Before that it was tested with the same dongle in the Android emulator (USB passthrough): scan, playback,
 switching, text, slides, logos, reception loss and recovery, dongle dropouts. The app is tuned for budget head units
