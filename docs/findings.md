@@ -36,6 +36,17 @@ this file as work progresses.
     what was found) [verified, API 34 emulator online: retry of 20 → 19 not found + 1 no answer; refresh of 67 kept
     all 47 logos]; an unanswered lookup is no longer a 3-day "not found" [verified: unit tests, and live: "YOURSAFE: no
     answer" became "no usable logo" on the next pass]; the Now playing tab is a play triangle (both themes checked).
+  - After 1.3.4 (2026-10-26), #2 again: the reporter said 1.3.2 helps only sometimes (the bar goes when the app opens
+    and comes back about a second later; switching Full screen off and on still fixes it). Owner's call: no more
+    workarounds, the standard approach, and where a unit shows its bars anyway the app must fit inside them. Done:
+    the 1.3.2 check-and-redo after 0.6 s is gone; `applySystemBars` = compat hide/show, redone on focus; AppShell always
+    pads by `WindowInsets.systemBars`. Before Android 11 the insets counted the bars even when hidden because the
+    edge-to-edge setup sets LAYOUT_STABLE [verified: core 1.19.1 `setDecorFitsSystemWindows` sets 0x700]; that flag is
+    now cleared. Emulators 8.0, 10, 14 [verified]: full screen at start and after Home and back (8.0: vsysui 0x3616, no
+    stable flag, content insets 0), a swiped-in bar overlays without moving the layout, Full screen off fits the app
+    between status bar and nav bar (8.0) / below the status bar (10). A unit showing its bars while Full screen is on
+    takes the same path as "off" (insets of the bars on screen) [hypothesis: on the reporter's unit, untested]; a bar
+    drawn outside Android's system bars gives no insets and can't be fitted by any app.
   - 1.3.4 (2026-10-26, owner: Start with the car on, yet after a car start the app had to be opened and played by
     hand). From the owner's Dudu3 log (10-15 to 10-26): the Dudu3 sleeps at ACC off, and the app process survives it:
     no new "DABplay+ x on" line and no USB detach/attach for the dongle around a stop (e.g. 08:22 paused → 08:26

@@ -10,6 +10,7 @@ import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.Build
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
 import io.github.jvspier.dabplay.data.StationStore
 import androidx.activity.ComponentActivity
@@ -60,8 +61,6 @@ class MainActivity : ComponentActivity() {
         // Connect to the media service so it runs (and becomes the active MediaSession for the steering-wheel keys)
         controller = MediaController.Builder(this, SessionToken(this, ComponentName(this, RadioService::class.java))).buildAsync()
         fullScreen = app.settings.state.value.fullScreen
-        @Suppress("DEPRECATION")
-        if (Build.VERSION.SDK_INT < 30) window.decorView.setOnSystemUiVisibilityChangeListener { systemShows = it }
         applySystemBars()
         // Compose paints the whole window itself: the theme's window background would be one more full-screen layer per frame
         window.setBackgroundDrawable(null)
@@ -121,45 +120,29 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Settings → Full screen. On: the whole screen is ours, the head unit's bars come back with a swipe from an edge.
-     * Off: they stay, and AppShell fits the app next to them. Android shows them again whenever our window loses focus
-     * (another app, the USB prompt, a share screen, a notification) and doesn't hide them on return: hide them again
-     * whenever the window has focus back (issue #2).
+     * Settings → Full screen, the standard way: hide the bars, and hide them again whenever the window has focus back
+     * (Android shows them for another app, the USB prompt, a share screen, and doesn't hide them on return; issue #2).
+     * A swipe from an edge shows them for a moment. Off: they stay. Either way AppShell fits the app inside whatever
+     * bars are on screen, so a head unit that shows them anyway never covers anything.
      */
     private var fullScreen = true
-    /** Before Android 11: the system UI visibility the system last reported (its HIDE_FLAGS bits set = bars hidden). */
-    private var systemShows = 0
 
-    private fun applySystemBars() = WindowCompat.getInsetsController(window, window.decorView).run {
-        if (fullScreen) {
-            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            hide(WindowInsetsCompat.Type.systemBars())
-        } else show(WindowInsetsCompat.Type.systemBars())
+    private fun applySystemBars() {
+        // Before Android 11 the edge-to-edge setup asks for "stable" insets: the bars' space as if they were always
+        // shown. Without that flag the insets are the bars actually on screen, which is what AppShell fits inside.
+        @Suppress("DEPRECATION")
+        if (Build.VERSION.SDK_INT < 30) window.decorView.run { systemUiVisibility = systemUiVisibility and View.SYSTEM_UI_FLAG_LAYOUT_STABLE.inv() }
+        WindowCompat.getInsetsController(window, window.decorView).run {
+            if (fullScreen) {
+                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                hide(WindowInsetsCompat.Type.systemBars())
+            } else show(WindowInsetsCompat.Type.systemBars())
+        }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (!hasFocus || !fullScreen) return
-        applySystemBars()
-        if (Build.VERSION.SDK_INT < 30) window.decorView.run { removeCallbacks(barsStillShown); postDelayed(barsStillShown, 600) }
-    }
-
-    /**
-     * Before Android 11, hiding the bars sets flags on the window's view, and setting flags it already has does nothing.
-     * Some head units show their bars again on the way back to the app but leave those flags set, so hiding them again
-     * was a no-op (issue #2, an Android 8.1 unit: it worked only after switching Full screen off and on). A moment
-     * after the window has focus back (the bars take that long to go), if they're still on screen though hidden: clear
-     * the flags and hide them again shortly after, as that switch does. Normally they're gone by then: nothing happens.
-     */
-    private val barsStillShown = Runnable {
-        val decor = window.decorView
-        // what the system shows, as it last told us (the insets can't say: with LAYOUT_STABLE they always count the bars)
-        val onScreen = systemShows and HIDE_FLAGS != HIDE_FLAGS
-        @Suppress("DEPRECATION") val flagsSet = decor.systemUiVisibility and HIDE_FLAGS == HIDE_FLAGS
-        if (!fullScreen || !hasWindowFocus() || !onScreen || !flagsSet) return@Runnable
-        app.events.i("MainActivity", "Full screen: the head unit's bars are back though hidden (0x%x), hiding them again".format(systemShows))
-        WindowCompat.getInsetsController(window, decor).show(WindowInsetsCompat.Type.systemBars())
-        decor.postDelayed({ if (fullScreen && hasWindowFocus()) applySystemBars() }, 150)
+        if (hasFocus && fullScreen) applySystemBars()
     }
 
     override fun onStart() { super.onStart(); app.uiVisible = true }
@@ -186,8 +169,5 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val ACTION_PERMISSION = "io.github.jvspier.dabplay.USB_PERMISSION"
-        /** What the compat controller sets for hide(systemBars()) before Android 11 (View.SYSTEM_UI_FLAG_*). */
-        @Suppress("DEPRECATION")
-        const val HIDE_FLAGS = android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
     }
 }

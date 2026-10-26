@@ -148,8 +148,9 @@ fun AppShell(engine: EngineState, db: Snapshot, settings: Settings, actions: Rad
     CompositionLocalProvider(LocalClockFormat provides settings.clock, LocalNow provides rememberNow()) {
     Box(Modifier.fillMaxSize()) {
         PageBackground { npGlow.value }
-        // Full screen off: the head unit's bars stay and everything fits next to them; the background still fills it all
-    Box(Modifier.fillMaxSize().then(if (settings.fullScreen) Modifier else Modifier.windowInsetsPadding(WindowInsets.systemBars))) {
+        // everything fits inside the head unit's bars that are on screen (Full screen off, or a unit that shows them
+        // anyway; hidden bars take no space); the background still fills it all
+    Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars)) {
         Row(Modifier.fillMaxSize()) {
             val parts = buildList<@Composable RowScope.() -> Unit> {
                 add { Rail(tab, right) { tab = it } }

@@ -134,10 +134,13 @@ dongle family is a new kind and a line there.
   there `DabApp` opens it (and resumes, with Resume last station on) when the screen comes on after at least 10 s of
   deep sleep; a screen that went off while something played (CPU awake) opens nothing.
 - Back never leaves the app by accident (another tab → Home; Home → nothing).
-- System bars (Settings → Full screen, `MainActivity.applySystemBars`): on, they're hidden, and hidden again whenever the
-  window gets focus back, because Android shows them after another app, the USB prompt or a share screen and doesn't
-  hide them on return (issue #2); a swipe from an edge shows them for a moment. Off, they stay and AppShell pads the
-  content by the system-bar insets, so nothing is covered; their icons follow the app's day/night theme.
+- System bars (Settings → Full screen, `MainActivity.applySystemBars`), the standard Android way: on, they're hidden
+  (`WindowInsetsControllerCompat`, swipe from an edge shows them for a moment), and hidden again whenever the window
+  gets focus back, because Android shows them after another app, the USB prompt or a share screen (issue #2). Off,
+  they stay. Either way AppShell pads the content by the bars that are on screen (`WindowInsets.systemBars`; hidden
+  bars and swiped-in ones take no space), so a head unit that shows its bars anyway never covers the app. Before
+  Android 11 that needs `SYSTEM_UI_FLAG_LAYOUT_STABLE` cleared (the edge-to-edge setup sets it): with it, the insets
+  always count the bars as if shown. Their icons follow the app's day/night theme.
 - Unplugs are handled in the app process (`DabApp`), so they're seen with no screen open. If the dongle drops out while
   playing (a voltage dip while cranking or at a start-stop restart, a USB hub reset), the station is remembered and
   `UsbAttachActivity` reconnects it in the background when it's back [verified: 538 again < 1 s after the replug,
