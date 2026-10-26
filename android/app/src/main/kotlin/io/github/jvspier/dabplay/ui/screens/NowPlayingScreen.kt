@@ -137,7 +137,7 @@ private fun nowLine(e: EngineState, st: Station?): Pair<String, Color> {
 private fun NowCard(e: EngineState, st: Station?, CARD_H: Dp) {
     val CARD_W = CARD_H * 4 / 3
     val night = LocalNight.current
-    val slide = rememberSlide(e.slide)
+    val slide = rememberSlide(e.slide, st?.key)
     val logo = rememberLogo(st?.key)
     val (line, lineColor) = nowLine(e, st)
     val floor = CARD_H * (1f - BAND) - LOGO_GAP          // where the picture stands, from the top

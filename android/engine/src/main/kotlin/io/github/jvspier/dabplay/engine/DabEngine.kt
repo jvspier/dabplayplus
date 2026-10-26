@@ -250,7 +250,8 @@ class DabEngine(
     /** A slide, checked from its header before anything decodes it: a small file can declare 16000x16000 (1 GB). */
     private fun showSlide(body: ByteArray) {
         val info = ImageSniff.info(body)
-        if (info != null && info.width <= MAX_SLIDE_PX && info.height <= MAX_SLIDE_PX) _state.update { it.copy(slide = body) }
+        // stations repeat their slides (a carousel): the same picture again changes nothing on screen
+        if (info != null && info.width <= MAX_SLIDE_PX && info.height <= MAX_SLIDE_PX) _state.update { if (it.slide?.contentEquals(body) == true) it else it.copy(slide = body) }
         else events.w(TAG, "slide dropped: ${info?.let { "${it.width}x${it.height} ${it.mime}" } ?: "not a JPEG/PNG"}")
     }
 

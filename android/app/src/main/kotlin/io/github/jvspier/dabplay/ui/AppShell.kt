@@ -372,7 +372,7 @@ private fun PlayerPanel(e: EngineState, db: Snapshot, a: RadioActions, open: () 
 fun Artwork(slide: ByteArray?, label: String, key: ServiceKey?, width: Dp, height: Dp, radius: Dp = 18.dp, preferLogo: Boolean = false,
             modifier: Modifier = Modifier) {
     val c = LocalDabColors.current
-    val bmp = if (preferLogo) null else rememberSlide(slide)    // decoded off the UI thread: a new slide never costs a frame
+    val bmp = if (preferLogo) null else rememberSlide(slide, key)    // decoded off the UI thread: a new slide never costs a frame
     Box(modifier.size(width, height).clip(RoundedCornerShape(radius)).background(c.surface), contentAlignment = Alignment.Center) {
         Crossfade(bmp, animationSpec = tween(300), label = "art") { b ->
             if (b != null) Image(b, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())

@@ -52,12 +52,15 @@ fun rememberBlurred(img: ImageBitmap?): ImageBitmap? {
     return out.value
 }
 
-/** A broadcast slide (JPEG/PNG bytes), decoded off the main thread; null until ready. */
+/**
+ * A broadcast slide (JPEG/PNG bytes) of [station], decoded off the main thread. The station's previous slide stays up
+ * until the next is ready: resetting to null first blanked the picture for a moment at every new slide.
+ */
 @Composable
-fun rememberSlide(slide: ByteArray?): ImageBitmap? {
-    val out = remember(slide) { mutableStateOf<ImageBitmap?>(null) }
+fun rememberSlide(slide: ByteArray?, station: Any?): ImageBitmap? {
+    val out = remember(station) { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(slide) { out.value = slide?.let { b -> withContext(Dispatchers.Default) { decodeSlide(b) } } }
-    return out.value
+    return if (slide == null) null else out.value
 }
 
 /**
