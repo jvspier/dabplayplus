@@ -4,6 +4,13 @@ What changed in each version of DABplay+, newest first. Each version's APK is on
 [release page](https://github.com/jvspier/dabplayplus/releases); every version installs over the previous one and keeps
 your stations, favourites and settings.
 
+## [1.3.5] - 2026-10-26
+
+### Fixed
+- Full screen now hides the head unit's bars the standard Android way. On a head unit that shows its bars anyway, the
+  app now fits between them instead of being covered
+  ([#2](https://github.com/jvspier/dabplayplus/issues/2)). That used to happen only with Full screen off.
+
 ## [1.3.4] - 2026-10-26
 
 ### Fixed

@@ -13,8 +13,8 @@ android {
         applicationId = "io.github.jvspier.dabplay"
         minSdk = 26
         targetSdk = 36
-        versionCode = 11                                 // +1 for every release: Android installs only higher codes as updates
-        versionName = "1.3.4"
+        versionCode = 12                                 // +1 for every release: Android installs only higher codes as updates
+        versionName = "1.3.5"
     }
 
     // The release key lives outside the repo: dabplay.storeFile and dabplay.password in ~/.gradle/gradle.properties.
