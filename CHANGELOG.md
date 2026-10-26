@@ -4,6 +4,12 @@ What changed in each version of DABplay+, newest first. Each version's APK is on
 [release page](https://github.com/jvspier/dabplayplus/releases); every version installs over the previous one and keeps
 your stations, favourites and settings.
 
+## [1.3.3] - 2026-10-26
+
+### Fixed
+- The slideshow picture no longer blinks away for a moment every so often. Stations repeat their slides, and each
+  repeat briefly cleared the picture before showing it again. A new slide now simply replaces the old one.
+
 ## [1.3.2] - 2026-10-21
 
 ### Fixed
@@ -97,6 +103,7 @@ The first release, as a pre-release before the first run on a real head unit.
 - Dongles: the wRadio C100 / DTR-100 type (tested); C100 Dual Antenna, Si4684 modules and Siano sticks (written from
   public sources, untested).
 
+[1.3.3]: https://github.com/jvspier/dabplayplus/releases/tag/v1.3.3
 [1.3.2]: https://github.com/jvspier/dabplayplus/releases/tag/v1.3.2
 [1.3.1]: https://github.com/jvspier/dabplayplus/releases/tag/v1.3.1
 [1.3.0]: https://github.com/jvspier/dabplayplus/releases/tag/v1.3.0

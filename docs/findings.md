@@ -36,6 +36,11 @@ this file as work progresses.
     what was found) [verified, API 34 emulator online: retry of 20 → 19 not found + 1 no answer; refresh of 67 kept
     all 47 logos]; an unanswered lookup is no longer a 3-day "not found" [verified: unit tests, and live: "YOURSAFE: no
     answer" became "no usable logo" on the next pass]; the Now playing tab is a play triangle (both themes checked).
+  - 1.3.3 (2026-10-26, owner on the Dudu3: the slideshow picture blinked away for a split second every ~15 s): stations
+    repeat their slides (MOT carousel) and every repeat was published as a new slide; `rememberSlide` reset to null
+    until the bytes were decoded again [verified in code]. Repeats of the slide on screen are now ignored, and the
+    picture stays until the next one is decoded (per station). Unit tests pass; on screen [not yet tested].
+    #3 confirmed fixed by the reporter on 1.3.2 [verified, reporter 2026-10-22].
   - 1.3.2 (2026-10-21), GitHub issues #2 and #3, both from the same reporter's unit ("alps
     B9520B": it says Android 10, but `SDK_INT` is 27, so Android 8.1 underneath):
     - #2 again: the bars came back after leaving the app and returning, until Full screen was switched off and on.
