@@ -14,7 +14,7 @@ class BootReceiver : BroadcastReceiver() {
         // exported (boot broadcasts need that): only the start-up broadcasts count, not any app's explicit intent
         if (intent.action !in START_UP) return
         val app = context.applicationContext as DabApp
-        if (!app.settings.state.value.startWithCar) return
+        if (!app.settings.state.value.startWithCar) { app.events.i("BootReceiver", "${intent.action}: Start with the car is off"); return }
         app.events.i("BootReceiver", "${intent.action}: Start with the car is on, opening")
         runCatching {
             context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

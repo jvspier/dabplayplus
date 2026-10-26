@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.hardware.usb.UsbDevice
 import android.os.Build
+import android.os.SystemClock
 import android.hardware.usb.UsbManager
 import android.media.AudioManager
 import androidx.core.content.ContextCompat
@@ -34,6 +35,8 @@ class DabApp : Application() {
     val diagnosticsExport by lazy { DiagnosticsExport(this, events) }
     /** MainActivity is on screen (started, not stopped): a dongle appearing then connects without opening anything. */
     @Volatile var uiVisible = false
+    /** How long the CPU had been in deep sleep when the screen last went off (see [woke]). */
+    private var asleepAtScreenOff = deepSleepSoFar()
 
     override fun onCreate() {
         super.onCreate()
@@ -57,5 +60,40 @@ class DabApp : Application() {
                 engine.detached(dev?.deviceName)                          // only our dongle stops the radio
             }
         }, IntentFilter(UsbManager.ACTION_USB_DEVICE_DETACHED), ContextCompat.RECEIVER_NOT_EXPORTED)
+        // Start with the car on head units that sleep instead of switching off (the Dudu3): the app lives on, so a car
+        // start brings no boot and no USB event, only the screen coming back on
+        ContextCompat.registerReceiver(this, object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.action == Intent.ACTION_SCREEN_OFF) { asleepAtScreenOff = deepSleepSoFar(); events.i("DabApp", "screen off") }
+                else woke((deepSleepSoFar() - asleepAtScreenOff) / 1000)
+            }
+        }, IntentFilter(Intent.ACTION_SCREEN_OFF).apply { addAction(Intent.ACTION_SCREEN_ON) }, ContextCompat.RECEIVER_NOT_EXPORTED)
+    }
+
+    /**
+     * The screen is on again after [sleptS] seconds of deep sleep. Only a real sleep (the car was off) opens the radio:
+     * the screen going off while something plays keeps the CPU awake, so switching the screen back on opens nothing.
+     */
+    private fun woke(sleptS: Long) {
+        events.i("DabApp", "screen on after $sleptS s of deep sleep")
+        val s = settings.state.value
+        if (sleptS < WAKE_MIN_SLEEP_S || !s.startWithCar) return
+        // Android 10+ lets an app open itself from the background only with "Display over other apps" allowed
+        if (Build.VERSION.SDK_INT >= 29 && !android.provider.Settings.canDrawOverlays(this))
+            events.w("DabApp", "back from sleep: can't open, \"Display over other apps\" isn't allowed")
+        else {
+            events.i("DabApp", "back from sleep: Start with the car is on, opening")
+            runCatching { startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                .onFailure { events.w("DabApp", "couldn't open the app: ${it.message}") }
+        }
+        // as at a cold start: the last station plays again (Settings → Resume last station)
+        if (s.resumeOnStart && !engine.state.value.playing) engine.resume()
+    }
+
+    private companion object {
+        /** Seconds asleep that count as the car having been off. */
+        const val WAKE_MIN_SLEEP_S = 10
+        /** Elapsed time goes on in deep sleep, uptime doesn't. */
+        fun deepSleepSoFar() = SystemClock.elapsedRealtime() - SystemClock.uptimeMillis()
     }
 }

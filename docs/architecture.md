@@ -130,7 +130,9 @@ dongle family is a new kind and a line there.
 - **Start with the car** (setting, off by default): Android's "dongle appeared" goes to `UsbAttachActivity`, invisible and
   in its own task. It opens the radio only with the setting on or when the radio is already on screen, so otherwise
   nothing comes forward and nothing plays. On, `BootReceiver` also opens the app at boot; Android 10+ allows that only
-  with "Display over other apps".
+  with "Display over other apps". Head units that sleep at ACC off (the Dudu3) keep the app running and send neither:
+  there `DabApp` opens it (and resumes, with Resume last station on) when the screen comes on after at least 10 s of
+  deep sleep; a screen that went off while something played (CPU awake) opens nothing.
 - Back never leaves the app by accident (another tab → Home; Home → nothing).
 - System bars (Settings → Full screen, `MainActivity.applySystemBars`): on, they're hidden, and hidden again whenever the
   window gets focus back, because Android shows them after another app, the USB prompt or a share screen and doesn't
