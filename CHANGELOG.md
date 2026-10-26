@@ -4,6 +4,19 @@ What changed in each version of DABplay+, newest first. Each version's APK is on
 [release page](https://github.com/jvspier/dabplayplus/releases); every version installs over the previous one and keeps
 your stations, favourites and settings.
 
+## [1.3.4] - 2026-10-26
+
+### Fixed
+- Start with the car now also works on head units that sleep when the car is switched off instead of shutting down
+  (the Dudu3 does this). Waking up from sleep didn't count as a start, so the app stayed where it was and you had to
+  open it and press play yourself. Now it comes to the front and plays the last station, as after a cold start.
+
+### Changed
+- Settings are grouped: Look, Favorites & radio, Starting, Station logos and Help. The version number is at the bottom.
+- The diagnostics log now also notes the screen going off and on, what opened the app at start-up, and which app or
+  key pressed play, pause, next or previous. That helps with reports like
+  [#4](https://github.com/jvspier/dabplayplus/issues/4).
+
 ## [1.3.3] - 2026-10-26
 
 ### Fixed

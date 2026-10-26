@@ -36,10 +36,27 @@ this file as work progresses.
     what was found) [verified, API 34 emulator online: retry of 20 → 19 not found + 1 no answer; refresh of 67 kept
     all 47 logos]; an unanswered lookup is no longer a 3-day "not found" [verified: unit tests, and live: "YOURSAFE: no
     answer" became "no usable logo" on the next pass]; the Now playing tab is a play triangle (both themes checked).
+  - 1.3.4 (2026-10-26, owner: Start with the car on, yet after a car start the app had to be opened and played by
+    hand). From the owner's Dudu3 log (10-15 to 10-26): the Dudu3 sleeps at ACC off, and the app process survives it:
+    no new "DABplay+ x on" line and no USB detach/attach for the dongle around a stop (e.g. 08:22 paused → 08:26
+    playing again by hand, same process) [verified, log]. So no BOOT_COMPLETED and no USB attach, the only two
+    triggers. The CPU really stops: on 10-24 a cold start at 03:00 (Start with the car opened and played Qmusic, so
+    that path works) logged its next line 35 h later [verified, log]. Something pauses the radio at ACC off ("Paused"
+    with no focus loss before it) [hypothesis: the Dudu3's media key or session pause; now logged with the sender's
+    package]. Fix: a runtime SCREEN_OFF/ON receiver in `DabApp`; on screen-on after ≥ 10 s of deep sleep
+    (`elapsedRealtime - uptimeMillis` grew) with Start with the car on, open MainActivity and, with Resume last
+    station on, resume. A screen going off while something plays keeps the CPU awake, so that opens nothing.
+    Emulator (API 29) [verified]: the emulator never deep-sleeps (0 s every time) and nothing opened; with the
+    threshold set to 0 in a test build it opened from the Home screen (BAL "allowed because SYSTEM_ALERT_WINDOW
+    permission is granted"), and without that permission it logged why it couldn't. On the Dudu3 [not yet tested]:
+    does SCREEN_ON arrive at a wake, and how long the log says it slept. Also: Settings grouped with headings and the
+    version at the bottom (owner); the owner's "first slide seems slower since 1.3.3" can't come from the 1.3.3 change
+    (the first slide of a station is decoded and shown as before) [verified in code]; it depends on where in the
+    station's slide carousel you tune in.
   - 1.3.3 (2026-10-26, owner on the Dudu3: the slideshow picture blinked away for a split second every ~15 s): stations
     repeat their slides (MOT carousel) and every repeat was published as a new slide; `rememberSlide` reset to null
     until the bytes were decoded again [verified in code]. Repeats of the slide on screen are now ignored, and the
-    picture stays until the next one is decoded (per station). Unit tests pass; on screen [not yet tested].
+    picture stays until the next one is decoded (per station). No more blinking on the Dudu3 [verified, owner 2026-10-26].
     #3 confirmed fixed by the reporter on 1.3.2 [verified, reporter 2026-10-22].
   - 1.3.2 (2026-10-21), GitHub issues #2 and #3, both from the same reporter's unit ("alps
     B9520B": it says Android 10, but `SDK_INT` is 27, so Android 8.1 underneath):
