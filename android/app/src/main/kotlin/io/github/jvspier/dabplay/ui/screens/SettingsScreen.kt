@@ -123,6 +123,7 @@ private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Bo
     Column(Modifier.fillMaxSize()) {
         ScreenTitle("Settings", compact)
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Section("Look", first = true)
             SettingRow(PhosphorIcons.Fill.CircleHalf, Accent.amber, tile, "Display", "Day, night, or follow the system") {
                 Segmented(listOf(DisplayMode.DAY to "Day", DisplayMode.AUTO to "Auto", DisplayMode.NIGHT to "Night"), s.display, Accent.amber, ON_AMBER,
                     { v -> a.updateSettings { it.copy(display = v) } }, optionWidth = segW,
@@ -155,6 +156,18 @@ private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Bo
                 Segmented(listOf(ClockFormat.SYSTEM to "System", ClockFormat.H12 to "12h", ClockFormat.H24 to "24h"), s.clock, Accent.amber, ON_AMBER,
                     { v -> a.updateSettings { it.copy(clock = v) } }, optionWidth = segW)
             }
+            Section("Favorites & radio")
+            SettingRow(PhosphorIcons.Fill.Heart, Accent.pink, tile, "Edit favorites", "${db.favourites.size} of ${StationStore.MAX_FAVOURITES} · or long-press a tile on Home and drag it", onClick = onEditFavourites) {
+                Icon(PhosphorIcons.Fill.CaretRight, null, tint = LocalDabColors.current.neutral400, modifier = Modifier.size(30.dp))
+            }
+            SettingRow(PhosphorIcons.Fill.ArrowsClockwise, Accent.orange, tile, "Follow station", "Switch to a stronger signal of the same station") {
+                DabSwitch(s.followStation) { v -> a.updateSettings { it.copy(followStation = v) } }
+            }
+            SettingRow(PhosphorIcons.Fill.TrafficCone, Accent.amber, tile, "Traffic announcements",
+                if (s.trafficAnnouncements) "On · switches to traffic news on the same multiplex" else "Off · alarm announcements still come through") {
+                DabSwitch(s.trafficAnnouncements) { v -> a.updateSettings { it.copy(trafficAnnouncements = v) } }
+            }
+            Section("Starting")
             // Android 10+ only lets an app open itself at start-up with "Display over other apps" allowed
             val ctx = LocalContext.current
             var canOpenItself by remember { mutableStateOf(canDrawOverlays(ctx)) }
@@ -172,6 +185,7 @@ private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Bo
             SettingRow(PhosphorIcons.Fill.SignIn, Accent.blue, tile, "Resume last station", "Start playing when DABplay+ opens") {
                 DabSwitch(s.resumeOnStart) { v -> a.updateSettings { it.copy(resumeOnStart = v) } }
             }
+            Section("Station logos")
             SettingRow(PhosphorIcons.Fill.DownloadSimple, Accent.green, tile, "Download station logos",
                 when {
                     !s.downloadLogos -> "Off · stations show their initials"
@@ -190,13 +204,7 @@ private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Bo
                     }
                 }
             }
-            SettingRow(PhosphorIcons.Fill.ArrowsClockwise, Accent.orange, tile, "Follow station", "Switch to a stronger signal of the same station") {
-                DabSwitch(s.followStation) { v -> a.updateSettings { it.copy(followStation = v) } }
-            }
-            SettingRow(PhosphorIcons.Fill.TrafficCone, Accent.amber, tile, "Traffic announcements",
-                if (s.trafficAnnouncements) "On · switches to traffic news on the same multiplex" else "Off · alarm announcements still come through") {
-                DabSwitch(s.trafficAnnouncements) { v -> a.updateSettings { it.copy(trafficAnnouncements = v) } }
-            }
+            Section("Help")
             val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri -> uri?.let(a.saveDiagnostics) }
             SettingRow(PhosphorIcons.Fill.Lifebuoy, Accent.blue, tile, "Diagnostics log", "For a problem report: app and dongle events, no song titles",
                 subtitleLines = 2) {
@@ -205,9 +213,7 @@ private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Bo
                     ActionButton("Share", true, a.shareDiagnostics)
                 }
             }
-            SettingRow(PhosphorIcons.Fill.Heart, Accent.pink, tile, "Edit favorites", "${db.favourites.size} of ${StationStore.MAX_FAVOURITES} · or long-press a tile on Home and drag it", onClick = onEditFavourites) {
-                Icon(PhosphorIcons.Fill.CaretRight, null, tint = LocalDabColors.current.neutral400, modifier = Modifier.size(30.dp))
-            }
+            VersionLine()
         }
     }
 }
@@ -281,6 +287,25 @@ private fun SettingRow(icon: ImageVector, color: Color, tile: Dp, title: String,
             Text(subtitle, color = c.neutral400, fontSize = 17.sp, maxLines = subtitleLines, overflow = TextOverflow.Ellipsis)
         }
         control()
+    }
+}
+
+/** A group heading in the settings list (owner, 2026-10-26: Look first, Help last). */
+@Composable
+private fun Section(title: String, first: Boolean = false) {
+    Text(title.uppercase(), color = LocalDabColors.current.neutral400, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+        letterSpacing = 1.5.sp, modifier = Modifier.padding(start = 18.dp, top = if (first) 0.dp else 16.dp))
+}
+
+/** The bottom of the list: which version this is, for a problem report. */
+@Composable
+private fun VersionLine() {
+    val ctx = LocalContext.current
+    val version = remember { runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull() }
+    val c = LocalDabColors.current
+    Column(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("DABplay+ ${version.orEmpty()}".trim(), color = c.neutral400, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+        Text("github.com/jvspier/dabplayplus", color = c.neutral500, fontSize = 15.sp)
     }
 }
 
