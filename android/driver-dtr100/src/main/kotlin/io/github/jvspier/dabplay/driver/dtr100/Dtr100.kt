@@ -29,6 +29,17 @@ class Dtr100(
     private var subch: Int? = null                         // active audio sub-channel
     /** How many interface checks the last [systemInit] needed (1 = answered straight away). */
     var interfaceChecks = 0; private set
+    /**
+     * Audio straight from the DAB chip's registers instead of the MCU's buffer ([useChipAudio]): how DABdream+ reads
+     * every C100 (RaonTunerInput::readData), for sticks whose MCU never passes audio on.
+     */
+    var chipAudio = false; private set
+    /** The whole version reply (only byte 3 is used), for the log. */
+    var versionReply = EMPTY; private set
+    /** The last 0x42 status reply, for the log. */
+    var lastMcuStatus = EMPTY; private set
+    /** Byte 0 of the last page 9 reg 0x33 read: bit 0 = FIC ready, bit 4 = audio ready, bits 5..6 = under/overrun. */
+    var lastChipStatus = 0; private set
 
     open class DriverException(msg: String) : IOException(msg)
 
@@ -84,6 +95,7 @@ class Dtr100(
         val r = xfer(1, 0, 0, 0)
         expect(r, 0x81, "version")
         if (r.size < 4) throw DriverException("version: short reply ${r.hex()}")
+        versionReply = r
         return r.u(3).also { firmwareLevel = it }
     }
 
@@ -394,6 +406,7 @@ class Dtr100(
     fun ficRead(): ByteArray? {
         page(9)
         val st = rreg(0x33, 3)
+        lastChipStatus = st[0].toInt() and 0xFF
         if (st[0].toInt() and 1 == 0) return null
         page(0x0A)
         val data = rreg(0x10, 0x180)
@@ -410,7 +423,8 @@ class Dtr100(
         val fw = firmwareLevel ?: throw DriverException("read the firmware level (version) before starting audio")
         val n = bytesPerCif
         demodRestartNoWait()                             // FUN_00072160, no active sub-channels
-        page(9); wlist(0x56, n shr 8 and 0x0F, 0x57, n and 0xFF)   // FUN_000781e0: buffer threshold
+        // FUN_000781e0: buffer threshold; reading from the chip, DABdream+'s 2048 bytes (RaonTunerInput::setupMscThreshold)
+        page(9); if (chipAudio) wlist(0x56, 0x08, 0x57, 0x00) else wlist(0x56, n shr 8 and 0x0F, 0x57, n and 0xFF)
         page(9); wlist(0x48, 0x00, 0x48, 0x05)           // FUN_00078240: buffer reset
         page(9); wreg(0x35, 0x70)
         page(7); irqMask = irqMask and 0x8F; wreg(0x62, irqMask)
@@ -419,8 +433,24 @@ class Dtr100(
         page(7); wreg(0x62, irqMask)
         mscSize = n
         subch = subchannel
+        if (chipAudio) return                            // the MCU stays out of it, as with DABdream+
         if (fw > 1) expect(xfer(0x41, 0, n and 0xFF, n shr 8), 0xC1, "set msc size")
         if (fw > 4) expect(xfer(0x43, 0, 0, 1), 0xC3, "msc flag on")   // [hypothesis] set_flag(1) after set_msc_size
+    }
+
+    /**
+     * From now on read audio from the chip ([chipAudio]). While audio plays: the MCU stops buffering (its own stop, as in
+     * [stopAudio]), and the chip's buffer gets DABdream+'s threshold and is cleared (RaonTunerInput::setupMscThreshold,
+     * clearMscBuffer). Before any audio it only sets the mode, so [startAudio] never involves the MCU.
+     */
+    fun useChipAudio() {
+        if (chipAudio) return
+        chipAudio = true
+        if (subch == null) return
+        val fw = firmwareLevel
+        if (fw != null && fw > 4) expect(xfer(0x43, 0, 0, 0), 0xC3, "msc flag off")
+        else if (fw != null && fw > 1) expect(xfer(0x41, 0, 0, 0), 0xC1, "stop msc")
+        page(9); wlist(0x56, 0x08, 0x57, 0x00, 0x48, 0x00, 0x48, 0x05, 0x35, 0x04)
     }
 
     /** dab_api_set_flag(0) -> FUN_00069800(0) -> FUN_000775b0 (stop in the chip, flush the MCU) + FUN_00077240(0). */
@@ -449,20 +479,25 @@ class Dtr100(
 
     private fun nextSeq(): Int { val s = mscSeq; mscSeq = (s + 1) and 0xFF; return s }
 
-    /** Raw sub-channel bytes (possibly empty). fw >= 2: FUN_00077990; fw <= 1: FUN_00079e20. */
+    /**
+     * Raw sub-channel bytes (possibly empty). fw >= 2: FUN_00077990; fw <= 1: FUN_00079e20. [chipAudio]: the fw <= 1
+     * path with DABdream+'s read size (RaonTunerInput::readData: `22 00 00 08 10`, 2048 bytes).
+     */
     fun mscRead(maxLen: Int = 4096): ByteArray {
         val fw = firmwareLevel ?: throw DriverException("firmware level unknown")
-        if (fw <= 1) {
+        if (fw <= 1 || chipAudio) {
             page(9)
             val st = rreg(0x33, 3)[0].toInt() and 0xFF
+            lastChipStatus = st
             if (st and 0x70 == 0) return EMPTY
             if (st and 0x60 != 0) { wlist(0x48, 0x00, 0x48, 0x05); page(9); wreg(0x35, 0x04); return EMPTY }  // overflow
             page(0x0C)
-            val data = rreg(0x10, mscSize)
+            val data = rreg(0x10, if (chipAudio) CHIP_READ else mscSize)
             page(9); wreg(0x35, 0x04)
             return data
         }
         val st = xfer(0x42, 0, 0, nextSeq(), replyLen = 6)
+        lastMcuStatus = st
         if (st.size >= 6) mcuSignal = st.u(4) or (st.u(5) shl 8)
         val avail = if (st.size >= 4) st.u(2) or (st.u(3) shl 8) else 0
         if (avail == 0) return EMPTY
@@ -482,6 +517,25 @@ class Dtr100(
         var tot = 0L; for (r in 0x88..0x8B) tot = (tot shl 8) or r1(r).toLong()
         var err = 0L; for (r in 0x8C..0x8F) err = (err shl 8) or r1(r).toLong()
         return if (tot != 0L) (err * 1000 / tot * 10).toInt() else 8000
+    }
+
+    /**
+     * RaonTunerInput::getAntennaLevel (DABdream+): the chip's CER from its bit counters, on the [mcuSignal] scale
+     * (0 = perfect, [SIGNAL_NONE] = nothing). Resets the counters when DABdream+ does.
+     */
+    fun chipSignal(): Int {
+        page(9)
+        if (r1(0x37) and 1 == 0) return SIGNAL_NONE
+        var tot = 0L; for (r in 0x88..0x8B) tot = (tot shl 8) or r1(r).toLong()
+        var err = 0L; for (r in 0x8C..0x8F) err = (err shl 8) or r1(r).toLong()
+        val d7 = r1(0xD7)
+        val cer = when {
+            tot == 0L -> SIGNAL_NONE
+            err <= 4000 -> 0
+            else -> (err * 1000 / tot * 10).let { if (it < 1201) it.toInt() else SIGNAL_NONE }
+        }
+        if (tot == 0L || d7 and 0x10 == 0 || cer == SIGNAL_NONE) { page(9); wlist(0x46, 0x1E, 0x35, 0x01, 0x46, 0x16) }
+        return cer
     }
 
     companion object {
@@ -506,6 +560,8 @@ class Dtr100(
          */
         fun signalBars(sig: Int) = when { sig >= SIGNAL_NONE -> 0; sig >= 700 -> 1; sig >= 400 -> 2; sig >= 180 -> 3; else -> 4 }
         private val EMPTY = ByteArray(0)
+        /** DABdream+'s threshold and read size when reading audio from the chip. */
+        private const val CHIP_READ = 0x800
         private val MODE_1A = intArrayOf(0xB4, 0x44, 0x04, 0x84)   // page 6 reg 0x1a by reg 0x27 bits 4..5
 
         /** FUN_00078b20: page 4 reg 0x6a, page 6 regs, (0x40, 0x41), 0x42 per clock plan. */

@@ -63,6 +63,17 @@ Firmware-level dependent behaviour (`DAT_002025ec` = version reply byte 3):
   `43 00 00 00` (fw ≥ 5).
 - Signal quality on any firmware (`FUN_000719d0`, the `get_signal` path for fw ≤ 1): page 9, if reg 0x37 bit 0: error and
   total bit counters (regs 0x8C..0x8F / 0x88..0x8B, 32-bit big-endian) → err*1000/total*10; else 8000.
+- **Audio from the chip on a level ≥ 2 stick** (the app's fallback, `Dtr100.useChipAudio`): DABdream+ never uses the MCU
+  buffer on these sticks; it reads MSC from the chip on every firmware (`RaonTunerInput::readData` @0x28a4fc in
+  libirtdab.so, Ghidra base 0x100000) [verified, decompile]: page 9 reg 0x33 (and 0x34); bit 0 → FIC (`22 00 80 01 10`
+  on page 0x0A, constant at file 0x8ebb8, then reg 0x35 = 1); bits 5..6 → under/overrun: reg 0x48 0→5, reg 0x35 = 4;
+  bit 4 → `22 00 00 08 10` on page 0x0C (2048 bytes; constant at file 0x8eb30), then page 9 reg 0x35 = 4; nothing
+  ready → 20 ms pause. Threshold page 9 reg 0x56 = 0x08, 0x57 = 0x00 (`setupMscThreshold`: 2048 bytes); open = page 9
+  reg 0x35 = 0x70, page 7 reg 0x62 = 0, page 9 reg 0x3A = subch | 0x80. No MCU command (0x40..0x43) anywhere in it.
+  Signal (`getAntennaLevel`, every 20 reads): page 9 reg 0x37 bit 0 clear → level 0; else total = regs 0x88..0x8B,
+  errors = 0x8C..0x8F (32-bit big-endian), reg 0xD7; total 0 → 2000; errors ≤ 4000 → 0; else err*1000/total*10, 2000
+  when ≥ 1201: the CER scale of the 0x42 status. The counters are reset (page 9 reg 0x46 = 0x1E, 0x35 = 1, 0x46 = 0x16)
+  when total is 0, reg 0xD7 bit 4 is clear or the CER is 2000.
 
 ## DAB chip register interface
 - 8-bit registers, **page select = write reg 0x03**. Pages seen: 4, 6, 7, 9, 0x0A, 0x0C, 0x0F.

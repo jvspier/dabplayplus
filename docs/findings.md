@@ -36,6 +36,23 @@ this file as work progresses.
     what was found) [verified, API 34 emulator online: retry of 20 → 19 not found + 1 no answer; refresh of 67 kept
     all 47 logos]; an unanswered lookup is no longer a 3-day "not found" [verified: unit tests, and live: "YOURSAFE: no
     answer" became "no usable logo" on the next pass]; the Now playing tab is a play triangle (both themes checked).
+  - 2026-10-27, a Play tester's DTR-100 (sent by e-mail; head unit: the same Dudu platform as the owner's, sprd
+    uis8581, "Android 15" on API 29): it reports manufacturer `dabusb@126.co` (sic) and firmware level 4, inits, tunes
+    and scans (3 ensembles, 38 stations), but once a station plays the MCU passes **no audio byte at all** and its
+    status says CER 2000 throughout (1616 readings, every station and channel) [verified, log on 1.3.2]. DAB-Z plays
+    on it. The owner's stick reports the same for the first ~0.8 s after an audio start (125 status polls before the
+    first data, then CER 0) [verified: captures/2026-09-25-switch-538-qmusic.log]. DABdream+ never uses the MCU
+    buffer: it reads audio from the chip's registers on every C100 (protocol.md) [verified, decompile]. [hypothesis]
+    That stick's MCU firmware doesn't buffer audio (it never reads the chip's counters either: CER stuck at 2000).
+    Fallback (owner-approved 2026-10-27, only commands DABdream+ sends): `Dtr100Tuner` reads through the MCU as before;
+    only if a connection has never delivered audio through it, 2 s after a station started, it stops the MCU's
+    streaming (`41 00 00 00`) and reads from the chip as DABdream+ does (2048-byte threshold and reads, signal from the
+    chip's counters), and keeps doing so after a reconnect in the same process. Owner's request: the current method must
+    stay exactly as it is. [verified, JVM] replaying the owner's recorded session through the new code: all 6030
+    transfers identical (init, tune, 538 and Qmusic playing: 92640 + 102168 bytes, first audio at ~868 ms with the clock
+    running at the recorded poll rate), the fallback never steps in; fake-stick tests for the switch, the exact
+    commands, "delivered once = never switched" (30 s silence and a station change), the reconnect, and the CER. The
+    chip path on real hardware [not yet tested]: a test build that forces it, for the owner's Dudu3.
   - After 1.3.4 (2026-10-26), #2 again: the reporter said 1.3.2 helps only sometimes (the bar goes when the app opens
     and comes back about a second later; switching Full screen off and on still fixes it). Owner's call: no more
     workarounds, the standard approach, and where a unit shows its bars anyway the app must fit inside them. Done:

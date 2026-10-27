@@ -113,4 +113,43 @@ class TransferLogTest {
         tuner.startAudio(7, 88)
         t.skipTo("21 00 00 02 03 09", "21 00 00 02 3a 07"); tuner.stopAudio()
     }
+
+    /**
+     * The playback itself through the engine's interface: every status poll and audio read of the recorded 538 and
+     * Qmusic sessions, byte for byte, with the clock running as fast as the real polls did (a 5 ms pause plus the
+     * transfer, ~7 ms each). The chip-audio fallback must never step in on this stick, nor add a single transfer.
+     */
+    @Test fun playbackTrafficIsUnchangedAndTheChipFallbackStaysOut() {
+        val log = File(captures, "2026-09-25-switch-538-qmusic.log")
+        assumeTrue("local transfer log missing: $log", log.exists())
+        val t = LogTransport(log)
+        val d = Dtr100(t, sleep = {}, clockMs = { 0L })
+        var now = 0L
+        val logged = ArrayList<String>()
+        assertEquals(4, d.version()); d.powerOn(); d.systemInit()
+        val tuner = Dtr100Tuner(d, 4, log = { logged += it }, clockMs = { now })
+        assertTrue(tuner.tune(220352, retries = true).locked)
+        var firstAudioAt = -1L
+        fun play(): Int {
+            var bytes = 0
+            while (t.pos < t.pairs.size && t.pairs[t.pos].first.startsWith("42 00 00")) {
+                val n = tuner.mscRead().size
+                if (n > 0 && firstAudioAt < 0) firstAudioAt = now
+                bytes += n; now += 7
+            }
+            return bytes
+        }
+        t.skipTo("21 00 00 02 03 06", "21 00 00 02 10 48", "21 00 00 02 10 c9")
+        now = 0; tuner.startAudio(2, 80)                      // 538
+        val bytes538 = play()
+        assertEquals("21 00 00 02 03 09", t.pairs[t.pos].first, "the recording stops 538 right after the last read")
+        tuner.stopAudio()
+        tuner.startAudio(7, 88)                               // Qmusic
+        val bytesQ = play()
+        tuner.stopAudio()
+        assertTrue(bytes538 > 0 && bytesQ > 0, "audio read: 538 $bytes538, Qmusic $bytesQ bytes")
+        assertTrue(firstAudioAt in 1 until Dtr100Tuner.MCU_GRACE_MS, "first audio after $firstAudioAt ms")
+        assertTrue(!d.chipAudio && logged.none { "DAB chip" in it }, logged.toString())
+        println("  playback 538 + Qmusic: ${t.pos} transfers identical, $bytes538 + $bytesQ bytes, first audio after ~$firstAudioAt ms")
+    }
 }
