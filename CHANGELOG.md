@@ -12,6 +12,9 @@ your stations, favourites and settings.
   straight from the stick's DAB chip instead, the way DABdream+ does. Sticks that already worked keep working exactly
   as before.
 
+### Changed
+- On Now playing, the song line under the picture uses the full width of the screen, so long titles scroll less often.
+
 ## [1.3.5] - 2026-10-26
 
 ### Fixed

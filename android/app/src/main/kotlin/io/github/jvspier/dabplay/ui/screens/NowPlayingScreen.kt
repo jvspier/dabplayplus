@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
@@ -102,7 +101,11 @@ fun NowPlayingScreen(e: EngineState, db: Snapshot, a: RadioActions, chipOnLeft: 
                 .pressable({ a.toggleFavourite(st.key) }), contentAlignment = Alignment.Center) { HeartIcon(st.key in db.favourites, 24.dp) }
         }
         Column(Modifier.fillMaxSize().padding(top = 28.dp, bottom = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            NowCard(e, st, cardH)
+            // the line spans the whole width, not just the picture's (owner, 2026-10-27: long lines scrolled in a narrow strip)
+            Box(Modifier.fillMaxWidth().height(cardH)) {
+                NowCard(e, st, cardH, Modifier.align(Alignment.TopCenter))
+                NowLine(e, st, Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(cardH * BAND).padding(horizontal = 40.dp))
+            }
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Controls(e, a) }
         }
     }
@@ -129,21 +132,20 @@ private fun nowLine(e: EngineState, st: Station?): Pair<String, Color> {
 }
 
 /**
- * The artwork "stage" (owner, 2026-09-28): slide or logo, sharp and whole, standing on a floor above the text line,
- * with its blurred reflection fading out below; the "Artist – Title" line under it. Same treatment for both: no card,
- * no glass over the picture. A slide stands as tall as the floor allows (≈1.45× its 320×240), a logo at [LOGO].
+ * The artwork "stage" (owner, 2026-09-28): slide or logo, sharp and whole, standing on a floor above the text line
+ * ([NowLine]), with its blurred reflection fading out below. Same treatment for both: no card, no glass over the
+ * picture. A slide stands as tall as the floor allows (≈1.45× its 320×240), a logo at [LOGO].
  */
 @Composable
-private fun NowCard(e: EngineState, st: Station?, CARD_H: Dp) {
+private fun NowCard(e: EngineState, st: Station?, CARD_H: Dp, modifier: Modifier = Modifier) {
     val CARD_W = CARD_H * 4 / 3
     val night = LocalNight.current
     val slide = rememberSlide(e.slide, st?.key)
     val logo = rememberLogo(st?.key)
-    val (line, lineColor) = nowLine(e, st)
     val floor = CARD_H * (1f - BAND) - LOGO_GAP          // where the picture stands, from the top
     val tile = CARD_H * LOGO
     val glow = Accent.orange.copy(alpha = 0.3f)
-    Box(Modifier.size(CARD_W, CARD_H).clipToBounds()) {             // the reflection never reaches the controls
+    Box(modifier.size(CARD_W, CARD_H).clipToBounds()) {             // the reflection never reaches the controls
         Crossfade(slide, Modifier.fillMaxSize(), animationSpec = tween(300), label = "art") { b ->
             Box(Modifier.fillMaxSize()) {
                 // each crossfade child reflects its own picture: the outgoing slide keeps its reflection while fading
@@ -181,14 +183,21 @@ private fun NowCard(e: EngineState, st: Station?, CARD_H: Dp) {
                 }
             }
         }
-        // a subtle shadow keeps the line readable over any reflection (owner, 2026-09-28): dark at night, a light halo by day
-        val shadow = if (night) Shadow(Color.Black.copy(alpha = 0.55f), Offset(0f, 2f), blurRadius = 10f)
-                     else Shadow(Color.White.copy(alpha = 0.7f), Offset(0f, 1f), blurRadius = 8f)
+    }
+}
+
+/** The "Artist – Title" line under the picture: centred, scrolling when it's wider than [modifier] allows. */
+@Composable
+private fun NowLine(e: EngineState, st: Station?, modifier: Modifier) {
+    val night = LocalNight.current
+    val (line, lineColor) = nowLine(e, st)
+    // a subtle shadow keeps the line readable over any reflection (owner, 2026-09-28): dark at night, a light halo by day
+    val shadow = if (night) Shadow(Color.Black.copy(alpha = 0.55f), Offset(0f, 2f), blurRadius = 10f)
+                 else Shadow(Color.White.copy(alpha = 0.7f), Offset(0f, 1f), blurRadius = 8f)
+    Box(modifier, contentAlignment = Alignment.Center) {
         Text(line, color = lineColor, fontSize = 30.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Clip,
             style = LocalTextStyle.current.copy(shadow = shadow),
-            modifier = Modifier.align(Alignment.BottomCenter).height(CARD_H * BAND).wrapContentHeight(Alignment.CenterVertically)
-                .padding(horizontal = 28.dp)
-                .basicMarquee(iterations = Int.MAX_VALUE, initialDelayMillis = 2500, repeatDelayMillis = 3000))
+            modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE, initialDelayMillis = 2500, repeatDelayMillis = 3000))
     }
 }
 
