@@ -51,8 +51,13 @@ this file as work progresses.
     stay exactly as it is. [verified, JVM] replaying the owner's recorded session through the new code: all 6030
     transfers identical (init, tune, 538 and Qmusic playing: 92640 + 102168 bytes, first audio at ~868 ms with the clock
     running at the recorded poll rate), the fallback never steps in; fake-stick tests for the switch, the exact
-    commands, "delivered once = never switched" (30 s silence and a station change), the reconnect, and the CER. The
-    chip path on real hardware [not yet tested]: a test build that forces it, for the owner's Dudu3.
+    commands, "delivered once = never switched" (30 s silence and a station change), the reconnect, and the CER.
+    The chip path on the owner's DTR-100 [verified, Dudu3, 25 min drive 2026-10-27, test build forcing it]: KINK ~20 min
+    with rsFail=0 and 0 bad AUs, ~251 superframes per 30 s (as on the MCU path: no data lost), start and station
+    changes 0.1–0.2 s slower at most (tune → decoder 1.9 s at start, 1.8 s across ensembles, 1.1 s within); the chip's
+    CER 110–1070 on a weak Belgian station (12A), the bars matching what the owner saw (0 without signal, 1–4 as it
+    came and went). Side note for #4: the Dudu3's steering-wheel keys reach the session as "from
+    io.github.jvspier.dabplay" (our own media-button receiver), so the sender's package says nothing about the key's origin.
   - After 1.3.4 (2026-10-26), #2 again: the reporter said 1.3.2 helps only sometimes (the bar goes when the app opens
     and comes back about a second later; switching Full screen off and on still fixes it). Owner's call: no more
     workarounds, the standard approach, and where a unit shows its bars anyway the app must fit inside them. Done:

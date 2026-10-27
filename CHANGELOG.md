@@ -4,6 +4,14 @@ What changed in each version of DABplay+, newest first. Each version's APK is on
 [release page](https://github.com/jvspier/dabplayplus/releases); every version installs over the previous one and keeps
 your stations, favourites and settings.
 
+## [1.3.6] - 2026-10-27
+
+### Fixed
+- Some DTR-100 and C100 sticks found all stations but then played nothing and showed no signal: the chip on the
+  stick that passes the audio on never did. DABplay+ now notices this within a couple of seconds and reads the audio
+  straight from the stick's DAB chip instead, the way DABdream+ does. Sticks that already worked keep working exactly
+  as before.
+
 ## [1.3.5] - 2026-10-26
 
 ### Fixed
