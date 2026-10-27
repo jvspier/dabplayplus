@@ -11,6 +11,8 @@ your stations, favourites and settings.
   stick that passes the audio on never did. DABplay+ now notices this within a couple of seconds and reads the audio
   straight from the stick's DAB chip instead, the way DABdream+ does. Sticks that already worked keep working exactly
   as before.
+- KINK's "Alternative Rock Radio - KINK non-stop" is no longer shown as if it were a song, also in the head unit's
+  media widget. KINK marks that slogan as a song itself.
 
 ### Changed
 - On Now playing, the song line under the picture uses the full width of the screen, so long titles scroll less often.

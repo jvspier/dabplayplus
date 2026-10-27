@@ -52,6 +52,16 @@ class DlsParserTest {
         assertEquals("ABBA – Waterloo", np.display)
     }
 
+    /** KINK tags its slogan as a song too (captures/raw 2026-09-24-9C-kink: ITEM.ARTIST "Alternative Rock Radio"). */
+    @Test fun aStationsOwnSloganStaysRawEvenWhenTaggedAsASong() {
+        val np = DlsParser.parse("Alternative Rock Radio - KINK non-stop", 0xE3, 0x8358, "KINK",
+            mapOf("ITEM.ARTIST" to "Alternative Rock Radio", "ITEM.TITLE" to "KINK non-stop"))
+        assertFalse(np.isSong)
+        assertEquals("Alternative Rock Radio - KINK non-stop", np.display)
+        val song = DlsParser.parse("Nirvana - Stay Away", 0xE3, 0x8358, "KINK", mapOf("ITEM.ARTIST" to "Nirvana", "ITEM.TITLE" to "Stay Away"))
+        assertEquals("Nirvana – Stay Away", song.display)
+    }
+
     @Test fun smartCaseKeepsShortBandNames() {
         assertEquals("ABBA", DlsParser.smartCase("ABBA"))
         assertEquals("AC/DC", DlsParser.smartCase("AC/DC"))

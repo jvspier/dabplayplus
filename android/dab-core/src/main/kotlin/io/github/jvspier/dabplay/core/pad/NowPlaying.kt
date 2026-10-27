@@ -17,7 +17,8 @@ data class DlsRule(val format: DlsFormat, val prefix: String? = null, val notSon
 
 /**
  * Turns DLS text into [NowPlaying]. Only stations with a known rule are split; unknown stations and
- * non-song texts stay raw (never guess). DL Plus tags, when a station sends them, take precedence.
+ * non-song texts stay raw (never guess). DL Plus tags, when a station sends them, take precedence, except on a text the
+ * station's rule knows as its own ([DlsRule.notSong]).
  */
 object DlsParser {
     private const val E3 = 0xE3   // Netherlands
@@ -47,11 +48,16 @@ object DlsParser {
     fun parse(text: String, ecc: Int, sid: Long, stationLabel: String? = null,
               dlPlus: Map<String, String>? = null): NowPlaying {
         val raw = text.trim()
+        val rule = RULES[ecc to sid]
         val a = dlPlus?.get("ITEM.ARTIST")?.trim()
         val t = dlPlus?.get("ITEM.TITLE")?.trim()
-        if (!a.isNullOrEmpty() && !t.isNullOrEmpty()) return NowPlaying(raw, smartCase(a), smartCase(t))
+        if (!a.isNullOrEmpty() && !t.isNullOrEmpty()) {
+            // a station can tag its own slogan as a song (KINK: "Alternative Rock Radio" / "KINK non-stop")
+            if (rule != null && a.lowercase() in rule.notSong) return NowPlaying(raw)
+            return NowPlaying(raw, smartCase(a), smartCase(t))
+        }
 
-        val rule = RULES[ecc to sid] ?: return NowPlaying(raw)
+        if (rule == null) return NowPlaying(raw)
         var s = raw
         rule.prefix?.let { p -> if (s.startsWith(p, ignoreCase = true)) s = s.substring(p.length).trim() }
         if (stationLabel != null && s.contains(stationLabel.trim(), ignoreCase = true)) return NowPlaying(raw)
