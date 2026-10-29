@@ -58,6 +58,7 @@ this file as work progresses.
     CER 110–1070 on a weak Belgian station (12A), the bars matching what the owner saw (0 without signal, 1–4 as it
     came and went). Side note for #4: the Dudu3's steering-wheel keys reach the session as "from
     io.github.jvspier.dabplay" (our own media-button receiver), so the sender's package says nothing about the key's origin.
+    1.3.6 on the tester's stick: "Success! It works perfectly." [verified, tester by e-mail, 2026-10-29]
   - After 1.3.4 (2026-10-26), #2 again: the reporter said 1.3.2 helps only sometimes (the bar goes when the app opens
     and comes back about a second later; switching Full screen off and on still fixes it). Owner's call: no more
     workarounds, the standard approach, and where a unit shows its bars anyway the app must fit inside them. Done:
