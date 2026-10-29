@@ -103,12 +103,8 @@ fun HomeScreen(e: EngineState, db: Snapshot, a: RadioActions, compactTitle: Bool
 @Composable
 private fun FavouritesGrid(favs: List<Station>, favKeys: List<ServiceKey>, e: EngineState, a: RadioActions, listTiles: Boolean,
                            onBrowse: () -> Unit) {
-    val cols = if (listTiles) 2 else 4
     val rows = if (listTiles) 3 else 2
     val gap = if (listTiles) 14.dp else 16.dp
-    val pageSlots = cols * rows
-    // the cap counts every favourite, also those Home can't show (not in the last scans)
-    val addTiles = if (favs.size < pageSlots) pageSlots - favs.size else if (favKeys.size < StationStore.MAX_FAVOURITES) 1 else 0
     val order = remember { mutableStateListOf<Station>() }
     var dragKey by remember { mutableStateOf<String?>(null) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
@@ -126,6 +122,11 @@ private fun FavouritesGrid(favs: List<Station>, favKeys: List<ServiceKey>, e: En
     val tapOk = { dragKey == null && SystemClock.uptimeMillis() - droppedAt > 300 }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
+        // 1b next to a narrow side panel (a 1024×600 unit): one column, so the names stay readable
+        val cols = if (listTiles) (if (maxWidth < 560.dp) 1 else 2) else 4
+        val pageSlots = cols * rows
+        // the cap counts every favourite, also those Home can't show (not in the last scans)
+        val addTiles = if (favs.size < pageSlots) pageSlots - favs.size else if (favKeys.size < StationStore.MAX_FAVOURITES) 1 else 0
         val tileH = (maxHeight - gap * (rows - 1)) / rows
         val state = rememberLazyGridState()
         fun favAt(p: Offset) = state.layoutInfo.visibleItemsInfo.firstOrNull { i ->
@@ -229,19 +230,24 @@ private fun Modifier.tileBackground(playing: Boolean): Modifier {
     else this.clip(shape).background(c.surface).border(1.dp, c.neutral800.copy(alpha = 0.6f), shape)
 }
 
-/** 1a tile: logo top-left, heart (+ waveform when playing) top-right, name 26/500 at the bottom. */
+/**
+ * 1a tile: logo top-left, heart (+ waveform when playing) top-right, name 26/500 at the bottom. A tile too short for a
+ * two-line name under the logo (a phone, a 1024×600 unit) gets one line, and below that a smaller logo.
+ */
 @Composable
 private fun GridTile(st: Station, isCurrent: Boolean, audio: Boolean, h: Dp, onPlay: () -> Unit, onHeart: () -> Unit) {
     val c = LocalDabColors.current
+    val short = h < 184.dp                                    // 18 + logo 80 + 8 + two lines of 30 + 18
+    val logo = when { short -> (h - 74.dp).coerceIn(40.dp, 80.dp); h > 220.dp -> 104.dp; else -> 80.dp }
     Box(Modifier.fillMaxWidth().height(h).tileBackground(isCurrent).pressable(onPlay).padding(18.dp)) {
-        StationLogo(st.label, st.key, if (h > 220.dp) 104.dp else 80.dp)
+        StationLogo(st.label, st.key, logo)
         // the heart gets a 64 dp touch target, drawn where the 30 dp icon was (17 dp of it reaching into the padding)
         Row(Modifier.align(Alignment.TopEnd).offset(x = 17.dp, y = (-17).dp), verticalAlignment = Alignment.CenterVertically) {
             if (isCurrent) Waveform(audio, 26.dp)             // the heart box's own margin is the gap
             Box(Modifier.size(64.dp).pressable(onHeart), contentAlignment = Alignment.Center) { HeartIcon(true, 30.dp) }
         }
-        Text(st.label, color = if (isCurrent) c.liveSub else c.text, fontSize = 26.sp, fontWeight = FontWeight.Medium,
-            maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 30.sp, modifier = Modifier.align(Alignment.BottomStart))
+        Text(st.label, color = if (isCurrent) c.liveSub else c.text, fontSize = if (short) 22.sp else 26.sp, fontWeight = FontWeight.Medium,
+            maxLines = if (short) 1 else 2, overflow = TextOverflow.Ellipsis, lineHeight = 30.sp, modifier = Modifier.align(Alignment.BottomStart))
     }
 }
 

@@ -7,7 +7,11 @@ agreed but not built yet is marked **planned**.
 ## Constraints and targets
 - minSdk **26** (Android 8), solid on **API 29** (the Dudu3: Unisoc UIS8581, 8× Cortex-A55, PowerVR GE8322). targetSdk
   36, compileSdk 37.
-- Landscape head units; design baseline 1280×720, scales to other sizes.
+- Landscape head units; design baseline 1280×720, scales to other sizes (`ui/Adaptive.kt`): Android's window size
+  classes (androidx.window `window-core`) pick the size the design is drawn at: 0.75× on a compact-height window
+  (under 480 dp: a phone in landscape), as designed from 480 to 899 dp (the Dudu3, 1024×600 units, tablets), 1.25× from
+  900 dp. Within a class the rail's tabs, the Home tiles, the side panel and the Settings rows size themselves from the
+  space they get; the side-panel layout falls back to the bar where the screens next to it would be under 480 dp wide.
 - **Offline first**: DAB reception needs no internet. Station logos are downloaded when online and cached; nothing
   breaks without them.
 - **Pure Kotlin, no native code**: one APK for every ABI and no GPL dependencies. AAC goes through the platform's

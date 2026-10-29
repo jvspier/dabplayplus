@@ -29,6 +29,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -108,16 +109,18 @@ import io.github.jvspier.dabplay.ui.theme.LocalDabColors
 private val ON_AMBER = Color(0xFF2A1A00)
 
 @Composable
-fun SettingsScreen(s: Settings, db: Snapshot, a: RadioActions, compactTitle: Boolean, logoStatus: LogoStatus = LogoStatus()) {
+fun SettingsScreen(s: Settings, db: Snapshot, a: RadioActions, compactTitle: Boolean, logoStatus: LogoStatus = LogoStatus(),
+                   panelFits: Boolean = true) {
     var editing by rememberSaveable { mutableStateOf(false) }
     AnimatedContent(editing, transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) }, label = "settings") { edit ->
         if (edit) EditFavourites(db, a, compactTitle) { editing = false }
-        else SettingsList(s, db, a, compactTitle, logoStatus) { editing = true }
+        else SettingsList(s, db, a, compactTitle, logoStatus, panelFits) { editing = true }
     }
 }
 
 @Composable
-private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Boolean, logoStatus: LogoStatus, onEditFavourites: () -> Unit) {
+private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Boolean, logoStatus: LogoStatus, panelFits: Boolean,
+                         onEditFavourites: () -> Unit) {
     val tile = if (compact) 44.dp else 64.dp
     val segW = if (compact) 104.dp else 120.dp
     Column(Modifier.fillMaxSize()) {
@@ -138,7 +141,10 @@ private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Bo
                 if (s.pureBlackAtNight) "On · black behind everything when it's dark" else "Off · each background has its own night colours") {
                 DabSwitch(s.pureBlackAtNight) { v -> a.updateSettings { it.copy(pureBlackAtNight = v) } }
             }
-            SettingRow(PhosphorIcons.Fill.Layout, Accent.orange, tile, "Layout", "Player bar at the bottom, or a panel at the side") {
+            val panelWontFit = s.layout == LayoutVariant.PANEL && !panelFits
+            SettingRow(PhosphorIcons.Fill.Layout, Accent.orange, tile, "Layout",
+                if (panelWontFit) "Panel needs a wider screen: this one shows the bar" else "Player bar at the bottom, or a panel at the side",
+                subtitleLines = if (panelWontFit) 2 else 1) {
                 Segmented(listOf(LayoutVariant.BAR to "Bar", LayoutVariant.PANEL to "Panel"), s.layout, Accent.amber, ON_AMBER,
                     { v -> a.updateSettings { it.copy(layout = v) } }, optionWidth = segW,
                     icons = mapOf(LayoutVariant.BAR to PhosphorIcons.Fill.Rows, LayoutVariant.PANEL to PhosphorIcons.Fill.Sidebar))
@@ -274,19 +280,33 @@ private fun ActionButton(label: String, enabled: Boolean, onClick: () -> Unit) {
     }
 }
 
+/**
+ * Icon, title and subtitle, the control on the right. In a narrow column (the side-panel layout on a narrow screen)
+ * the control goes under the text, right-aligned, instead of squeezing the text away.
+ */
 @Composable
 private fun SettingRow(icon: ImageVector, color: Color, tile: Dp, title: String, subtitle: String, onClick: (() -> Unit)? = null,
                        subtitleLines: Int = 1, control: @Composable () -> Unit) {
     val c = LocalDabColors.current
-    Row(Modifier.fillMaxWidth().heightIn(min = 96.dp).clip(RoundedCornerShape(14.dp)).background(c.surface)
+    BoxWithConstraints(Modifier.fillMaxWidth().heightIn(min = 96.dp).clip(RoundedCornerShape(14.dp)).background(c.surface)
         .then(if (onClick != null) Modifier.pressable(onClick) else Modifier).padding(horizontal = 18.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically) {
-        IconTile(icon, color, tile)
-        Column(Modifier.weight(1f).padding(horizontal = 18.dp)) {
-            Text(title, color = c.text, fontSize = 24.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(subtitle, color = c.neutral400, fontSize = 17.sp, maxLines = subtitleLines, overflow = TextOverflow.Ellipsis)
+        contentAlignment = Alignment.CenterStart) {
+        val stacked = maxWidth < 560.dp
+        val text = @Composable { m: Modifier ->
+            Column(m.padding(horizontal = 18.dp)) {
+                Text(title, color = c.text, fontSize = 24.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(subtitle, color = c.neutral400, fontSize = 17.sp, maxLines = if (stacked) subtitleLines + 1 else subtitleLines,
+                    overflow = TextOverflow.Ellipsis)
+            }
         }
-        control()
+        if (stacked) Column(Modifier.fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically) { IconTile(icon, color, tile); text(Modifier.weight(1f)) }
+            Box(Modifier.fillMaxWidth().padding(top = 10.dp), contentAlignment = Alignment.CenterEnd) { control() }
+        } else Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            IconTile(icon, color, tile)
+            text(Modifier.weight(1f))
+            control()
+        }
     }
 }
 

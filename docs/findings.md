@@ -36,6 +36,16 @@ this file as work progresses.
     what was found) [verified, API 34 emulator online: retry of 20 → 19 not found + 1 no answer; refresh of 67 kept
     all 47 logos]; an unanswered lookup is no longer a 3-day "not found" [verified: unit tests, and live: "YOURSAFE: no
     answer" became "no usable logo" on the next pass]; the Now playing tab is a play triangle (both themes checked).
+  - 2026-10-29, other screen sizes (a Reddit user on a Pixel: Settings unreachable). Every size was fixed for the
+    1280×720 dp Dudu3; the rail alone needs ~610 dp of height (clock + five 92 dp tabs), so below that the last tabs
+    fell off (a phone in landscape is ~411 dp tall, a 1024×600 unit 600) [verified, emulator at 2400×1080/420 dpi].
+    Now (owner: the official Android way, no reinvented wheel): window size classes from androidx.window pick a scale
+    for the design (compact height 0.75×, medium 1×, expanded 1.25×), and the rail, Home tiles, side panel and Settings
+    rows fit themselves to the space they get. [verified, emulator, demo stations, both layouts, all five tabs] at
+    2400×1080/420 (phone), 1024×600/160, 1280×720/240 (853×480 dp: panel falls back to the bar, Settings says why),
+    1920×720/160, 2000×1200/240 and 1920×1080/160 (1.25×). At the Dudu3's 1280×720/160, before/after screenshots of all
+    ten screens differ only in the clock, the animated waveform and Recent's times (pixel diff). Left as is: at 853×480
+    long names on the 4-column Home tiles end in "…" (the Stations tab shows them whole).
   - 2026-10-27, a Play tester's DTR-100 (sent by e-mail; head unit: the same Dudu platform as the owner's, sprd
     uis8581, "Android 15" on API 29): it reports manufacturer `dabusb@126.co` (sic) and firmware level 4, inits, tunes
     and scans (3 ensembles, 38 stations), but once a station plays the MCU passes **no audio byte at all** and its

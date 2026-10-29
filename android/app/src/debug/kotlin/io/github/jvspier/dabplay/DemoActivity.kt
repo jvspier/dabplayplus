@@ -13,6 +13,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import io.github.jvspier.dabplay.core.pad.NowPlaying
 import io.github.jvspier.dabplay.data.DisplayMode
+import io.github.jvspier.dabplay.data.LayoutVariant
 import io.github.jvspier.dabplay.data.LogoStore
 import io.github.jvspier.dabplay.data.Recent
 import io.github.jvspier.dabplay.data.ServiceKey
@@ -32,7 +33,7 @@ import java.io.File
  * broadcasters' names or logos. No dongle, no engine: AppShell gets a hand-made EngineState and Snapshot, and the
  * made-up logos (assets/demo-logos, from tools/branding/demo-logos.html) stand in for downloaded ones.
  *
- *     adb shell am start -n io.github.jvspier.dabplay/.DemoActivity --es theme night|day
+ *     adb shell am start -n io.github.jvspier.dabplay/.DemoActivity --es theme night|day [--es layout panel]
  */
 class DemoActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,7 +45,8 @@ class DemoActivity : ComponentActivity() {
         val display = if (intent.getStringExtra("theme") == "day") DisplayMode.DAY else DisplayMode.NIGHT
         val logos = demoLogos()
         setContent {
-            var settings by remember { mutableStateOf(Settings(display = display)) }
+            val layout = if (intent.getStringExtra("layout") == "panel") LayoutVariant.PANEL else LayoutVariant.BAR
+            var settings by remember { mutableStateOf(Settings(display = display, layout = layout)) }
             var playingKey by remember { mutableStateOf(STATIONS[1].key) }
             var playing by remember { mutableStateOf(true) }
             val db = SNAPSHOT

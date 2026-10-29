@@ -64,6 +64,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.adamglin.PhosphorIcons
@@ -138,23 +141,28 @@ fun AppShell(engine: EngineState, db: Snapshot, settings: Settings, actions: Rad
     // Back never leaves the radio by accident (the system bar slides in over the mini player): another tab → Home,
     // Home → nothing; leaving is the head unit's home button (owner, 2026-10-01). Edit favourites has its own Back.
     BackHandler { if (tab != Tab.HOME) tab = Tab.HOME }
-    val panelLayout = settings.layout == LayoutVariant.PANEL
-    val showPanel = panelLayout && tab != Tab.PLAYING
-    val showBar = !panelLayout && tab != Tab.PLAYING
     val right = settings.driverSide == DriverSide.RIGHT
 
     // the Now-playing glow fades in over the whole screen (not just the content column), 300ms
     val npGlow = animateFloatAsState(if (tab == Tab.PLAYING) 1f else 0f, tween(300), label = "npGlow")
+    AdaptiveSizing {
     CompositionLocalProvider(LocalClockFormat provides settings.clock, LocalNow provides rememberNow()) {
     Box(Modifier.fillMaxSize()) {
         PageBackground { npGlow.value }
         // everything fits inside the head unit's bars that are on screen (Full screen off, or a unit that shows them
         // anyway; hidden bars take no space); the background still fills it all
-    Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars)) {
+    BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars)) {
+        // the side panel gives way on narrow screens (a 1024×600 unit), and where even then the screens next to it
+        // would be too narrow to read (a 1280×720 unit at a higher density is 853 dp wide), the bar layout is used
+        val panelW = minOf(PANEL_W, (maxWidth - RAIL_W) * 0.42f).coerceAtLeast(PANEL_MIN_W)
+        val panelFits = maxWidth - RAIL_W - panelW >= PANEL_CONTENT_MIN
+        val panelLayout = settings.layout == LayoutVariant.PANEL && panelFits
+        val showPanel = panelLayout && tab != Tab.PLAYING
+        val showBar = !panelLayout && tab != Tab.PLAYING
         Row(Modifier.fillMaxSize()) {
             val parts = buildList<@Composable RowScope.() -> Unit> {
                 add { Rail(tab, right) { tab = it } }
-                if (showPanel) add { PlayerPanel(engine, db, actions) { tab = Tab.PLAYING } }
+                if (showPanel) add { PlayerPanel(engine, db, actions, panelW) { tab = Tab.PLAYING } }
                 add {
                     Column(Modifier.weight(1f).fillMaxHeight().padding(start = if (!right && !showPanel) 8.dp else 28.dp, end = if (right && !showPanel) 8.dp else 28.dp)) {
                         // short crossfade between tabs; each tab keeps its scroll position while you're elsewhere
@@ -165,7 +173,7 @@ fun AppShell(engine: EngineState, db: Snapshot, settings: Settings, actions: Rad
                                     Tab.STATIONS -> StationsScreen(engine, db, actions, compactTitle = panelLayout)
                                     Tab.PLAYING -> NowPlayingScreen(engine, db, actions, chipOnLeft = right, taOn = settings.trafficAnnouncements)
                                     Tab.RECENT -> RecentScreen(engine, db, actions, compactTitle = panelLayout)
-                                    Tab.SETTINGS -> SettingsScreen(settings, db, actions, compactTitle = panelLayout, logoStatus = logoStatus)
+                                    Tab.SETTINGS -> SettingsScreen(settings, db, actions, compactTitle = panelLayout, logoStatus = logoStatus, panelFits = panelFits)
                                 }
                             }
                         }
@@ -183,7 +191,14 @@ fun AppShell(engine: EngineState, db: Snapshot, settings: Settings, actions: Rad
     }
     }
     }
+    }
 }
+
+private val RAIL_W = 120.dp
+private val PANEL_W = 400.dp
+private val PANEL_MIN_W = 300.dp
+/** The least the screens next to the side panel get (rail and panel taken off); less and the bar layout is used. */
+private val PANEL_CONTENT_MIN = 480.dp
 
 /**
  * A traffic (or alarm) announcement is playing instead of your station: say so, clearly, over any screen, with a big
@@ -249,8 +264,11 @@ private fun Clock(size: Int) {
 private fun Rail(tab: Tab, right: Boolean, onSelect: (Tab) -> Unit) {
     val c = LocalDabColors.current
     val night = LocalNight.current
-    Box(Modifier.width(120.dp).fillMaxHeight()) {
-        Column(Modifier.fillMaxSize().padding(top = 20.dp), horizontalAlignment = Alignment.CenterHorizontally,
+    BoxWithConstraints(Modifier.width(RAIL_W).fillMaxHeight()) {
+        // every tab always fits: 92 dp each where there's room (the Dudu3), smaller on a shorter screen (a 1024×600 unit
+        // needs 64). The column scrolls should even that not do, so no tab is ever out of reach.
+        val item = ((maxHeight - RAIL_FIXED) / Tab.entries.size).coerceIn(RAIL_ITEM_MIN, RAIL_ITEM)
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 20.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Clock(24)
             Spacer(Modifier.height(12.dp))
@@ -259,13 +277,13 @@ private fun Rail(tab: Tab, right: Boolean, onSelect: (Tab) -> Unit) {
                 // tab colours in both themes (owner, 2026-09-28); by day a bit darker, so amber and green read on white
                 val tint = when { active -> Accent.onAccent; night -> t.color.copy(alpha = 0.7f); else -> lerp(t.color, Color.Black, 0.22f) }
                 Box(
-                    Modifier.size(92.dp)
+                    Modifier.size(item)
                         .then(if (active) Modifier.shadow(18.dp, RoundedCornerShape(14.dp), ambientColor = t.color, spotColor = t.color) else Modifier)
                         .clip(RoundedCornerShape(14.dp)).background(if (active) t.color else Color.Transparent)
                         .pressable({ onSelect(t) }),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(t.icon, contentDescription = t.label, tint = tint, modifier = Modifier.size(42.dp))
+                    Icon(t.icon, contentDescription = t.label, tint = tint, modifier = Modifier.size(item * 42 / 92))
                 }
             }
         }
@@ -275,6 +293,11 @@ private fun Rail(tab: Tab, right: Boolean, onSelect: (Tab) -> Unit) {
         }
     }
 }
+
+private val RAIL_ITEM = 92.dp
+private val RAIL_ITEM_MIN = 56.dp
+/** The rail without its tabs: top padding, clock, spacer, the gaps between them all, a bottom margin. */
+private val RAIL_FIXED = 20.dp + 32.dp + 12.dp + 14.dp * (Tab.entries.size + 1) + 12.dp
 
 /**
  * What the player says while the signal is gone. During a following round it doesn't name channels: failed tunes
@@ -337,17 +360,25 @@ private fun MiniPlayer(e: EngineState, a: RadioActions, open: () -> Unit) {
     }
 }
 
-/** 1b docked player panel: 400dp, panel gradient, 4:3 artwork, station, "Artist – Title", controls (play 112). */
+/**
+ * 1b docked player panel: 400dp, panel gradient, 4:3 artwork, station, "Artist – Title", controls (play 112). Narrower
+ * on a narrow screen, and the artwork smaller on a short one, so the controls always fit below it.
+ */
 @Composable
-private fun PlayerPanel(e: EngineState, db: Snapshot, a: RadioActions, open: () -> Unit) {
+private fun PlayerPanel(e: EngineState, db: Snapshot, a: RadioActions, width: Dp, open: () -> Unit) {
     val c = LocalDabColors.current
     val lines = nowLines(e)
-    Column(
-        Modifier.width(400.dp).fillMaxHeight()
+    BoxWithConstraints(
+        Modifier.width(width).fillMaxHeight()
             .background(Brush.linearGradient(listOf(c.panelFrom, c.panelMid, c.panelTo), start = Offset(0f, 0f), end = Offset(300f, 900f)))
             .padding(28.dp),
     ) {
-        Box(Modifier.pressable(open)) { Artwork(e.slide, e.current?.label ?: "", e.current?.key, 344.dp, 258.dp) }
+    // the design's 344×258, or what's left above the text and controls (~300 dp of the design's 580)
+    val artW = minOf(maxWidth, 344.dp, (maxHeight - PANEL_BELOW_ART) * 4 / 3).coerceAtLeast(96.dp)
+    val side = minOf(88.dp, maxWidth * 0.3f)
+    val play = minOf(112.dp, maxWidth * 0.38f)
+    Column(Modifier.fillMaxSize()) {
+        Box(Modifier.pressable(open)) { Artwork(e.slide, e.current?.label ?: "", e.current?.key, artW, artW * 3 / 4) }
         Spacer(Modifier.height(24.dp))
         if (e.current != null && e.playing) SignalBars(e.signalBars, 16.dp)
         Text(lines.title, color = c.text, fontSize = 30.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -358,12 +389,16 @@ private fun PlayerPanel(e: EngineState, db: Snapshot, a: RadioActions, open: () 
         }
         Spacer(Modifier.weight(1f))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            SquareButton(PhosphorIcons.Fill.SkipBack, "Previous", 88.dp, { a.skip(-1) }, background = c.bg.copy(alpha = 0.5f), radius = 16.dp)
-            PlayButton(e.playing, 112.dp, a.togglePlay, busy = e.tuning)
-            SquareButton(PhosphorIcons.Fill.SkipForward, "Next", 88.dp, { a.skip(+1) }, background = c.bg.copy(alpha = 0.5f), radius = 16.dp)
+            SquareButton(PhosphorIcons.Fill.SkipBack, "Previous", side, { a.skip(-1) }, background = c.bg.copy(alpha = 0.5f), radius = 16.dp)
+            PlayButton(e.playing, play, a.togglePlay, busy = e.tuning)
+            SquareButton(PhosphorIcons.Fill.SkipForward, "Next", side, { a.skip(+1) }, background = c.bg.copy(alpha = 0.5f), radius = 16.dp)
         }
     }
+    }
 }
+
+/** Below the panel's artwork: the gap, signal, station (30 sp), two lines of "Artist – Title" (22 sp), the controls. */
+private val PANEL_BELOW_ART = 24.dp + 16.dp + 8.dp + 40.dp + 6.dp + 60.dp + 24.dp + 112.dp
 
 /**
  * Artwork frame (4:3 for DAB slides, 320×240 native): the current slide, else the station logo, cross-faded over 300ms.
