@@ -65,8 +65,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.adamglin.PhosphorIcons
@@ -265,13 +263,18 @@ private fun Rail(tab: Tab, right: Boolean, onSelect: (Tab) -> Unit) {
     val c = LocalDabColors.current
     val night = LocalNight.current
     BoxWithConstraints(Modifier.width(RAIL_W).fillMaxHeight()) {
-        // every tab always fits: 92 dp each where there's room (the Dudu3), smaller on a shorter screen (a 1024×600 unit
-        // needs 64). The column scrolls should even that not do, so no tab is ever out of reach.
-        val item = ((maxHeight - RAIL_FIXED) / Tab.entries.size).coerceIn(RAIL_ITEM_MIN, RAIL_ITEM)
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 20.dp), horizontalAlignment = Alignment.CenterHorizontally,
+        // every tab always fits, no scrolling: 92 dp each where there's room (the Dudu3), smaller on a shorter screen
+        // (a 1024×600 unit: 64). Where they'd get smaller than RAIL_ITEM_MIN, the clock makes room for them.
+        val n = Tab.entries.size
+        val withClock = (maxHeight - RAIL_FIXED) / n
+        val showClock = withClock >= RAIL_ITEM_MIN
+        val item = (if (showClock) withClock else (maxHeight - RAIL_FIXED_NO_CLOCK) / n).coerceIn(RAIL_ITEM_FLOOR, RAIL_ITEM)
+        Column(Modifier.fillMaxSize().padding(top = 20.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Clock(24)
-            Spacer(Modifier.height(12.dp))
+            if (showClock) {
+                Clock(24)
+                Spacer(Modifier.height(12.dp))
+            }
             for (t in Tab.entries) {
                 val active = t == tab
                 // tab colours in both themes (owner, 2026-09-28); by day a bit darker, so amber and green read on white
@@ -296,8 +299,11 @@ private fun Rail(tab: Tab, right: Boolean, onSelect: (Tab) -> Unit) {
 
 private val RAIL_ITEM = 92.dp
 private val RAIL_ITEM_MIN = 56.dp
+/** Only so a tab never gets absurd in a tiny window (split screen); the rail never scrolls. */
+private val RAIL_ITEM_FLOOR = 24.dp
 /** The rail without its tabs: top padding, clock, spacer, the gaps between them all, a bottom margin. */
 private val RAIL_FIXED = 20.dp + 32.dp + 12.dp + 14.dp * (Tab.entries.size + 1) + 12.dp
+private val RAIL_FIXED_NO_CLOCK = 20.dp + 14.dp * (Tab.entries.size - 1) + 12.dp
 
 /**
  * What the player says while the signal is gone. During a following round it doesn't name channels: failed tunes

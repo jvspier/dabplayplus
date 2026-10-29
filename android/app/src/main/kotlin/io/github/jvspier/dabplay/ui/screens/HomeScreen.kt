@@ -238,16 +238,18 @@ private fun Modifier.tileBackground(playing: Boolean): Modifier {
 private fun GridTile(st: Station, isCurrent: Boolean, audio: Boolean, h: Dp, onPlay: () -> Unit, onHeart: () -> Unit) {
     val c = LocalDabColors.current
     val short = h < 184.dp                                    // 18 + logo 80 + 8 + two lines of 30 + 18
+    val tiny = h < 114.dp                                     // not even a 40 dp logo above one line (split screen): name only
     val logo = when { short -> (h - 74.dp).coerceIn(40.dp, 80.dp); h > 220.dp -> 104.dp; else -> 80.dp }
-    Box(Modifier.fillMaxWidth().height(h).tileBackground(isCurrent).pressable(onPlay).padding(18.dp)) {
-        StationLogo(st.label, st.key, logo)
+    Box(Modifier.fillMaxWidth().height(h).tileBackground(isCurrent).pressable(onPlay).padding(if (tiny) 12.dp else 18.dp)) {
+        if (!tiny) StationLogo(st.label, st.key, logo)
         // the heart gets a 64 dp touch target, drawn where the 30 dp icon was (17 dp of it reaching into the padding)
         Row(Modifier.align(Alignment.TopEnd).offset(x = 17.dp, y = (-17).dp), verticalAlignment = Alignment.CenterVertically) {
             if (isCurrent) Waveform(audio, 26.dp)             // the heart box's own margin is the gap
             Box(Modifier.size(64.dp).pressable(onHeart), contentAlignment = Alignment.Center) { HeartIcon(true, 30.dp) }
         }
         Text(st.label, color = if (isCurrent) c.liveSub else c.text, fontSize = if (short) 22.sp else 26.sp, fontWeight = FontWeight.Medium,
-            maxLines = if (short) 1 else 2, overflow = TextOverflow.Ellipsis, lineHeight = 30.sp, modifier = Modifier.align(Alignment.BottomStart))
+            maxLines = if (short) 1 else 2, overflow = TextOverflow.Ellipsis, lineHeight = 30.sp,
+            modifier = Modifier.align(if (tiny) Alignment.CenterStart else Alignment.BottomStart))
     }
 }
 
