@@ -44,14 +44,15 @@ account, tap "Become a tester" and install it from Play. No dongle needed: witho
 
 ## Hardware
 
-- **Android 8 (API 26) and up**, landscape. Designed on 1280×720, scales to other sizes.
+- **Android 8 (API 26) and up**, landscape. Designed on a 1280×720 head unit; also fits phones in landscape, smaller
+  head units (1024×600) and larger screens.
 - **A USB DAB+ dongle** from the list below.
 
 ### Supported dongles
 
 | Dongle | USB ID | Status |
 |---|---|---|
-| wRadio C100 / DTR-100 / "DAB+ Receiver for Android Navigation" (single antenna), sold under many brands; also confirmed by a user: CAMECHO | `16c0:05dc` | **Tested** |
+| wRadio C100 / DTR-100 / "DAB+ Receiver for Android Navigation" (single antenna), sold under many brands. Confirmed by users: CAMECHO, and sticks that name themselves `wshtyr@126.com` or `dabusb@126.co` (the last one plays since 1.3.6) | `16c0:05dc` | **Tested** |
 | C100 "Dual Antenna" (YHX) | `16c0:05dc`, same | **Untested** ([protocol](docs/protocol-c100-highlevel.md)) |
 | Si4684 module: Eonon A503, XFA-DAB220 | `1a86:5537` | **Untested** ([protocol](docs/protocol-si4684.md)). The module decodes by itself: no traffic announcements, and service following is the module's own |
 | Siano SMS2160 "Rhine800" / Denver TDMB | `187f:0800`, `187f:0700`, `187f:0802` | **Untested** ([protocol](docs/protocol-siano.md)) |
@@ -75,6 +76,11 @@ switching, text, slides, logos, reception loss and recovery, dongle dropouts. Th
 Not yet verified on air: MP2 (the Netherlands has no MP2 stations; tested against reference files), a real traffic
 announcement switch, and following a station to another multiplex while driving (both are covered by tests against
 a simulated tuner). Other dongles: see the table above.
+
+## Roadmap
+
+- **RTL-SDR sticks** (RTL2832U): these don't decode DAB themselves, so the app would have to demodulate the signal on
+  the head unit. A big project of its own, planned for later ([docs/dongles.md](docs/dongles.md)).
 
 ## Building
 

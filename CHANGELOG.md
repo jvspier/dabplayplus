@@ -4,6 +4,17 @@ What changed in each version of DABplay+, newest first. Each version's APK is on
 [release page](https://github.com/jvspier/dabplayplus/releases); every version installs over the previous one and keeps
 your stations, favourites and settings.
 
+## [1.4.0] - 2026-10-29
+
+### New
+- **Phones and other screen sizes**: DABplay+ now fits screens other than the 1280×720 head unit it was designed on.
+  On a phone in landscape it is drawn a bit smaller, on large screens a bit bigger, and on smaller head units
+  (1024×600, or 1280×720 at a higher density) the tabs, tiles and side panel adjust to the space. Before, the bottom
+  tabs, Settings among them, could fall off the screen.
+
+### Changed
+- On a screen too narrow for the side panel, the panel layout shows the player bar instead; Settings → Layout says so.
+
 ## [1.3.6] - 2026-10-27
 
 ### Fixed
