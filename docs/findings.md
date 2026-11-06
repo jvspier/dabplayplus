@@ -36,6 +36,13 @@ this file as work progresses.
     what was found) [verified, API 34 emulator online: retry of 20 → 19 not found + 1 no answer; refresh of 67 kept
     all 47 logos]; an unanswered lookup is no longer a 3-day "not found" [verified: unit tests, and live: "YOURSAFE: no
     answer" became "no usable logo" on the next pass]; the Now playing tab is a play triangle (both themes checked).
+  - 2026-11-06, Start with the car after a sleep, second try. The 1.3.4 fix waited for SCREEN_ON, but the Dudu3 sends
+    no SCREEN_OFF/ON at all: the 2026-10-27 log (1.3.5) has a media-key pause at ACC off (08:49) and then nothing all
+    day [verified, log]. Now a 3 s Handler tick (uptime-based: stops in deep sleep, wakes nothing) compares
+    elapsedRealtime − uptimeMillis; a jump of ≥ 10 s plus 3 s still awake opens the app and resumes. [verified,
+    emulator] with the threshold at 0: the app came back from the Home screen 3 s after each tick (BAL allowed by
+    SYSTEM_ALERT_WINDOW); with the real threshold it stays quiet. On the Dudu3 [not yet tested]. The owner's 03:00
+    start on 10-24 was likely the car waking to charge (scheduled from ~01:00).
   - 2026-10-29, other screen sizes (a Reddit user on a Pixel: Settings unreachable). Every size was fixed for the
     1280×720 dp Dudu3; the rail alone needs ~610 dp of height (clock + five 92 dp tabs), so below that the last tabs
     fell off (a phone in landscape is ~411 dp tall, a 1024×600 unit 600) [verified, emulator at 2400×1080/420 dpi].
