@@ -121,6 +121,8 @@ class RadioActions(
     val scan: () -> Unit,
     val clearRecents: () -> List<Recent>,
     val restoreRecents: (List<Recent>) -> Unit,
+    /** Settings → Clear station list; a new scan starts by itself when the dongle is there. */
+    val clearStations: (keepFavourites: Boolean) -> Unit = {},
     val updateSettings: ((Settings) -> Settings) -> Unit,
     val skipAnnouncement: () -> Unit = {},
     val retryLogos: () -> Unit = {},

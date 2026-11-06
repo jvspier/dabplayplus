@@ -1,6 +1,10 @@
 package io.github.jvspier.dabplay.ui.screens
 
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.adamglin.phosphoricons.fill.Trash
 import com.adamglin.phosphoricons.fill.CornersOut
 import com.adamglin.phosphoricons.fill.Lifebuoy
 import androidx.activity.result.contract.ActivityResultContracts
@@ -173,6 +177,16 @@ private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Bo
                 if (s.trafficAnnouncements) "On · switches to traffic news on the same multiplex" else "Off · alarm announcements still come through") {
                 DabSwitch(s.trafficAnnouncements) { v -> a.updateSettings { it.copy(trafficAnnouncements = v) } }
             }
+            // stations from a trip elsewhere pile up (a scan keeps a missed multiplex for three scans): start clean
+            var confirmClear by remember { mutableStateOf(false) }
+            val n = db.stations.size
+            SettingRow(PhosphorIcons.Fill.Trash, Accent.pink, tile, "Clear station list",
+                if (n == 0) "No stations stored" else "$n stations · for a fresh scan") {
+                ActionButton("Clear…", n > 0) { confirmClear = true }
+            }
+            if (confirmClear) ClearStationsDialog(n, db.favourites.isNotEmpty(), onDismiss = { confirmClear = false }) { keep ->
+                confirmClear = false; a.clearStations(keep)
+            }
             Section("Starting")
             // Android 10+ only lets an app open itself at start-up with "Display over other apps" allowed
             val ctx = LocalContext.current
@@ -220,6 +234,31 @@ private fun SettingsList(s: Settings, db: Snapshot, a: RadioActions, compact: Bo
                 }
             }
             VersionLine()
+        }
+    }
+}
+
+/**
+ * Clear station list?, with the choice to keep the favourites (the default: they come back as soon as a scan finds
+ * them) or to start from nothing. Big buttons, nothing happens by a tap next to the box.
+ */
+@Composable
+private fun ClearStationsDialog(count: Int, hasFavourites: Boolean, onDismiss: () -> Unit, onClear: (keepFavourites: Boolean) -> Unit) {
+    val c = LocalDabColors.current
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Column(Modifier.padding(horizontal = 24.dp).widthIn(max = 720.dp).clip(RoundedCornerShape(20.dp)).background(c.surface).padding(28.dp)) {
+            Text("Clear the station list?", color = c.text, fontSize = 28.sp, fontWeight = FontWeight.Medium)
+            Text("All $count stations are removed, then DABplay+ scans again, so only the stations you can receive here come back.",
+                color = c.neutral400, fontSize = 19.sp, modifier = Modifier.padding(top = 12.dp))
+            Row(Modifier.fillMaxWidth().padding(top = 28.dp), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
+                ActionButton("Cancel", true, onDismiss)
+                if (hasFavourites) ActionButton("Clear favorites too", true) { onClear(false) }
+                Box(Modifier.height(64.dp).clip(RoundedCornerShape(12.dp)).background(Accent.amber).pressable({ onClear(true) })
+                    .padding(horizontal = 20.dp), contentAlignment = Alignment.Center) {
+                    Text(if (hasFavourites) "Clear, keep favorites" else "Clear", color = ON_AMBER, fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
+                        maxLines = 1)
+                }
+            }
         }
     }
 }

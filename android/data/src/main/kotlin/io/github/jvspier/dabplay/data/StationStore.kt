@@ -107,6 +107,15 @@ class StationStore(
         change { it.copy(alternatives = it.alternatives + found) }
     }
 
+    /**
+     * Settings → Clear station list: forget every scanned ensemble (and what was learned about them), for a clean rescan
+     * after stations from somewhere else piled up (a scan keeps a missed multiplex for [DROP_AFTER_MISSES] scans).
+     * Recents and the last station stay: they show and play again as soon as a rescan finds them.
+     */
+    fun clearStations(keepFavourites: Boolean) = change { s ->
+        s.copy(ensembles = emptyList(), alternatives = emptyMap(), favourites = if (keepFavourites) s.favourites else emptyList())
+    }
+
     fun clearRecents(): List<Recent> = synchronized(lock) { _state.value.recents.also { change { s -> s.copy(recents = emptyList()) } } }
     /** Undo of [clearRecents]: merged, so stations played since the clear stay (newest first). */
     fun restoreRecents(r: List<Recent>) = change { s ->

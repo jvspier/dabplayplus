@@ -49,6 +49,23 @@ class StationStoreTest {
         assertEquals(listOf(svc.key), s.state.value.recents.map { it.key })
     }
 
+    /** Settings → Clear station list: the stations go, favourites only when asked; it's on disk straight away. */
+    @Test fun clearingTheStationListKeepsFavouritesUnlessAskedAndRecentsComeBackWithARescan() {
+        val s = StationStore(file)
+        s.applyScan(listOf(ens), setOf("11C")); s.toggleFavourite(svc.key); s.played(svc.key)
+        s.learnAlternatives(mapOf(svc.key to listOf(AltFreq(0x8009, 227360))))
+        s.clearStations(keepFavourites = true); s.flush()
+        StationStore(file).state.value.let { r ->
+            assertTrue(r.ensembles.isEmpty() && r.stations.isEmpty() && r.alternatives.isEmpty())
+            assertEquals(listOf(svc.key), r.favourites)
+        }
+        s.applyScan(listOf(ens), setOf("11C"))                    // the rescan finds it again
+        assertEquals(listOf(svc.key), s.state.value.favouriteStations.map { it.key })
+        assertEquals(listOf(svc.key), s.state.value.recents.map { it.key })
+        s.clearStations(keepFavourites = false)
+        assertTrue(s.state.value.favourites.isEmpty() && s.state.value.stations.isEmpty())
+    }
+
     @Test fun moveByKeySkipsFavouritesNotShown() {
         val s = StationStore(file)
         val k = (1..4).map { ServiceKey(0xE3, 0x8000L + it) }
