@@ -4,6 +4,17 @@ What changed in each version of DABplay+, newest first. Each version's APK is on
 [release page](https://github.com/jvspier/dabplayplus/releases); every version installs over the previous one and keeps
 your stations, favourites and settings.
 
+## [1.4.1] - 2026-11-06
+
+### New
+- **Settings → Clear station list**: removes all stations, then scans again, so only the stations you can receive
+  where you are come back. You choose whether to keep your favorites (they return as soon as the scan finds them).
+
+### Fixed
+- Start with the car now also works on head units that sleep when you switch off the car and don't tell apps when
+  they wake up (the Dudu3 does this). DABplay+ notices the sleep itself and opens when the unit is awake again, but not
+  when it only wakes for a moment, like a car starting to charge.
+
 ## [1.4.0] - 2026-10-29
 
 ### New
